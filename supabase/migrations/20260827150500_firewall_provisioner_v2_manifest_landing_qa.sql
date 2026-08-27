@@ -23,6 +23,7 @@ create table if not exists public.firewall_campaign_landings (
   waf_rule_id text,
   turnstile_sitekey text,
   turnstile_secret_secret_id uuid,
+  qa_token_secret_id uuid,
   gate_id uuid,
   gate_public_key uuid,
   status text not null default 'configuring' check (status in ('configuring','blocked','failed','ready','disabled')),
