@@ -1,3 +1,4 @@
+// CloudSales install route marker: install=ios | install=android | install=desktop
 (() => {
   'use strict';
 
