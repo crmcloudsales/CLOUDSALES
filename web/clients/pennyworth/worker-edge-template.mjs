@@ -2,6 +2,9 @@ const HTML=__HTML_JSON__;
 const GATE_KEY="69a3dc7f-d733-41b4-aec5-08d7ca521d81";
 const ORIGIN="https://pennyworth.cloudsales.app/";
 const INTAKE="https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/lead-intake";
+const PUBLIC_DATA="https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/public-landing-data";
+const INVENTORY_SCRIPT=`<script>(()=>{'use strict';const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));const money=(v,c)=>{const n=Number(v);if(!Number.isFinite(n))return'';try{return new Intl.NumberFormat('es-MX',{style:'currency',currency:c||'MXN',maximumFractionDigits:0}).format(n)}catch{return n.toLocaleString('es-MX')+' '+(c||'')}};fetch('${PUBLIC_DATA}?hostname='+encodeURIComponent(location.hostname),{headers:{accept:'application/json'}}).then(r=>r.ok?r.json():null).then(d=>{if(!d?.inventory?.length)return;const sec=document.getElementById('properties'),grid=sec?.querySelector('.grid3');if(!grid)return;grid.innerHTML=d.inventory.map(i=>{const a=i.attributes||{},img=i.media?.[0]?.url||'',meta=[a.location||a.market||a.city,a.bedrooms?String(a.bedrooms)+' hab.':'',a.area_m2?String(a.area_m2)+' m²':''].filter(Boolean).join(' · ');const p1=money(i.price_min,i.currency),p2=i.price_max&&i.price_max!==i.price_min?money(i.price_max,i.currency):'';const price=p1?(p2?'Desde '+p1+' hasta '+p2:'Desde '+p1):'';return '<article class="card property">'+(img?'<img src="'+e(img)+'" alt="'+e(i.name)+'" loading="lazy">':'')+'<div class="card-pad"><h3>'+e(i.name)+'</h3>'+(meta?'<div class="meta">'+e(meta)+'</div>':'')+(price?'<div class="price">'+e(price)+'</div>':'')+(i.short_description?'<p class="muted" style="font-size:13px;line-height:1.5">'+e(i.short_description)+'</p>':'')+'<a class="btn" href="#contact" data-inventory-id="'+e(i.id)+'">Solicitar información</a></div></article>'}).join('');sec.dataset.cloudsalesInventory='live';const note=sec.querySelector('.section-head .muted');if(note)note.textContent='Inventario vigente administrado desde CloudSales. Precios y disponibilidad pueden cambiar; confirma siempre la información con un asesor.'}).catch(()=>{})})();</script>`;
+const PAGE=HTML.includes('</body>')?HTML.replace('</body>',INVENTORY_SCRIPT+'</body>'):HTML+INVENTORY_SCRIPT;
 const json=(b,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{"content-type":"application/json","cache-control":"no-store","x-content-type-options":"nosniff"}});
 async function sha(v){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return[...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 async function hmac(secret,v){const k=await crypto.subtle.importKey("raw",new TextEncoder().encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);const s=await crypto.subtle.sign("HMAC",k,new TextEncoder().encode(v));return[...new Uint8Array(s)].map(x=>x.toString(16).padStart(2,"0")).join("")}
@@ -9,13 +12,16 @@ async function same(a,b){if(!a||!b||a.length!==b.length)return false;let r=0;for
 function validEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)}
 export default{async fetch(req,env){
  const u=new URL(req.url);
- if(req.method==="GET"&&u.pathname==="/health")return json({ok:true,service:"pennyworth-lead-gateway",version:"edge-1",challenge:"pow"});
+ if(req.method==="GET"&&u.pathname==="/health")return json({ok:true,service:"pennyworth-lead-gateway",version:"edge-2",challenge:"pow",inventory:"cloudsales"});
+ if(req.method==="GET"&&u.pathname==="/inventory.json"){
+   const r=await fetch(`${PUBLIC_DATA}?hostname=${encodeURIComponent(u.hostname)}`,{headers:{accept:"application/json"}});return new Response(await r.text(),{status:r.status,headers:{"content-type":"application/json;charset=utf-8","cache-control":"public,max-age=60","x-content-type-options":"nosniff"}})
+ }
  if(req.method==="GET"&&u.pathname==="/challenge"){
    const id=String(u.searchParams.get("id")||"").slice(0,180);if(!id)return json({error:"id_required"},400);
    const nonce=crypto.randomUUID(),ts=Date.now(),sig=await hmac(env.CHALLENGE_SECRET,`${id}.${nonce}.${ts}`);
    return json({nonce,ts,sig,prefix:"000"});
  }
- if(req.method==="GET")return new Response(HTML,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"public,max-age=120","x-frame-options":"DENY","x-content-type-options":"nosniff","referrer-policy":"strict-origin-when-cross-origin","permissions-policy":"camera=(), microphone=(), geolocation=()"}});
+ if(req.method==="GET")return new Response(PAGE,{headers:{"content-type":"text/html; charset=utf-8","cache-control":"public,max-age=120","x-frame-options":"DENY","x-content-type-options":"nosniff","referrer-policy":"strict-origin-when-cross-origin","permissions-policy":"camera=(), microphone=(), geolocation=()"}});
  if(req.method!=="POST"||u.pathname!=="/lead")return json({error:"not_found"},404);
  let b;try{b=await req.json()}catch{return json({message:"Solicitud inválida."},400)}
  const id=String(b.idempotency_key||"").slice(0,180),ch=b.challenge||{},nonce=String(ch.nonce||""),sig=String(ch.sig||""),ts=Number(ch.ts||0),n=Number(ch.n);if(!id||!nonce||!sig||!Number.isFinite(ts)||!Number.isFinite(n))return json({message:"No pudimos validar la solicitud."},422);
