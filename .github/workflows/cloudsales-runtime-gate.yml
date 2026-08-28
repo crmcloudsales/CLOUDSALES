@@ -1,0 +1,85 @@
+name: CloudSales Runtime Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**/*.js'
+      - 'web/**/*.mjs'
+      - '.github/workflows/cloudsales-runtime-gate.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'web/**/*.js'
+      - 'web/**/*.mjs'
+      - '.github/workflows/cloudsales-runtime-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check CloudSales browser and Worker syntax
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            node --check "$file"
+          done < <(find web -type f \( -name '*.js' -o -name '*.mjs' \) -print0)
+
+      - name: Build runtime freeze and polling audit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node <<'NODE'
+          const fs=require('fs'),path=require('path');
+          const observers=[],intervals=[],fast=[];
+          function walk(dir){
+            for(const e of fs.readdirSync(dir,{withFileTypes:true})){
+              const p=path.join(dir,e.name);
+              if(e.isDirectory())walk(p);
+              else if(e.isFile()&&/\.(?:js|mjs)$/.test(p)){
+                const s=fs.readFileSync(p,'utf8');
+                const direct=/\.observe\s*\(\s*(?:document\.body|document\.documentElement)\s*,\s*\{[^}]{0,1200}?childList\s*:\s*true/gs;
+                const fallback=/\.observe\s*\(\s*[^,;]{0,220}\|\|\s*(?:document\.body|document\.documentElement)\s*,\s*\{[^}]{0,1200}?childList\s*:\s*true/gs;
+                if(direct.test(s)||fallback.test(s))observers.push(p);
+                const re=/setInterval\s*\([\s\S]{0,700}?,\s*(\d{1,7})\s*\)/g;
+                let m;while((m=re.exec(s))){const ms=Number(m[1]);const line=s.slice(0,m.index).split(/\n/).length;intervals.push(`${p}:${line}: ${ms}ms`);if(ms<3000)fast.push(`${p}:${line}: ${ms}ms`)}
+              }
+            }
+          }
+          walk('web');
+          fs.writeFileSync('cloudsales-global-observers.txt',observers.join('\n')+(observers.length?'\n':''));
+          fs.writeFileSync('cloudsales-intervals.txt',intervals.join('\n')+(intervals.length?'\n':''));
+          fs.writeFileSync('cloudsales-fast-polling.txt',fast.join('\n')+(fast.length?'\n':''));
+          for(const p of observers)console.log('Unsafe global childList MutationObserver:',p);
+          for(const p of fast)console.log('High-frequency setInterval:',p);
+          NODE
+
+      - name: Upload CloudSales runtime audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudsales-runtime-audit
+          path: |
+            cloudsales-global-observers.txt
+            cloudsales-intervals.txt
+            cloudsales-fast-polling.txt
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Reject global DOM observers and aggressive polling
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test ! -s cloudsales-global-observers.txt
+          test ! -s cloudsales-fast-polling.txt
