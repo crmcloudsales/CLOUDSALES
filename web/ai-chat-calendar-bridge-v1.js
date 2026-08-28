@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const BASE='https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/';
-  let installed=false,busy=false;
+  let installed=false,busy=false,observer=null,attachTries=0;
 
   async function universalSnapshot(){
     if(typeof session==='undefined'||!session?.access_token||typeof currentOrg==='undefined'||!currentOrg?.id)throw new Error('session_required');
@@ -33,7 +33,18 @@
     const b=document.createElement('button');b.id='a2schedule';b.className='a2btn';b.textContent='◫ Agendar';b.title='Agendar cita con este contacto';b.onclick=scheduleFromChat;actions.prepend(b);installed=true;return true;
   }
 
-  const observer=new MutationObserver(()=>{if(!installed)install()});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{observer.observe(document.body,{childList:true,subtree:true});install()},{once:true});
-  else{observer.observe(document.body,{childList:true,subtree:true});install()}
+  function attach(){
+    if(installed||install()){observer?.disconnect();observer=null;return;}
+    const root=document.getElementById('aiChatV2');
+    if(root){
+      observer?.disconnect();
+      observer=new MutationObserver(()=>{if(!installed&&install()){observer?.disconnect();observer=null}});
+      observer.observe(root,{childList:true,subtree:true});
+      return;
+    }
+    if(attachTries++<20)setTimeout(attach,250);
+  }
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attach,{once:true});
+  else attach();
 })();
