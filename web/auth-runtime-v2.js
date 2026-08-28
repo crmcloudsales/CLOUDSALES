@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '2026.08.28.16';
+  const VERSION = '2026.08.28.19';
   let resendTimer = null;
 
   function node(id) { return document.getElementById(id); }
@@ -29,18 +29,18 @@
   }
 
   function startCooldown(seconds = 40) {
-    clearInterval(resendTimer);
+    clearTimeout(resendTimer);
     let remaining = Math.max(1, Number(seconds || 40));
     const update = () => {
       const button = node('resendConfirmation');
-      if (!button) { clearInterval(resendTimer); return; }
+      if (!button) { resendTimer = null; return; }
       button.disabled = remaining > 0;
       button.textContent = remaining > 0 ? `Reenviar en ${remaining}s` : 'Reenviar correo';
+      if (remaining <= 0) { resendTimer = null; return; }
       remaining -= 1;
-      if (remaining < 0) clearInterval(resendTimer);
+      resendTimer = setTimeout(update, 1000);
     };
     update();
-    resendTimer = setInterval(update, 1000);
   }
 
   async function resend() {
@@ -146,7 +146,8 @@
     };
 
     [node('tabIn'), node('tabUp')].forEach(tab => tab?.addEventListener('click', () => {
-      clearInterval(resendTimer);
+      clearTimeout(resendTimer);
+      resendTimer = null;
       const btn = node('authBtn');
       if (btn) btn.disabled = false;
       message('');
@@ -157,8 +158,10 @@
   }
 
   let tries = 0;
-  const timer = setInterval(() => {
+  function attemptBind() {
     tries += 1;
-    if (bind() || tries > 20) clearInterval(timer);
-  }, 100);
+    if (bind() || tries > 20) return;
+    setTimeout(attemptBind, 100);
+  }
+  attemptBind();
 })();
