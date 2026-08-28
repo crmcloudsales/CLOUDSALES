@@ -3,8 +3,6 @@
 
   const targets = new Set(['ios', 'android', 'desktop']);
   const target = new URLSearchParams(location.search).get('install');
-  if (!targets.has(target)) return;
-
   const ICON = '/cloudsales-official-app-icon-v3.png';
   let deferredPrompt = null;
   let overlay = null;
@@ -16,6 +14,36 @@
   const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const ios = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const safariIOS = () => ios() && /WebKit/i.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(navigator.userAgent);
+
+  addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    deferredPrompt = event;
+    if (overlay?.classList.contains('visible')) render();
+  });
+
+  addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    close();
+  });
+
+  window.CloudSalesInstall = {
+    async request() {
+      if (standalone()) return { status: 'installed' };
+      if (ios()) return { status: 'ios_manual' };
+      if (!deferredPrompt) return { status: 'unavailable' };
+      const prompt = deferredPrompt;
+      deferredPrompt = null;
+      try {
+        await prompt.prompt();
+        const choice = await prompt.userChoice;
+        return { status: choice?.outcome === 'accepted' ? 'accepted' : 'dismissed' };
+      } catch {
+        return { status: 'unavailable' };
+      }
+    }
+  };
+
+  if (!targets.has(target)) return;
 
   function styles() {
     if (document.getElementById('cloudsales-install-styles')) return;
@@ -98,14 +126,6 @@
       primary.textContent = 'Instalar CloudSales';
     }
   }
-
-  addEventListener('beforeinstallprompt', event => {
-    event.preventDefault();
-    deferredPrompt = event;
-    if (overlay?.classList.contains('visible')) render();
-  });
-
-  addEventListener('appinstalled', () => close());
 
   const show = () => {
     if (standalone()) return;
