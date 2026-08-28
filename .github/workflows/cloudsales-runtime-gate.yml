@@ -6,12 +6,14 @@ on:
     paths:
       - 'web/**/*.js'
       - 'web/**/*.mjs'
+      - 'supabase/functions/**/*.ts'
       - '.github/workflows/cloudsales-runtime-gate.yml'
   pull_request:
     branches: [main]
     paths:
       - 'web/**/*.js'
       - 'web/**/*.mjs'
+      - 'supabase/functions/**/*.ts'
       - '.github/workflows/cloudsales-runtime-gate.yml'
   workflow_dispatch:
 
@@ -43,27 +45,36 @@ jobs:
           set -Eeuo pipefail
           node <<'NODE'
           const fs=require('fs'),path=require('path');
-          const observers=[],intervals=[],fast=[];
-          function walk(dir){
+          const observers=[],intervals=[],fast=[],serverIntervals=[];
+          function walk(dir,kind){
+            if(!fs.existsSync(dir))return;
             for(const e of fs.readdirSync(dir,{withFileTypes:true})){
               const p=path.join(dir,e.name);
-              if(e.isDirectory())walk(p);
-              else if(e.isFile()&&/\.(?:js|mjs)$/.test(p)){
+              if(e.isDirectory())walk(p,kind);
+              else if(e.isFile()&&(kind==='web'?/\.(?:js|mjs)$/.test(p):/\.ts$/.test(p))){
                 const s=fs.readFileSync(p,'utf8');
-                const direct=/\.observe\s*\(\s*(?:document\.body|document\.documentElement)\s*,\s*\{[^}]{0,1200}?childList\s*:\s*true/gs;
-                const fallback=/\.observe\s*\(\s*[^,;]{0,220}\|\|\s*(?:document\.body|document\.documentElement)\s*,\s*\{[^}]{0,1200}?childList\s*:\s*true/gs;
-                if(direct.test(s)||fallback.test(s))observers.push(p);
+                if(kind==='web'){
+                  const direct=/\.observe\s*\(\s*(?:document\.body|document\.documentElement)\s*,\s*\{[^}]{0,1200}?childList\s*:\s*true/gs;
+                  const fallback=/\.observe\s*\(\s*[^,;]{0,220}\|\|\s*(?:document\.body|document\.documentElement)\s*,\s*\{[^}]{0,1200}?childList\s*:\s*true/gs;
+                  if(direct.test(s)||fallback.test(s))observers.push(p);
+                }
                 const re=/setInterval\s*\([\s\S]{0,700}?,\s*(\d{1,7})\s*\)/g;
-                let m;while((m=re.exec(s))){const ms=Number(m[1]);const line=s.slice(0,m.index).split(/\n/).length;intervals.push(`${p}:${line}: ${ms}ms`);if(ms<3000)fast.push(`${p}:${line}: ${ms}ms`)}
+                let m;while((m=re.exec(s))){
+                  const ms=Number(m[1]),line=s.slice(0,m.index).split(/\n/).length,entry=`${p}:${line}: ${ms}ms`;
+                  if(kind==='web'){intervals.push(entry);if(ms<3000)fast.push(entry)}else serverIntervals.push(entry);
+                }
               }
             }
           }
-          walk('web');
+          walk('web','web');
+          walk('supabase/functions','server');
           fs.writeFileSync('cloudsales-global-observers.txt',observers.join('\n')+(observers.length?'\n':''));
           fs.writeFileSync('cloudsales-intervals.txt',intervals.join('\n')+(intervals.length?'\n':''));
           fs.writeFileSync('cloudsales-fast-polling.txt',fast.join('\n')+(fast.length?'\n':''));
+          fs.writeFileSync('cloudsales-server-intervals.txt',serverIntervals.join('\n')+(serverIntervals.length?'\n':''));
           for(const p of observers)console.log('Unsafe global childList MutationObserver:',p);
           for(const p of fast)console.log('High-frequency setInterval:',p);
+          for(const p of serverIntervals)console.log('Persistent timer in Supabase Edge Function:',p);
           NODE
 
       - name: Upload CloudSales runtime audit
@@ -74,12 +85,14 @@ jobs:
             cloudsales-global-observers.txt
             cloudsales-intervals.txt
             cloudsales-fast-polling.txt
+            cloudsales-server-intervals.txt
           if-no-files-found: error
           retention-days: 2
 
-      - name: Reject global DOM observers and aggressive polling
+      - name: Reject runtime regressions
         shell: bash
         run: |
           set -Eeuo pipefail
           test ! -s cloudsales-global-observers.txt
           test ! -s cloudsales-fast-polling.txt
+          test ! -s cloudsales-server-intervals.txt
