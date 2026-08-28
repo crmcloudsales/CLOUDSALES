@@ -1,0 +1,51 @@
+name: CloudSales PWA Installer Link
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloudsales-pwa-installer-link.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Link installer and clean product naming
+        shell: bash
+        run: |
+          python <<'PY'
+          from pathlib import Path
+
+          pwa = Path('web/pwa.html')
+          s = pwa.read_text(encoding='utf-8')
+          marker = '<title>CloudSales — Cloudy opera tu negocio</title>'
+          tag = '<script src="/install.js?v=2026082819"></script>'
+          if tag not in s:
+              if marker not in s:
+                  raise SystemExit('PWA title marker not found')
+              s = s.replace(marker, marker + tag, 1)
+              pwa.write_text(s, encoding='utf-8')
+
+          commercial = Path('web/commercial.html')
+          c = commercial.read_text(encoding='utf-8')
+          c2 = c.replace('CloudSales CRM', 'CloudSales')
+          if c2 != c:
+              commercial.write_text(c2, encoding='utf-8')
+          PY
+      - name: Commit repair
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo 'No changes needed.'
+            exit 0
+          fi
+          git config user.name 'cloudsales-bot'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web/pwa.html web/commercial.html
+          git commit -m 'fix(pwa): wire installer into CloudSales app shell'
+          git push
