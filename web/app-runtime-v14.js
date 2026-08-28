@@ -1,11 +1,12 @@
 (() => {
   'use strict';
 
-  const RUNTIME = '2026.08.28.1';
+  const RUNTIME = '2026.08.28.2';
   const FN = 'https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/';
   let ops = null;
   let loading = false;
   let initializedOrg = null;
+  let detectTimer = null;
 
   const e = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const n = (v) => Number(v || 0).toLocaleString();
@@ -221,12 +222,24 @@
     renderHomeOps(); renderInboxOps(); renderSettingsOps(); refreshVisible();
   }
 
+  function scheduleDetect(delay=80){
+    clearTimeout(detectTimer);
+    detectTimer=setTimeout(detect,delay);
+  }
+
+  function bootstrap(attempt=0){
+    if(typeof currentOrg!=='undefined'&&currentOrg?.id&&typeof session!=='undefined'&&session?.access_token){scheduleDetect(0);return;}
+    if(attempt<40)setTimeout(()=>bootstrap(attempt+1),250);
+  }
+
   function start(){
     injectStyles();
     const badge=document.createElement('div'); badge.className='csRuntimeBadge'; badge.textContent='CloudSales '+RUNTIME; document.body.appendChild(badge);
     hookNavigation();
-    setInterval(detect,1800);
-    setTimeout(detect,500);
+    document.getElementById('orgSelect')?.addEventListener('change',()=>scheduleDetect(120));
+    window.addEventListener('focus',()=>scheduleDetect(80));
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleDetect(80)});
+    bootstrap();
   }
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start,{once:true}); else start();
