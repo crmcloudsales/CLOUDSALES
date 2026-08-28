@@ -3,7 +3,7 @@
 
   const targets = new Set(['ios', 'android', 'desktop']);
   const target = new URLSearchParams(location.search).get('install');
-  const ICON = '/cloudsales-official-app-icon-v3.png';
+  const ICON = '/icon.svg?v=2026082819';
   let deferredPrompt = null;
   let overlay = null;
   let title = null;
