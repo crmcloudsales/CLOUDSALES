@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.08.28.17';
+const CACHE='cloudsales-pwa-2026.08.28.19';
 const CORE=[
   '/',
   '/manifest.webmanifest',
@@ -10,7 +10,7 @@ const CORE=[
   '/ai-chat-channels-v1.js',
   '/calendar-runtime-v1.js',
   '/ai-chat-calendar-bridge-v1.js',
-  '/cloudsales-official-app-icon-v3.png'
+  '/icon.svg'
 ];
 
 const put=async(request,response)=>{
