@@ -2,18 +2,28 @@
   'use strict';
 
   const targets = new Set(['ios', 'android', 'desktop']);
-  const target = new URLSearchParams(location.search).get('install');
+  const params = new URLSearchParams(location.search);
+  const target = params.get('install');
   const ICON = '/cloudsales-official-app-icon-v3.png';
   let deferredPrompt = null;
   let overlay = null;
   let title = null;
   let body = null;
   let primary = null;
+  let secondary = null;
   let readyTimer = null;
 
   const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const ios = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const safariIOS = () => ios() && /WebKit/i.test(navigator.userAgent) && !/CriOS|FxiOS|EdgiOS|OPiOS|DuckDuckGo/i.test(navigator.userAgent);
+
+  function clearInstallQuery() {
+    try {
+      const u = new URL(location.href);
+      u.searchParams.delete('install');
+      history.replaceState({}, '', u.pathname + (u.search ? u.search : '') + u.hash);
+    } catch {}
+  }
 
   addEventListener('beforeinstallprompt', event => {
     event.preventDefault();
@@ -23,7 +33,7 @@
 
   addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    close();
+    close(true);
   });
 
   window.CloudSalesInstall = {
@@ -49,33 +59,41 @@
     if (document.getElementById('cloudsales-install-styles')) return;
     const s = document.createElement('style');
     s.id = 'cloudsales-install-styles';
-    s.textContent = `.install-overlay{position:fixed;inset:0;z-index:9999;display:none;place-items:center;padding:22px;background:rgba(5,5,9,.94);backdrop-filter:blur(14px)}.install-overlay.visible{display:grid}.install-card{position:relative;width:min(610px,100%);border:1px solid #343443;border-radius:30px;background:linear-gradient(180deg,#15151f,#0d0d14);padding:36px 34px 32px;box-shadow:0 45px 140px #000c;text-align:center}.install-close{position:absolute;right:18px;top:18px;width:54px;height:54px;border:0;border-radius:50%;background:#20202b;color:#fff;font-size:32px;line-height:1}.install-mark{display:block;width:92px;height:92px;object-fit:contain;border-radius:22px;margin:10px auto 26px;filter:drop-shadow(0 16px 34px rgba(255,43,155,.22))}.install-card h2{font-size:clamp(34px,6vw,48px);line-height:1.05;letter-spacing:-.045em;margin:0 0 20px}.install-body{color:#aaa9b8;font-size:18px;line-height:1.55;text-align:left;max-width:500px;margin:0 auto}.install-body p{margin:0 0 12px}.install-body ol{padding-left:24px;margin:10px 0}.install-note{font-size:14px;color:#858596;margin-top:12px}.install-primary{width:100%;border:1px solid #fff;border-radius:999px;padding:17px 20px;margin-top:24px;background:linear-gradient(135deg,#ff2b9b,#bd2cff);color:#fff;font-weight:900;font-size:19px;box-shadow:0 14px 38px rgba(255,43,155,.22)}.install-primary:disabled{opacity:.65;cursor:wait}.install-open{overflow:hidden}@media(max-width:560px){.install-card{padding:32px 22px 25px;border-radius:26px}.install-card h2{font-size:36px}.install-body{font-size:16px}.install-mark{width:82px;height:82px}.install-primary{font-size:18px}}`;
+    s.textContent = `.install-overlay{position:fixed;inset:0;z-index:9999;display:none;place-items:center;padding:22px;background:rgba(5,5,9,.94);backdrop-filter:blur(14px)}.install-overlay.visible{display:grid}.install-card{position:relative;width:min(610px,100%);border:1px solid #343443;border-radius:30px;background:linear-gradient(180deg,#15151f,#0d0d14);padding:36px 34px 32px;box-shadow:0 45px 140px #000c;text-align:center}.install-close{position:absolute;right:18px;top:18px;width:54px;height:54px;border:0;border-radius:50%;background:#20202b;color:#fff;font-size:32px;line-height:1;cursor:pointer}.install-mark{display:block;width:92px;height:92px;object-fit:contain;border-radius:22px;margin:10px auto 26px;filter:drop-shadow(0 16px 34px rgba(255,43,155,.22))}.install-card h2{font-size:clamp(34px,6vw,48px);line-height:1.05;letter-spacing:-.045em;margin:0 0 20px}.install-body{color:#aaa9b8;font-size:18px;line-height:1.55;text-align:left;max-width:500px;margin:0 auto}.install-body p{margin:0 0 12px}.install-body ol{padding-left:24px;margin:10px 0}.install-note{font-size:14px;color:#858596;margin-top:12px}.install-primary,.install-secondary{width:100%;border-radius:999px;padding:17px 20px;font-weight:900;font-size:19px;cursor:pointer}.install-primary{border:1px solid #fff;margin-top:24px;background:linear-gradient(135deg,#ff2b9b,#bd2cff);color:#fff;box-shadow:0 14px 38px rgba(255,43,155,.22)}.install-primary:disabled{opacity:.65;cursor:wait}.install-secondary{border:1px solid #3a3a49;margin-top:12px;background:#171721;color:#fff}.install-open{overflow:hidden}@media(max-width:560px){.install-card{padding:32px 22px 25px;border-radius:26px}.install-card h2{font-size:36px}.install-body{font-size:16px}.install-mark{width:82px;height:82px}.install-primary,.install-secondary{font-size:18px}}`;
     document.head.appendChild(s);
   }
 
-  function close() {
+  function close(stripQuery = true) {
     clearTimeout(readyTimer);
     overlay?.classList.remove('visible');
     document.body.classList.remove('install-open');
+    if (stripQuery) clearInstallQuery();
+  }
+
+  function enterApp() {
+    close(true);
+    window.dispatchEvent(new Event('cloudsales:install-dismissed'));
   }
 
   function create() {
     styles();
     overlay = document.createElement('div');
     overlay.className = 'install-overlay';
-    overlay.innerHTML = `<section class="install-card" role="dialog" aria-modal="true" aria-labelledby="installTitle"><button class="install-close" type="button" aria-label="Cerrar">×</button><img class="install-mark" src="${ICON}" alt="CloudSales"><h2 id="installTitle"></h2><div class="install-body"></div><button class="install-primary" type="button"></button></section>`;
+    overlay.innerHTML = `<section class="install-card" role="dialog" aria-modal="true" aria-labelledby="installTitle"><button class="install-close" type="button" aria-label="Cerrar">×</button><img class="install-mark" src="${ICON}" alt="CloudSales"><h2 id="installTitle"></h2><div class="install-body"></div><button class="install-primary" type="button"></button><button class="install-secondary" type="button">Entrar a CloudSales</button></section>`;
     document.body.appendChild(overlay);
     title = overlay.querySelector('#installTitle');
     body = overlay.querySelector('.install-body');
     primary = overlay.querySelector('.install-primary');
-    overlay.querySelector('.install-close').onclick = close;
-    overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+    secondary = overlay.querySelector('.install-secondary');
+    overlay.querySelector('.install-close').onclick = enterApp;
+    overlay.addEventListener('click', e => { if (e.target === overlay) enterApp(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') enterApp(); });
     primary.onclick = install;
+    secondary.onclick = enterApp;
   }
 
   function render() {
-    if (standalone()) { close(); return; }
+    if (standalone()) { close(true); return; }
     if (!overlay) create();
     title.textContent = target === 'ios' ? 'Instala CloudSales en tu iPhone o iPad' : 'Instala CloudSales en tu dispositivo';
 
@@ -94,22 +112,23 @@
     readyTimer = setTimeout(() => {
       if (deferredPrompt || !primary) return;
       primary.disabled = false;
-      primary.textContent = 'Instalar CloudSales';
+      primary.textContent = 'Cómo instalar CloudSales';
       const hint = document.getElementById('installHint');
       if (hint) hint.textContent = target === 'android'
-        ? 'Si Chrome no muestra la instalación, abre el menú ⋮ y elige Instalar aplicación o Agregar a pantalla principal.'
-        : 'Si Chrome o Edge no muestran la instalación, usa el icono Instalar de la barra de direcciones.';
+        ? 'Chrome no ofreció la instalación automática. Toca este botón para ver la instrucción y, si hace falta, usa el menú ⋮ > Instalar aplicación.'
+        : 'Chrome o Edge no ofrecieron la instalación automática. Usa el icono Instalar de la barra de direcciones.';
     }, 1800);
   }
 
   async function install() {
-    if (standalone()) { close(); return; }
-    if (target === 'ios') { close(); return; }
+    if (standalone()) { close(true); return; }
+    if (target === 'ios') { close(false); return; }
     if (!deferredPrompt) {
       const hint = document.getElementById('installHint');
       if (hint) hint.textContent = target === 'android'
-        ? 'Abre el menú ⋮ del navegador y elige Instalar aplicación o Agregar a pantalla principal.'
-        : 'Usa el icono Instalar de Chrome o Edge.';
+        ? 'En Chrome toca ⋮ arriba a la derecha y elige “Instalar aplicación” o “Agregar a pantalla principal”. Puedes entrar a CloudSales ahora con el botón de abajo.'
+        : 'En Chrome o Edge usa el icono Instalar de la barra de direcciones. Puedes entrar a CloudSales ahora con el botón de abajo.';
+      primary.textContent = 'Instalar desde el menú del navegador';
       return;
     }
 
@@ -119,11 +138,11 @@
     try {
       await prompt.prompt();
       const choice = await prompt.userChoice;
-      if (choice?.outcome === 'accepted') close();
+      if (choice?.outcome === 'accepted') close(true);
       else { primary.disabled = false; primary.textContent = 'Instalar CloudSales'; }
     } catch {
       primary.disabled = false;
-      primary.textContent = 'Instalar CloudSales';
+      primary.textContent = 'Cómo instalar CloudSales';
     }
   }
 
