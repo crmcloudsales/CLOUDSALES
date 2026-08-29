@@ -1,7 +1,8 @@
 (() => {
   'use strict';
 
-  const VERSION = '2026.08.28.19';
+  const VERSION = '2026.08.29.20';
+  const CLAIM_KEY = 'cs_pending_claim';
   let resendTimer = null;
 
   function node(id) { return document.getElementById(id); }
@@ -10,6 +11,34 @@
     if (!el) return;
     el.className = ok ? 'ok' : 'err';
     el.innerHTML = `${text}${extra}`;
+  }
+  function captureClaim() {
+    const token = new URL(location.href).searchParams.get('claim');
+    if (token && token.length >= 32 && token.length <= 512) localStorage.setItem(CLAIM_KEY, token);
+    return token || localStorage.getItem(CLAIM_KEY) || '';
+  }
+  function clearClaim() {
+    localStorage.removeItem(CLAIM_KEY);
+    const url = new URL(location.href);
+    if (url.searchParams.has('claim')) {
+      url.searchParams.delete('claim');
+      history.replaceState(null, '', url.pathname + (url.search ? url.search : '') + url.hash);
+    }
+  }
+  async function claimPending() {
+    const token = captureClaim();
+    if (!token || typeof direct !== 'function' || typeof session === 'undefined' || !session?.access_token) return null;
+    message('Activando tu acceso al workspace…', true);
+    try {
+      const result = await direct('claim-organization', { token }, true);
+      if (result?.organization?.id) localStorage.setItem('cs_org', result.organization.id);
+      clearClaim();
+      return result;
+    } catch (err) {
+      const code = String(err?.message || '');
+      if (['claim_invalid_or_expired', 'organization_owner_already_assigned'].includes(code)) clearClaim();
+      throw err;
+    }
   }
 
   function friendly(error) {
@@ -23,7 +52,10 @@
       confirmation_delivery_failed: 'No pudimos enviar el correo de confirmación. Intenta nuevamente en unos minutos.',
       signup_unavailable: 'No se pudo completar el registro. Intenta nuevamente.',
       signin_unavailable: 'No pudimos iniciar sesión. Revisa tu email y contraseña, y confirma tu correo si la cuenta es nueva.',
-      resend_unavailable: 'No se pudo reenviar el correo ahora. Intenta nuevamente en unos minutos.'
+      resend_unavailable: 'No se pudo reenviar el correo ahora. Intenta nuevamente en unos minutos.',
+      claim_invalid_or_expired: 'Este acceso ya fue utilizado o expiró. Solicita un nuevo enlace de acceso.',
+      organization_owner_already_assigned: 'Este enlace de propietario ya no es válido porque el workspace ya tiene propietario.',
+      organization_unavailable: 'El workspace no está disponible en este momento.'
     };
     return map[code] || 'No se pudo completar la operación. Intenta nuevamente.';
   }
@@ -57,11 +89,8 @@
       message('Correo de confirmación reenviado. Revisa también Spam o Promociones.', true, ` <button id="goSigninAfterResend" class="btn small" type="button" style="margin-left:8px">Ir a Entrar</button>`);
       node('goSigninAfterResend')?.addEventListener('click', () => setMode('signin'));
     } catch (err) {
-      if (String(err?.message || '') === 'confirmation_wait') {
-        confirmationActions('La cuenta ya está creada. El correo de confirmación se solicitó recientemente.', 40);
-      } else {
-        message(friendly(err));
-      }
+      if (String(err?.message || '') === 'confirmation_wait') confirmationActions('La cuenta ya está creada. El correo de confirmación se solicitó recientemente.', 40);
+      else message(friendly(err));
     } finally {
       if (button && !button.disabled) button.textContent = 'Reenviar correo';
     }
@@ -81,9 +110,19 @@
     if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta'; }
   }
 
+  async function finishLogin(data) {
+    saveSession(data.session);
+    const claimed = await claimPending();
+    await boot();
+    if (claimed?.organization?.name) {
+      message(`Acceso activado: ${claimed.organization.name}.`, true);
+    }
+  }
+
   function bind() {
     const button = node('authBtn');
     if (!button || typeof direct !== 'function') return false;
+    captureClaim();
 
     button.onclick = async () => {
       message('');
@@ -91,7 +130,6 @@
       const email = node('email')?.value?.trim() || '';
       const password = node('password')?.value || '';
       const fullName = node('fullName')?.value?.trim() || '';
-
       if (!email) return message('Escribe tu correo.');
       if (!password) return message('Escribe tu contraseña.');
       if (currentMode === 'signup' && password.length < 8) return message('Usa una contraseña de al menos 8 caracteres.');
@@ -99,60 +137,38 @@
       button.disabled = true;
       const original = button.textContent;
       button.textContent = currentMode === 'signin' ? 'Entrando…' : 'Creando cuenta…';
-
       try {
-        const data = await direct('auth-session', {
-          action: currentMode === 'signin' ? 'sign_in' : 'sign_up',
-          email,
-          password,
-          full_name: fullName
-        }, false);
-
-        if (data.session) {
-          saveSession(data.session);
-          await boot();
-          return;
-        }
-
-        if (currentMode === 'signup' && data.message_code === 'account_exists') {
-          existingAccount();
-          return;
-        }
-
+        const data = await direct('auth-session', { action: currentMode === 'signin' ? 'sign_in' : 'sign_up', email, password, full_name: fullName }, false);
+        if (data.session) { await finishLogin(data); return; }
+        if (currentMode === 'signup' && data.message_code === 'account_exists') { existingAccount(); return; }
         if (currentMode === 'signup' && data.confirmation_required) {
           button.disabled = true;
           button.textContent = 'Cuenta creada';
-          if (data.message_code === 'confirmation_pending_wait') {
-            confirmationActions('La cuenta ya está creada y el correo de confirmación ya fue enviado. Revisa tu bandeja, Spam o Promociones.', Number(data.retry_after_seconds || 40));
-          } else if (data.message_code === 'confirmation_delivery_failed_pending') {
-            confirmationActions('La cuenta quedó creada, pero el correo no pudo enviarse. Espera un momento y toca Reenviar correo.', 40);
-          } else if (data.message_code === 'account_exists_or_confirmation_pending') {
-            confirmationActions(data.resent
-              ? 'La cuenta ya existe o está pendiente de confirmación. Reenviamos el correo; revisa tu bandeja.'
-              : 'La cuenta ya existe o está pendiente de confirmación. Revisa tu correo o reenvía la confirmación.');
-          } else {
-            confirmationActions('Cuenta creada. Revisa tu correo para confirmar y después entra a CloudSales.', 40);
-          }
+          if (data.message_code === 'confirmation_pending_wait') confirmationActions('La cuenta ya está creada y el correo de confirmación ya fue enviado. Revisa tu bandeja, Spam o Promociones.', Number(data.retry_after_seconds || 40));
+          else if (data.message_code === 'confirmation_delivery_failed_pending') confirmationActions('La cuenta quedó creada, pero el correo no pudo enviarse. Espera un momento y toca Reenviar correo.', 40);
+          else if (data.message_code === 'account_exists_or_confirmation_pending') confirmationActions(data.resent ? 'La cuenta ya existe o está pendiente de confirmación. Reenviamos el correo; revisa tu bandeja.' : 'La cuenta ya existe o está pendiente de confirmación. Revisa tu correo o reenvía la confirmación.');
+          else confirmationActions('Cuenta creada. Revisa tu correo para confirmar y después entra a CloudSales.', 40);
           return;
         }
       } catch (err) {
         message(friendly(err));
       } finally {
-        if (!button.disabled || currentMode === 'signin') {
-          button.disabled = false;
-          button.textContent = original;
-        }
+        if (!button.disabled || currentMode === 'signin') { button.disabled = false; button.textContent = original; }
       }
     };
 
     [node('tabIn'), node('tabUp')].forEach(tab => tab?.addEventListener('click', () => {
-      clearTimeout(resendTimer);
-      resendTimer = null;
-      const btn = node('authBtn');
-      if (btn) btn.disabled = false;
+      clearTimeout(resendTimer); resendTimer = null;
+      const btn = node('authBtn'); if (btn) btn.disabled = false;
       message('');
     }));
 
+    if (captureClaim() && typeof session !== 'undefined' && session?.access_token) {
+      setTimeout(async () => {
+        try { const result = await claimPending(); if (result) await boot(); }
+        catch (err) { message(friendly(err)); }
+      }, 0);
+    }
     document.documentElement.dataset.authRuntime = VERSION;
     return true;
   }
