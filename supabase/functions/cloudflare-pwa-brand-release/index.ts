@@ -112,6 +112,20 @@ function brandPage(source: string) {
   return page;
 }
 
+async function sha256b64(value: string) {
+  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  let out = "";
+  for (const n of new Uint8Array(h)) out += String.fromCharCode(n);
+  return btoa(out);
+}
+
+async function cspFor(page: string) {
+  const inline = [...page.matchAll(/<script(?![^>]+src=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
+  const hashes = await Promise.all(inline.map(sha256b64));
+  const scriptHashes = hashes.map((h) => `'sha256-${h}'`).join(" ");
+  return `default-src 'self'; script-src 'self' ${scriptHashes}; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://storage.googleapis.com; connect-src 'self' https://fkahaqprzgcimgyathqx.supabase.co; worker-src 'self' blob:; font-src 'self' data:; media-src 'self' blob: data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';`;
+}
+
 async function upload(token: string, code: string) {
   const form = new FormData();
   form.append("metadata", new Blob([JSON.stringify({ main_module: "main.mjs", compatibility_date: "2026-08-29" })], { type: "application/json" }));
@@ -123,14 +137,14 @@ async function upload(token: string, code: string) {
   return { ok: r.ok && data?.success !== false, status: r.status, errors: data?.errors || [] };
 }
 
-function worker(page: string, manifest: string, sw: string, scripts: Record<string, string>, icon: string) {
-  return `const PAGE=${JSON.stringify(page)},MANIFEST=${JSON.stringify(manifest)},SW=${JSON.stringify(sw)},SCRIPTS=${JSON.stringify(scripts)},ICON=${JSON.stringify(icon)},V=${JSON.stringify(VERSION)};\nconst H={'x-cloudsales-release':V,'x-content-type-options':'nosniff','x-frame-options':'DENY','referrer-policy':'strict-origin-when-cross-origin','permissions-policy':'camera=(),geolocation=(),payment=(self),microphone=(self)','cross-origin-resource-policy':'same-origin','cross-origin-opener-policy':'same-origin-allow-popups','origin-agent-cluster':'?1','x-permitted-cross-domain-policies':'none','x-robots-tag':'noindex, noarchive, nosnippet'};\nfunction r(b,t='text/html; charset=utf-8',c='no-store',csp=true){return new Response(b,{headers:{...H,'content-type':t,'cache-control':c,...(csp?{'content-security-policy':\"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://storage.googleapis.com; connect-src 'self' https://fkahaqprzgcimgyathqx.supabase.co; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; worker-src 'self' blob:;\"}:{})}})}\nfunction img(){const u=Uint8Array.from(atob(ICON),c=>c.charCodeAt(0));return new Response(u,{headers:{...H,'content-type':'image/png','cache-control':'public,max-age=31536000,immutable'}})}\nexport default{async fetch(req){const u=new URL(req.url),p=u.pathname;if(p==='/__version')return r(V,'text/plain','no-store',false);if(p==='/manifest.webmanifest')return r(MANIFEST,'application/manifest+json','no-cache',false);if(p==='/sw.js')return r(SW,'application/javascript; charset=utf-8','no-cache',false);if(SCRIPTS[p])return r(SCRIPTS[p],'application/javascript; charset=utf-8','no-cache',false);if(['/cloudsales-official-app-icon.png','/cloudsales-official-app-icon-v3.png','/icon-192.png','/icon-512.png','/apple-touch-icon.png','/favicon.png','/favicon.ico'].includes(p))return img();if(p==='/icon.svg'||p==='/favicon.svg')return Response.redirect(u.origin+'/icon-512.png?v='+V,301);return r(PAGE)}};`;
+function worker(page: string, manifest: string, sw: string, scripts: Record<string, string>, icon: string, csp: string) {
+  return `const PAGE=${JSON.stringify(page)},MANIFEST=${JSON.stringify(manifest)},SW=${JSON.stringify(sw)},SCRIPTS=${JSON.stringify(scripts)},ICON=${JSON.stringify(icon)},CSP=${JSON.stringify(csp)},V=${JSON.stringify(VERSION)};\nconst H={'x-cloudsales-release':V,'x-content-type-options':'nosniff','x-frame-options':'DENY','referrer-policy':'strict-origin-when-cross-origin','permissions-policy':'camera=(),geolocation=(),payment=(self),microphone=(self)','cross-origin-resource-policy':'same-origin','cross-origin-opener-policy':'same-origin-allow-popups','origin-agent-cluster':'?1','x-permitted-cross-domain-policies':'none','x-robots-tag':'noindex, noarchive, nosnippet'};\nfunction r(b,t='text/html; charset=utf-8',c='no-store',withCsp=true){return new Response(b,{headers:{...H,'content-type':t,'cache-control':c,...(withCsp?{'content-security-policy':CSP}:{})}})}\nfunction img(){const u=Uint8Array.from(atob(ICON),c=>c.charCodeAt(0));return new Response(u,{headers:{...H,'content-type':'image/png','cache-control':'public,max-age=31536000,immutable'}})}\nexport default{async fetch(req){const u=new URL(req.url),p=u.pathname;if(p==='/__version')return r(V,'text/plain','no-store',false);if(p==='/manifest.webmanifest')return r(MANIFEST,'application/manifest+json','no-cache',false);if(p==='/sw.js')return r(SW,'application/javascript; charset=utf-8','no-cache',false);if(SCRIPTS[p])return r(SCRIPTS[p],'application/javascript; charset=utf-8','no-cache',false);if(['/cloudsales-official-app-icon.png','/cloudsales-official-app-icon-v3.png','/icon-192.png','/icon-512.png','/apple-touch-icon.png','/favicon.png','/favicon.ico'].includes(p))return img();if(p==='/icon.svg'||p==='/favicon.svg')return Response.redirect(u.origin+'/icon-512.png?v='+V,301);return r(PAGE)}};`;
 }
 
 async function check(path: string) {
   const r = await fetch(`https://${HOST}${path}${path.includes("?") ? "&" : "?"}qa=${Date.now()}`, { headers: { "cache-control": "no-cache", pragma: "no-cache" } });
   const body = await r.text();
-  return { status: r.status, body, type: r.headers.get("content-type") || "", release: r.headers.get("x-cloudsales-release") };
+  return { status: r.status, body, type: r.headers.get("content-type") || "", release: r.headers.get("x-cloudsales-release"), csp: r.headers.get("content-security-policy") || "" };
 }
 
 Deno.serve(async (req) => {
@@ -149,6 +163,7 @@ Deno.serve(async (req) => {
   try {
     const pageSource = await text(`${RAW}/pwa.html`);
     const page = brandPage(pageSource);
+    const csp = await cspFor(page);
     const manifest = await text(`${RAW}/manifest.webmanifest`);
     const sw = await text(`${RAW}/sw.js`);
     const scriptPaths = ["/install.js", "/auth-runtime-v2.js", "/app-runtime-v14.js", "/ai-chat-runtime-v2.js", "/ai-chat-backfill-v1.js", "/ai-chat-channels-v1.js", "/calendar-runtime-v1.js", "/ai-chat-calendar-bridge-v1.js"];
@@ -156,7 +171,7 @@ Deno.serve(async (req) => {
     for (const p of scriptPaths) scripts[p] = await text(`${RAW}${p}`);
     const icon = await bytes(`${RAW}/assets/cloudsales-isotipo-official-512.png`);
 
-    result.upload = await upload(token, worker(page, manifest, sw, scripts, b64(icon)));
+    result.upload = await upload(token, worker(page, manifest, sw, scripts, b64(icon), csp));
     if (!result.upload.ok) throw new Error("upload_failed");
 
     const attached = await attach(token);
@@ -175,6 +190,7 @@ Deno.serve(async (req) => {
 
     const tests = {
       root: root.status === 200 && root.release === VERSION,
+      csp_inline_runtime: root.csp.includes("sha256-") && root.csp.includes("script-src 'self'"),
       direct_favicon: root.body.includes(`/favicon.png?v=${VERSION}`),
       direct_apple: root.body.includes(`/apple-touch-icon.png?v=${VERSION}`),
       branded_ui: root.body.includes(`/icon-512.png?v=${VERSION}`),
