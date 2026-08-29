@@ -48,7 +48,7 @@ jobs:
             node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$file"
           done < <(find web -type f -name '*.json' -print0)
 
-      - name: Check production branding, mobile operations and team claim invariants
+      - name: Check production branding, mobile operations, team claims and Meta controls
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -71,13 +71,18 @@ jobs:
           for(const x of ['claim-organization','cs_pending_claim','claimPending','cs_org']) if(!auth.includes(x)) throw new Error('team_claim_missing_'+x);
           const ops=fs.readFileSync('web/app-runtime-v14.js','utf8');
           for(const x of ['Operational Center','tenant-ops-api','renderMarketingOps','opportunity.move']) if(!ops.includes(x)) throw new Error('mobile_ops_missing_'+x);
+          const meta=fs.readFileSync('web/meta-runtime-v1.js','utf8');
+          for(const x of ['Meta Ads','ads.meta.accounts','ads.meta.sync','ads.meta.pause','ads.meta.resume','ads.meta.budget','ads.meta.create_campaign','presupuesto REAL']) if(!meta.includes(x)) throw new Error('meta_runtime_missing_'+x);
+          const core=fs.readFileSync('supabase/functions/cloudy-core-command/index.ts','utf8');
+          for(const x of ['ads.meta.accounts','ads.meta.account.select','ads.meta.sync','ads.meta.pause','ads.meta.resume','ads.meta.budget','ads.meta.create_campaign','service_read_secret','budget_sync_status: "confirmed"','meta_daily_budget_confirmation_failed']) if(!core.includes(x)) throw new Error('meta_adapter_missing_'+x);
+          if(!core.includes('owner_or_admin_required')) throw new Error('meta_spend_role_guard_missing');
           const claim=fs.readFileSync('supabase/functions/claim-organization/index.ts','utf8');
           for(const x of ['organization_owner_already_assigned','requestedRole','admin','operator']) if(!claim.includes(x)) throw new Error('claim_function_missing_'+x);
           const pwaRelease=fs.readFileSync('supabase/functions/cloudflare-pwa-brand-release/index.ts','utf8');
-          for(const x of ['cloudsales-pwa-v26','auth-runtime-v2.js','app-runtime-v14.js','mobile_ops_runtime_loaded','exact_logo_bytes']) if(!pwaRelease.includes(x)) throw new Error('pwa_release_missing_'+x);
+          for(const x of ['cloudsales-pwa-v27','auth-runtime-v2.js','app-runtime-v14.js','meta-runtime-v1.js','meta_runtime_loaded','exact_logo_bytes']) if(!pwaRelease.includes(x)) throw new Error('pwa_release_missing_'+x);
           const siteRelease=fs.readFileSync('supabase/functions/cloudflare-site-brand-release/index.ts','utf8');
           for(const x of ['cloudsales-site-v16','cloudsales-logo-official-v2.png','cloudsales-favicon-official-v2.png','all_commercial_routes_branded','exact_logo_bytes']) if(!siteRelease.includes(x)) throw new Error('site_release_missing_'+x);
-          console.log('CloudSales mobile operations/team claim invariants OK');
+          console.log('CloudSales mobile operations/team claim/Meta control invariants OK');
           NODE
 
       - name: Build runtime freeze and polling audit
