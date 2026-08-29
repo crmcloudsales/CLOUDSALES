@@ -72,6 +72,25 @@ jobs:
           console.log('CloudSales PWA branding/install metadata OK');
           NODE
 
+      - name: Check auth, tenant and AI authorization invariants
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const authUi=fs.readFileSync('web/auth-runtime-v2.js','utf8');
+          for(const x of ['authorize_email','signup_confirmation','signup_confirmation_resend','signupEmailNotice'])if(!authUi.includes(x))throw new Error('auth_ui_missing_'+x);
+          const auth=fs.readFileSync('supabase/functions/auth-session/index.ts','utf8');
+          for(const x of ['email_authorization_required','CLOUDCO_EMAIL_EXPLICIT_SINGLE_SEND','authorizedEmailSend','email_send_authorizations'])if(!auth.includes(x))throw new Error('auth_backend_missing_'+x);
+          const cloudy=fs.readFileSync('supabase/functions/cloudy-orchestrator/index.ts','utf8');
+          for(const x of ['VIEWER_CORE','write_capable !== true','insufficient_role','requested_role'])if(!cloudy.includes(x))throw new Error('cloudy_role_guard_missing_'+x);
+          const nvidia=fs.readFileSync('supabase/functions/nvidia-nim/index.ts','utf8');
+          for(const x of ['organization_id_required','organization_members','subscriptions','subscription_plans','usage_ledger','consume_rate_limit'])if(!nvidia.includes(x))throw new Error('nvidia_tenant_guard_missing_'+x);
+          const outbound=fs.readFileSync('supabase/functions/outbound-dispatch/index.ts','utf8');
+          if(!outbound.includes('CLOUDCO_EMAIL_DEFAULT_DENY'))throw new Error('outbound_email_kill_switch_missing');
+          console.log('CloudSales auth/tenant/AI authorization invariants OK');
+          NODE
+
       - name: Build runtime freeze and polling audit
         shell: bash
         run: |
