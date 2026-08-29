@@ -48,28 +48,33 @@ jobs:
             node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$file"
           done < <(find web -type f -name '*.json' -print0)
 
-      - name: Check official PWA branding and install metadata
+      - name: Check exact official branding and install metadata
         shell: bash
         run: |
           set -Eeuo pipefail
           node <<'NODE'
           const fs=require('fs');
+          for(const p of [
+            'web/assets/cloudsales-app-icon-official-v2.png',
+            'web/assets/cloudsales-app-icon-official-v2-192.png',
+            'web/assets/cloudsales-logo-official-v2.png'
+          ]){
+            if(!fs.existsSync(p)||fs.statSync(p).size<1000) throw new Error('missing_official_asset_'+p);
+          }
           const manifest=JSON.parse(fs.readFileSync('web/manifest.webmanifest','utf8'));
+          if(manifest.id!=='/cloudsales-app-v2') throw new Error('manifest_identity_not_rotated');
           const icons=Array.isArray(manifest.icons)?manifest.icons:[];
           const src=icons.map(x=>String(x.src||''));
-          const sizes=icons.map(x=>String(x.sizes||''));
-          if(!src.some(x=>x.includes('/icon-192.png')))throw new Error('manifest_missing_192_png');
-          if(!src.some(x=>x.includes('/icon-512.png')))throw new Error('manifest_missing_512_png');
-          if(src.some(x=>/icon\.svg/i.test(x)))throw new Error('manifest_uses_svg_launcher_icon');
-          if(!sizes.includes('192x192')||!sizes.includes('512x512'))throw new Error('manifest_missing_required_icon_sizes');
+          if(!src.some(x=>x.includes('/cloudsales-app-icon-official-v2-192.png'))) throw new Error('manifest_missing_exact_192');
+          if(!src.some(x=>x.includes('/cloudsales-app-icon-official-v2.png'))) throw new Error('manifest_missing_exact_512');
+          if(src.some(x=>/icon\.svg/i.test(x))) throw new Error('manifest_uses_legacy_svg');
           const installer=fs.readFileSync('web/install.js','utf8');
-          if(!installer.includes("const ICON = '/icon-512.png?v=2026082901'"))throw new Error('installer_not_using_official_png');
-          if(!installer.includes('beforeinstallprompt'))throw new Error('installer_missing_beforeinstallprompt');
-          const sw=fs.readFileSync('web/sw.js','utf8');
-          for(const p of ['/icon-192.png','/icon-512.png','/apple-touch-icon.png','/favicon.png'])if(!sw.includes(p))throw new Error('sw_missing_'+p);
-          const release=fs.readFileSync('supabase/functions/cloudflare-pwa-brand-release/index.ts','utf8');
-          for(const p of ['/favicon.png','/apple-touch-icon.png','/icon-512.png'])if(!release.includes(p))throw new Error('release_missing_'+p);
-          console.log('CloudSales PWA branding/install metadata OK');
+          for(const x of ['beforeinstallprompt','/cloudsales-app-icon-official-v2.png','promptInstall']) if(!installer.includes(x)) throw new Error('installer_missing_'+x);
+          const pwaRelease=fs.readFileSync('supabase/functions/cloudflare-pwa-brand-release/index.ts','utf8');
+          for(const x of ['cloudsales-pwa-v25','cloudsales-logo-official-v2.png','cloudsales-favicon-official-v2.png','exact_icon512_bytes','exact_logo_bytes']) if(!pwaRelease.includes(x)) throw new Error('pwa_release_missing_'+x);
+          const siteRelease=fs.readFileSync('supabase/functions/cloudflare-site-brand-release/index.ts','utf8');
+          for(const x of ['cloudsales-site-v16','cloudsales-logo-official-v2.png','cloudsales-favicon-official-v2.png','official_wordmark','exact_logo_bytes']) if(!siteRelease.includes(x)) throw new Error('site_release_missing_'+x);
+          console.log('Exact CloudSales official branding/install invariants OK');
           NODE
 
       - name: Build runtime freeze and polling audit
