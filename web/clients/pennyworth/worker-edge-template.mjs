@@ -1,4 +1,4 @@
-const HTML=__HTML_JSON__;
+const HTML=__HTML_JSON__.replaceAll("5219841792035","529843098059");
 const GATE_KEY="69a3dc7f-d733-41b4-aec5-08d7ca521d81";
 const ORIGIN="https://pennyworth.cloudsales.app/";
 const INTAKE="https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/lead-intake";
@@ -14,7 +14,7 @@ export default{async fetch(req,env){
  const u=new URL(req.url);
  if(req.method==="GET"&&u.pathname==="/health")return json({ok:true,service:"pennyworth-lead-gateway",version:"edge-2",challenge:"pow",inventory:"cloudsales"});
  if(req.method==="GET"&&u.pathname==="/inventory.json"){
-   const r=await fetch(`${PUBLIC_DATA}?hostname=${encodeURIComponent(u.hostname)}`,{headers:{accept:"application/json"}});return new Response(await r.text(),{status:r.status,headers:{"content-type":"application/json;charset=utf-8","cache-control":"public,max-age=60","x-content-type-options":"nosniff"}})
+   const r=await fetch(`${PUBLIC_DATA}?hostname=${encodeURIComponent(u.hostname)}`,{headers:{accept:'application/json'}});return new Response(await r.text(),{status:r.status,headers:{"content-type":"application/json;charset=utf-8","cache-control":"public,max-age=60","x-content-type-options":"nosniff"}})
  }
  if(req.method==="GET"&&u.pathname==="/challenge"){
    const id=String(u.searchParams.get("id")||"").slice(0,180);if(!id)return json({error:"id_required"},400);
