@@ -48,7 +48,7 @@ jobs:
             node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$file"
           done < <(find web -type f -name '*.json' -print0)
 
-      - name: Check exact official branding and install metadata
+      - name: Check production branding, mobile operations and team claim invariants
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -58,23 +58,26 @@ jobs:
             'web/assets/cloudsales-app-icon-official-v2.png',
             'web/assets/cloudsales-app-icon-official-v2-192.png',
             'web/assets/cloudsales-logo-official-v2.png'
-          ]){
-            if(!fs.existsSync(p)||fs.statSync(p).size<1000) throw new Error('missing_official_asset_'+p);
-          }
+          ]) if(!fs.existsSync(p)||fs.statSync(p).size<1000) throw new Error('missing_official_asset_'+p);
           const manifest=JSON.parse(fs.readFileSync('web/manifest.webmanifest','utf8'));
           if(manifest.id!=='/cloudsales-app-v2') throw new Error('manifest_identity_not_rotated');
-          const icons=Array.isArray(manifest.icons)?manifest.icons:[];
-          const src=icons.map(x=>String(x.src||''));
+          const src=(manifest.icons||[]).map(x=>String(x.src||''));
           if(!src.some(x=>x.includes('/cloudsales-app-icon-official-v2-192.png'))) throw new Error('manifest_missing_exact_192');
           if(!src.some(x=>x.includes('/cloudsales-app-icon-official-v2.png'))) throw new Error('manifest_missing_exact_512');
           if(src.some(x=>/icon\.svg/i.test(x))) throw new Error('manifest_uses_legacy_svg');
           const installer=fs.readFileSync('web/install.js','utf8');
           for(const x of ['beforeinstallprompt','/cloudsales-app-icon-official-v2.png','promptInstall']) if(!installer.includes(x)) throw new Error('installer_missing_'+x);
+          const auth=fs.readFileSync('web/auth-runtime-v2.js','utf8');
+          for(const x of ['claim-organization','cs_pending_claim','claimPending','cs_org']) if(!auth.includes(x)) throw new Error('team_claim_missing_'+x);
+          const ops=fs.readFileSync('web/app-runtime-v14.js','utf8');
+          for(const x of ['Operational Center','tenant-ops-api','renderMarketingOps','opportunity.move']) if(!ops.includes(x)) throw new Error('mobile_ops_missing_'+x);
+          const claim=fs.readFileSync('supabase/functions/claim-organization/index.ts','utf8');
+          for(const x of ['organization_owner_already_assigned','requestedRole','admin','operator']) if(!claim.includes(x)) throw new Error('claim_function_missing_'+x);
           const pwaRelease=fs.readFileSync('supabase/functions/cloudflare-pwa-brand-release/index.ts','utf8');
-          for(const x of ['cloudsales-pwa-v25','cloudsales-logo-official-v2.png','cloudsales-favicon-official-v2.png','exact_icon512_bytes','exact_logo_bytes']) if(!pwaRelease.includes(x)) throw new Error('pwa_release_missing_'+x);
+          for(const x of ['cloudsales-pwa-v26','auth-runtime-v2.js','app-runtime-v14.js','mobile_ops_runtime_loaded','exact_logo_bytes']) if(!pwaRelease.includes(x)) throw new Error('pwa_release_missing_'+x);
           const siteRelease=fs.readFileSync('supabase/functions/cloudflare-site-brand-release/index.ts','utf8');
           for(const x of ['cloudsales-site-v16','cloudsales-logo-official-v2.png','cloudsales-favicon-official-v2.png','all_commercial_routes_branded','exact_logo_bytes']) if(!siteRelease.includes(x)) throw new Error('site_release_missing_'+x);
-          console.log('Exact CloudSales official branding/install invariants OK');
+          console.log('CloudSales mobile operations/team claim invariants OK');
           NODE
 
       - name: Build runtime freeze and polling audit
@@ -104,8 +107,7 @@ jobs:
               }
             }
           }
-          walk('web','web');
-          walk('supabase/functions','server');
+          walk('web','web'); walk('supabase/functions','server');
           fs.writeFileSync('cloudsales-global-observers.txt',observers.join('\n')+(observers.length?'\n':''));
           fs.writeFileSync('cloudsales-intervals.txt',intervals.join('\n')+(intervals.length?'\n':''));
           fs.writeFileSync('cloudsales-fast-polling.txt',fast.join('\n')+(fast.length?'\n':''));
