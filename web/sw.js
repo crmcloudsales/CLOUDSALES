@@ -1,10 +1,13 @@
-const CACHE='cloudsales-pwa-2026.08.29.1';
+const CACHE='cloudsales-pwa-2026.08.29.6';
 const CORE=[
   '/',
   '/manifest.webmanifest',
   '/install.js',
   '/auth-runtime-v2.js',
   '/app-runtime-v14.js',
+  '/meta-runtime-v1.js',
+  '/cloudy-runtime-v3.js',
+  '/works-runtime-v1.js',
   '/ai-chat-runtime-v2.js',
   '/ai-chat-backfill-v1.js',
   '/ai-chat-channels-v1.js',
