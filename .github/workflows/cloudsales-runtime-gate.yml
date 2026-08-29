@@ -73,7 +73,7 @@ jobs:
           const pwaRelease=fs.readFileSync('supabase/functions/cloudflare-pwa-brand-release/index.ts','utf8');
           for(const x of ['cloudsales-pwa-v25','cloudsales-logo-official-v2.png','cloudsales-favicon-official-v2.png','exact_icon512_bytes','exact_logo_bytes']) if(!pwaRelease.includes(x)) throw new Error('pwa_release_missing_'+x);
           const siteRelease=fs.readFileSync('supabase/functions/cloudflare-site-brand-release/index.ts','utf8');
-          for(const x of ['cloudsales-site-v16','cloudsales-logo-official-v2.png','cloudsales-favicon-official-v2.png','official_wordmark','exact_logo_bytes']) if(!siteRelease.includes(x)) throw new Error('site_release_missing_'+x);
+          for(const x of ['cloudsales-site-v16','cloudsales-logo-official-v2.png','cloudsales-favicon-official-v2.png','all_commercial_routes_branded','exact_logo_bytes']) if(!siteRelease.includes(x)) throw new Error('site_release_missing_'+x);
           console.log('Exact CloudSales official branding/install invariants OK');
           NODE
 
