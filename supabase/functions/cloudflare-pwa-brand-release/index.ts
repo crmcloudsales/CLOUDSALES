@@ -5,9 +5,9 @@ const CF = "https://api.cloudflare.com/client/v4";
 const ACCOUNT = "bd94cb0580e86e7f40b4271a03052426";
 const ZONE = "44753df079f42f8995124c358b135597";
 const HOST = "app.cloudsales.app";
-const SERVICE = "cloudsales-pwa-v23";
-const VERSION = "2026.08.29.1";
-const COMMAND = "cloudsales_pwa_brand_install_v23";
+const SERVICE = "cloudsales-pwa-v24";
+const VERSION = "2026.08.29.2";
+const COMMAND = "cloudsales_pwa_auth_v24";
 const RAW = "https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web";
 const U = Deno.env.get("SUPABASE_URL")!;
 const K = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -34,43 +34,43 @@ async function finish(id: string, status: string, result: unknown, error: string
 }
 
 async function cf(token: string, path: string, method = "GET", body?: unknown) {
-  const r = await fetch(CF + path, {
+  const response = await fetch(CF + path, {
     method,
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const text = await r.text();
+  const raw = await response.text();
   let data: any = {};
-  try { data = JSON.parse(text); } catch { data = { raw: text }; }
-  return { ok: r.ok && data?.success !== false, status: r.status, data };
+  try { data = JSON.parse(raw); } catch { data = { raw }; }
+  return { ok: response.ok && data?.success !== false, status: response.status, data };
 }
 
 async function domains(token: string) {
-  const r = await cf(token, `/accounts/${ACCOUNT}/workers/domains`);
-  return Array.isArray(r.data?.result) ? r.data.result : [];
+  const response = await cf(token, `/accounts/${ACCOUNT}/workers/domains`);
+  return Array.isArray(response.data?.result) ? response.data.result : [];
 }
 
 async function attach(token: string) {
   const list = await domains(token);
-  const old = list.find((x: any) => x.hostname === HOST && x.zone_id === ZONE) || null;
+  const old = list.find((item: any) => item.hostname === HOST && item.zone_id === ZONE) || null;
   if (old?.service === SERVICE) return { ok: true, old };
   if (old) {
-    const d = await cf(token, `/accounts/${ACCOUNT}/workers/domains/${old.id}`, "DELETE");
-    if (!d.ok) return { ok: false, old, status: d.status };
+    const deleted = await cf(token, `/accounts/${ACCOUNT}/workers/domains/${old.id}`, "DELETE");
+    if (!deleted.ok) return { ok: false, old, status: deleted.status };
   }
-  const a = await cf(token, `/accounts/${ACCOUNT}/workers/domains`, "PUT", {
+  const attached = await cf(token, `/accounts/${ACCOUNT}/workers/domains`, "PUT", {
     hostname: HOST,
     service: SERVICE,
     zone_id: ZONE,
     zone_name: "cloudsales.app",
   });
-  return { ok: a.ok, old, status: a.status, errors: a.data?.errors || [] };
+  return { ok: attached.ok, old, status: attached.status, errors: attached.data?.errors || [] };
 }
 
 async function restore(token: string, old: any) {
   const list = await domains(token);
-  const now = list.find((x: any) => x.hostname === HOST && x.zone_id === ZONE);
-  if (now) await cf(token, `/accounts/${ACCOUNT}/workers/domains/${now.id}`, "DELETE");
+  const current = list.find((item: any) => item.hostname === HOST && item.zone_id === ZONE);
+  if (current) await cf(token, `/accounts/${ACCOUNT}/workers/domains/${current.id}`, "DELETE");
   if (old?.service) {
     await cf(token, `/accounts/${ACCOUNT}/workers/domains`, "PUT", {
       hostname: HOST,
@@ -82,25 +82,27 @@ async function restore(token: string, old: any) {
 }
 
 async function text(url: string) {
-  const r = await fetch(url + (url.includes("?") ? "&" : "?") + "release=" + Date.now(), {
+  const response = await fetch(url + (url.includes("?") ? "&" : "?") + "release=" + Date.now(), {
     headers: { "cache-control": "no-cache", pragma: "no-cache" },
   });
-  if (!r.ok) throw new Error(`fetch_${r.status}_${url}`);
-  return await r.text();
+  if (!response.ok) throw new Error(`fetch_${response.status}_${url}`);
+  return await response.text();
 }
 
 async function bytes(url: string) {
-  const r = await fetch(url + (url.includes("?") ? "&" : "?") + "release=" + Date.now(), {
+  const response = await fetch(url + (url.includes("?") ? "&" : "?") + "release=" + Date.now(), {
     headers: { "cache-control": "no-cache" },
   });
-  if (!r.ok) throw new Error(`fetch_${r.status}_${url}`);
-  return new Uint8Array(await r.arrayBuffer());
+  if (!response.ok) throw new Error(`fetch_${response.status}_${url}`);
+  return new Uint8Array(await response.arrayBuffer());
 }
 
 function b64(data: Uint8Array) {
-  let s = "";
-  for (let i = 0; i < data.length; i += 32768) s += String.fromCharCode(...data.subarray(i, Math.min(i + 32768, data.length)));
-  return btoa(s);
+  let output = "";
+  for (let index = 0; index < data.length; index += 32768) {
+    output += String.fromCharCode(...data.subarray(index, Math.min(index + 32768, data.length)));
+  }
+  return btoa(output);
 }
 
 function brandPage(source: string) {
@@ -113,16 +115,16 @@ function brandPage(source: string) {
 }
 
 async function sha256b64(value: string) {
-  const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  let out = "";
-  for (const n of new Uint8Array(h)) out += String.fromCharCode(n);
-  return btoa(out);
+  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  let output = "";
+  for (const byte of new Uint8Array(hash)) output += String.fromCharCode(byte);
+  return btoa(output);
 }
 
 async function cspFor(page: string) {
-  const inline = [...page.matchAll(/<script(?![^>]+src=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
+  const inline = [...page.matchAll(/<script(?![^>]+src=)[^>]*>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
   const hashes = await Promise.all(inline.map(sha256b64));
-  const scriptHashes = hashes.map((h) => `'sha256-${h}'`).join(" ");
+  const scriptHashes = hashes.map((hash) => `'sha256-${hash}'`).join(" ");
   return `default-src 'self'; script-src 'self' ${scriptHashes}; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://storage.googleapis.com; connect-src 'self' https://fkahaqprzgcimgyathqx.supabase.co; worker-src 'self' blob:; font-src 'self' data:; media-src 'self' blob: data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';`;
 }
 
@@ -130,11 +132,15 @@ async function upload(token: string, code: string) {
   const form = new FormData();
   form.append("metadata", new Blob([JSON.stringify({ main_module: "main.mjs", compatibility_date: "2026-08-29" })], { type: "application/json" }));
   form.append("main.mjs", new Blob([code], { type: "application/javascript+module" }), "main.mjs");
-  const r = await fetch(`${CF}/accounts/${ACCOUNT}/workers/scripts/${SERVICE}`, { method: "PUT", headers: { Authorization: `Bearer ${token}` }, body: form });
-  const t = await r.text();
+  const response = await fetch(`${CF}/accounts/${ACCOUNT}/workers/scripts/${SERVICE}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  const raw = await response.text();
   let data: any = {};
-  try { data = JSON.parse(t); } catch { data = { raw: t }; }
-  return { ok: r.ok && data?.success !== false, status: r.status, errors: data?.errors || [] };
+  try { data = JSON.parse(raw); } catch { data = { raw }; }
+  return { ok: response.ok && data?.success !== false, status: response.status, errors: data?.errors || [] };
 }
 
 function worker(page: string, manifest: string, sw: string, scripts: Record<string, string>, icon: string, csp: string) {
@@ -142,21 +148,39 @@ function worker(page: string, manifest: string, sw: string, scripts: Record<stri
 }
 
 async function check(path: string) {
-  const r = await fetch(`https://${HOST}${path}${path.includes("?") ? "&" : "?"}qa=${Date.now()}`, { headers: { "cache-control": "no-cache", pragma: "no-cache" } });
-  const body = await r.text();
-  return { status: r.status, body, type: r.headers.get("content-type") || "", release: r.headers.get("x-cloudsales-release"), csp: r.headers.get("content-security-policy") || "" };
+  const response = await fetch(`https://${HOST}${path}${path.includes("?") ? "&" : "?"}qa=${Date.now()}`, {
+    headers: { "cache-control": "no-cache", pragma: "no-cache" },
+  });
+  const body = await response.text();
+  return {
+    status: response.status,
+    body,
+    type: response.headers.get("content-type") || "",
+    release: response.headers.get("x-cloudsales-release"),
+    csp: response.headers.get("content-security-policy") || "",
+  };
 }
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
   const body = await req.json().catch(() => ({}));
   const id = String(body.command_id || "");
-  const c = await command(id);
-  if (!c || c.command_type !== COMMAND || c.status !== "queued" || new Date(c.expires_at).getTime() <= Date.now()) return json({ error: "invalid_command" }, 403);
+  const queued = await command(id);
+  if (!queued || queued.command_type !== COMMAND || queued.status !== "queued" || new Date(queued.expires_at).getTime() <= Date.now()) {
+    return json({ error: "invalid_command" }, 403);
+  }
 
-  await db.from("internal_command_queue").update({ status: "running", started_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id);
+  await db.from("internal_command_queue").update({
+    status: "running",
+    started_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq("id", id);
+
   const token = Deno.env.get("CLOUDFLARE_API_TOKEN_CLOUDSALES") || "";
-  if (!token) { await finish(id, "failed", null, "cloudflare_token_missing"); return json({ error: "cloudflare_token_missing" }, 503); }
+  if (!token) {
+    await finish(id, "failed", null, "cloudflare_token_missing");
+    return json({ error: "cloudflare_token_missing" }, 503);
+  }
 
   const result: any = { version: VERSION, service: SERVICE };
   let old: any = null;
@@ -166,9 +190,18 @@ Deno.serve(async (req) => {
     const csp = await cspFor(page);
     const manifest = await text(`${RAW}/manifest.webmanifest`);
     const sw = await text(`${RAW}/sw.js`);
-    const scriptPaths = ["/install.js", "/auth-runtime-v2.js", "/app-runtime-v14.js", "/ai-chat-runtime-v2.js", "/ai-chat-backfill-v1.js", "/ai-chat-channels-v1.js", "/calendar-runtime-v1.js", "/ai-chat-calendar-bridge-v1.js"];
+    const scriptPaths = [
+      "/install.js",
+      "/auth-runtime-v2.js",
+      "/app-runtime-v14.js",
+      "/ai-chat-runtime-v2.js",
+      "/ai-chat-backfill-v1.js",
+      "/ai-chat-channels-v1.js",
+      "/calendar-runtime-v1.js",
+      "/ai-chat-calendar-bridge-v1.js",
+    ];
     const scripts: Record<string, string> = {};
-    for (const p of scriptPaths) scripts[p] = await text(`${RAW}${p}`);
+    for (const path of scriptPaths) scripts[path] = await text(`${RAW}${path}`);
     const icon = await bytes(`${RAW}/assets/cloudsales-isotipo-official-512.png`);
 
     result.upload = await upload(token, worker(page, manifest, sw, scripts, b64(icon), csp));
@@ -180,11 +213,12 @@ Deno.serve(async (req) => {
     await new Promise((resolve) => setTimeout(resolve, 7000));
 
     const root = await check("/");
-    const m = await check("/manifest.webmanifest");
-    const s = await check("/sw.js");
+    const manifestLive = await check("/manifest.webmanifest");
+    const swLive = await check("/sw.js");
     const installer = await check("/install.js");
-    const i192 = await check("/icon-192.png");
-    const i512 = await check("/icon-512.png");
+    const authRuntime = await check("/auth-runtime-v2.js");
+    const icon192 = await check("/icon-192.png");
+    const icon512 = await check("/icon-512.png");
     const apple = await check("/apple-touch-icon.png");
     const favicon = await check("/favicon.png");
 
@@ -194,22 +228,30 @@ Deno.serve(async (req) => {
       direct_favicon: root.body.includes(`/favicon.png?v=${VERSION}`),
       direct_apple: root.body.includes(`/apple-touch-icon.png?v=${VERSION}`),
       branded_ui: root.body.includes(`/icon-512.png?v=${VERSION}`),
-      manifest_png: m.status === 200 && m.body.includes("/icon-192.png") && m.body.includes("/icon-512.png") && !m.body.includes("icon.svg"),
-      sw_release: s.status === 200 && s.body.includes("cloudsales-pwa-2026.08.29.1"),
+      manifest_png: manifestLive.status === 200 && manifestLive.body.includes("/icon-192.png") && manifestLive.body.includes("/icon-512.png") && !manifestLive.body.includes("icon.svg"),
+      sw_release: swLive.status === 200 && swLive.body.includes("cloudsales-pwa-2026.08.29.2"),
       installer_png: installer.status === 200 && installer.body.includes("/icon-512.png?v=2026082901"),
-      icons: [i192, i512, apple, favicon].every((x) => x.status === 200 && /image\/png/i.test(x.type)),
+      explicit_email_authorization: authRuntime.status === 200 && authRuntime.body.includes("signup_confirmation") && authRuntime.body.includes("authorize_email") && authRuntime.body.includes("signupEmailNotice"),
+      icons: [icon192, icon512, apple, favicon].every((asset) => asset.status === 200 && /image\/png/i.test(asset.type)),
     };
     result.tests = tests;
-    if (Object.values(tests).some((v) => v !== true)) throw new Error("pwa_brand_smoke_failed");
+    if (Object.values(tests).some((value) => value !== true)) throw new Error("pwa_auth_smoke_failed");
 
-    await db.from("audit_log").insert({ actor_type: "system", action: "cloudsales.pwa.brand_install_v23.promoted", entity_type: "release", entity_id: VERSION, success: true, context: { service: SERVICE, tests } });
+    await db.from("audit_log").insert({
+      actor_type: "system",
+      action: "cloudsales.pwa.auth_v24.promoted",
+      entity_type: "release",
+      entity_id: VERSION,
+      success: true,
+      context: { service: SERVICE, tests },
+    });
     await finish(id, "succeeded", result, null);
     return json(result);
-  } catch (e) {
-    const error = String((e as Error).message || e).slice(0, 500);
-    result.error = error;
+  } catch (error) {
+    const message = String((error as Error).message || error).slice(0, 500);
+    result.error = message;
     if (old?.service) await restore(token, old);
-    await finish(id, "failed", result, error);
+    await finish(id, "failed", result, message);
     return json(result, 500);
   }
 });
