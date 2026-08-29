@@ -1,0 +1,59 @@
+name: CloudSales Provider Dispatch Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/google-ads-worker/**'
+      - 'supabase/functions/google-ads-command/**'
+      - 'supabase/functions/cloudy-core-command/**'
+      - 'supabase/migrations/**cloudy_meta_google_dispatch.sql'
+      - '.github/workflows/cloudsales-provider-dispatch-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/google-ads-worker/**'
+      - 'supabase/functions/google-ads-command/**'
+      - 'supabase/functions/cloudy-core-command/**'
+      - 'supabase/migrations/**cloudy_meta_google_dispatch.sql'
+      - '.github/workflows/cloudsales-provider-dispatch-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  provider-dispatch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Google worker safety invariants
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          W='supabase/functions/google-ads-worker/index.ts'
+          M='supabase/migrations/20260829213000_cloudy_meta_google_dispatch.sql'
+          test -f "$W"
+          test -f "$M"
+          grep -Fq 'automation_worker_token' "$W"
+          grep -Fq 'x-cloudsales-worker-token' "$W"
+          grep -Fq 'requires_approval&&!job.approved_by' "$W"
+          grep -Fq 'owner_admin_approval_required' "$W"
+          grep -Fq '["owner","admin"]' "$W"
+          grep -Fq 'payment_card_data_not_allowed' "$W"
+          grep -Fq 'google_campaign_status_confirmation_failed' "$W"
+          grep -Fq 'google_daily_budget_confirmation_failed' "$W"
+          grep -Fq 'status:"PAUSED"' "$W"
+          grep -Fq 'service_read_secret' "$W"
+          grep -Fq 'service_update_secret' "$W"
+          grep -Fq 'developer-token' "$W"
+          grep -Fq 'login-customer-id' "$W"
+          grep -Fq "v_provider='google_ads'" "$M"
+          grep -Fq 'cloudflare-pwa-release-v8' "$M"
+          grep -Fq "v_provider='meta'" "$M"
+          grep -Fq 'cloudy-core-command' "$M"
+          grep -Fq "new.requires_approval and new.approved_by is null" "$M"
+          grep -Fq "('meta','ads.meta.accounts','beta',false,false" "$M"
+          grep -Fq "('meta','ads.meta.budget','beta',true,false" "$M"
+          grep -Fq "support_status='planned'" "$M"
+          echo 'Cloudy Meta/Google dispatch invariants OK'
