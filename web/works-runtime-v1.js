@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION='2026.08.29.1';
+  const VERSION='2026.08.29.2';
   const FN='https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/workspace-api';
   let initializedOrg=null;
   let loading=false;
@@ -74,8 +74,8 @@
   function render(){
     const page=ensurePage();if(!page||!snapshot)return;
     const totals=snapshot.totals||{},groups=snapshot.groups||[],recent=snapshot.recent||[],catalog=snapshot.catalog||[];
-    page.innerHTML=`<div class="csWorksHero"><div style="font-size:10px;color:#ff84c5;font-weight:900;letter-spacing:.08em">CLOUDY · WORKS</div><h2>Trabajos hechos por Cloudy.</h2><p>Cada Work es una tarea concreta que Cloudy terminó para tu negocio. Ves la cantidad, el precio por unidad y el total. Los intentos fallidos no se publican como Works cobrables.</p><div class="csWorksTotals"><div class="csWorksMetric"><b>${usd(totals.today_usd)}</b><span>Hoy</span></div><div class="csWorksMetric"><b>${usd(totals.month_usd)}</b><span>Este mes</span></div><div class="csWorksMetric"><b>${Number(totals.posted_count||0).toLocaleString()}</b><span>Works completados</span></div></div></div>
-      <div class="csWorksInfo"><b>Works ≠ inversión publicitaria.</b> La inversión de Meta y Google se paga directamente a esas plataformas. Aquí aparecen únicamente los trabajos ejecutados por Cloudy/CloudSales.</div>
+    page.innerHTML=`<div class="csWorksHero"><div style="font-size:10px;color:#ff84c5;font-weight:900;letter-spacing:.08em">CLOUDY · WORKS</div><h2>Cloudy estuvo haciendo estos trabajos.</h2><p>Cada Work es una tarea concreta que Cloudy terminó para tu negocio. Ves la cantidad, el precio por unidad y el total. Los intentos fallidos no se publican como Works cobrables.</p><div class="csWorksTotals"><div class="csWorksMetric"><b>${usd(totals.today_usd)}</b><span>Hoy</span></div><div class="csWorksMetric"><b>${usd(totals.month_usd)}</b><span>Este mes</span></div><div class="csWorksMetric"><b>${Number(totals.posted_count||0).toLocaleString()}</b><span>Works completados</span></div></div></div>
+      <div class="csWorksInfo"><b>Works ≠ Ad Spend / inversión publicitaria.</b> El Media spend de Meta y Google se paga directamente a esas plataformas. Aquí aparecen únicamente los trabajos ejecutados por Cloudy/CloudSales.</div>
       <div class="sectionHead"><div><h2>Resumen del mes</h2><p>Precio × cantidad = total por tipo de trabajo.</p></div><button id="csWorksRefresh" class="btn small">Actualizar</button></div>
       <div class="csWorksList">${groups.length?groups.map(g=>`<div class="csWorkRow"><div><b>${e(g.name_es||g.work_key)}</b><small>${usd(g.unit_price_usd)} por ${e(g.unit||'unidad')} × ${qty(g.quantity)}</small></div><div class="csWorkAmount">${usd(g.amount_usd)}</div></div>`).join(''):'<div class="csWorksEmpty">Todavía no hay Works cobrables publicados en este periodo. Cuando Cloudy complete un trabajo configurado, aparecerá aquí automáticamente.</div>'}</div>
       <div class="sectionHead"><div><h2>Works configurados</h2><p>Precios visibles antes de que estos trabajos se acumulen.</p></div></div><div class="csWorksCatalog">${catalog.map(c=>`<div class="csWorkCatalogCard"><b>${e(c.name_es||c.work_key)} · ${usd(c.base_price_usd)} / ${e(c.unit)}</b><span>${e(c.description_es||'')}</span></div>`).join('')||'<div class="csWorksEmpty">No hay Works configurados.</div>'}</div>
