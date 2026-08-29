@@ -3,7 +3,7 @@
 
   const targets = new Set(['ios', 'android', 'desktop']);
   const target = new URLSearchParams(location.search).get('install');
-  const ICON = '/icon.svg?v=2026082819';
+  const ICON = '/icon-512.png?v=2026082901';
   let deferredPrompt = null;
   let overlay = null;
   let title = null;
@@ -124,7 +124,7 @@
       body.innerHTML = android()
         ? `<p>CloudSales está lista para instalarse.</p><p class="install-note">Si Chrome no abre la ventana automáticamente, toca ⋮ y selecciona <b>Instalar aplicación</b>.</p>`
         : `<p>CloudSales está lista para instalarse.</p><p class="install-note">Usa el icono de instalación de Chrome o Edge en la barra de direcciones.</p>`;
-    }, 1300);
+    }, 3500);
   }
 
   async function install() {
