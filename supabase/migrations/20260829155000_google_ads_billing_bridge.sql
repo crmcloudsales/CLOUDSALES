@@ -34,20 +34,22 @@ on conflict (provider_key,capability_key) do update set
   metadata=excluded.metadata,
   updated_at=now();
 
-insert into public.cloudy_action_catalog(action_key,risk_level,requires_approval,enabled,description)
+insert into public.cloudy_action_catalog(action_key,category,risk_level,requires_approval,enabled,description)
 values
-  ('ads.google.accounts','low',false,true,'Read authorized Google Ads accounts.'),
-  ('ads.google.account.select','medium',true,true,'Select the Google Ads customer CloudSales should manage.'),
-  ('ads.google.sync','low',false,true,'Synchronize Google Ads campaigns and performance.'),
-  ('ads.google.pause','medium',true,true,'Pause a Google Ads campaign.'),
-  ('ads.google.resume','high',true,true,'Enable a Google Ads campaign that can spend money.'),
-  ('ads.google.budget','high',true,true,'Change Google Ads campaign budget.'),
-  ('ads.google.create_campaign','medium',true,true,'Create a Google Ads campaign container in paused state.'),
-  ('ads.google.billing.manage','low',false,true,'Open provider-managed Google Ads billing.')
+  ('ads.google.accounts','advertising','low',false,true,'Read authorized Google Ads accounts.'),
+  ('ads.google.account.select','advertising','medium',true,true,'Select the Google Ads customer CloudSales should manage.'),
+  ('ads.google.sync','advertising','low',false,true,'Synchronize Google Ads campaigns and performance.'),
+  ('ads.google.pause','advertising','medium',true,true,'Pause a Google Ads campaign.'),
+  ('ads.google.resume','advertising','high',true,true,'Enable a Google Ads campaign that can spend money.'),
+  ('ads.google.budget','advertising','high',true,true,'Change Google Ads campaign budget.'),
+  ('ads.google.create_campaign','advertising','medium',true,true,'Create a Google Ads campaign container in paused state.'),
+  ('ads.google.billing.manage','advertising','low',false,true,'Open provider-managed Google Ads billing.')
 on conflict (action_key) do update set
+  category=excluded.category,
   risk_level=excluded.risk_level,
   requires_approval=excluded.requires_approval,
   enabled=excluded.enabled,
-  description=excluded.description;
+  description=excluded.description,
+  updated_at=now();
 
 comment on column public.provider_catalog.metadata is 'Provider metadata may include public OAuth/API/billing URLs. Secrets must remain in Vault and are never stored here.';
