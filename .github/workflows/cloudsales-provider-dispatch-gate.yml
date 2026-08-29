@@ -6,16 +6,26 @@ on:
     paths:
       - 'supabase/functions/google-ads-worker/**'
       - 'supabase/functions/google-ads-command/**'
-      - 'supabase/functions/cloudy-core-command/**'
+      - 'supabase/functions/meta-ads-oauth-start/**'
+      - 'supabase/functions/meta-ads-oauth-complete/**'
+      - 'supabase/functions/meta-ads-command/**'
       - 'supabase/migrations/**cloudy_meta_google_dispatch.sql'
+      - 'supabase/migrations/**meta_ads_oauth_separation.sql'
+      - 'web/meta-runtime-v1.js'
+      - 'web/ad-spend-runtime-v1.js'
       - '.github/workflows/cloudsales-provider-dispatch-gate.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/functions/google-ads-worker/**'
       - 'supabase/functions/google-ads-command/**'
-      - 'supabase/functions/cloudy-core-command/**'
+      - 'supabase/functions/meta-ads-oauth-start/**'
+      - 'supabase/functions/meta-ads-oauth-complete/**'
+      - 'supabase/functions/meta-ads-command/**'
       - 'supabase/migrations/**cloudy_meta_google_dispatch.sql'
+      - 'supabase/migrations/**meta_ads_oauth_separation.sql'
+      - 'web/meta-runtime-v1.js'
+      - 'web/ad-spend-runtime-v1.js'
       - '.github/workflows/cloudsales-provider-dispatch-gate.yml'
 
 permissions:
@@ -32,9 +42,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           W='supabase/functions/google-ads-worker/index.ts'
-          M='supabase/migrations/20260829213000_cloudy_meta_google_dispatch.sql'
           test -f "$W"
-          test -f "$M"
           grep -Fq 'automation_worker_token' "$W"
           grep -Fq 'x-cloudsales-worker-token' "$W"
           grep -Fq 'requires_approval&&!job.approved_by' "$W"
@@ -48,12 +56,50 @@ jobs:
           grep -Fq 'service_update_secret' "$W"
           grep -Fq 'developer-token' "$W"
           grep -Fq 'login-customer-id' "$W"
-          grep -Fq "v_provider='google_ads'" "$M"
-          grep -Fq 'cloudflare-pwa-release-v8' "$M"
-          grep -Fq "v_provider='meta'" "$M"
-          grep -Fq 'cloudy-core-command' "$M"
-          grep -Fq "new.requires_approval and new.approved_by is null" "$M"
-          grep -Fq "('meta','ads.meta.accounts','beta',false,false" "$M"
-          grep -Fq "('meta','ads.meta.budget','beta',true,false" "$M"
-          grep -Fq "support_status='planned'" "$M"
-          echo 'Cloudy Meta/Google dispatch invariants OK'
+
+      - name: Validate isolated Meta Ads OAuth and command invariants
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          S='supabase/functions/meta-ads-oauth-start/index.ts'
+          C='supabase/functions/meta-ads-oauth-complete/index.ts'
+          M='supabase/functions/meta-ads-command/index.ts'
+          D='supabase/migrations/20260829215500_meta_ads_oauth_separation.sql'
+          U='web/meta-runtime-v1.js'
+          A='web/ad-spend-runtime-v1.js'
+          for f in "$S" "$C" "$M" "$D" "$U" "$A"; do test -f "$f"; done
+          grep -Fq 'const PROVIDER="meta_ads"' "$S"
+          grep -Fq 'ads_read' "$S"
+          grep -Fq 'ads_management' "$S"
+          grep -Fq 'oauth_states' "$S"
+          grep -Fq 'oauth-callback-relay' "$S"
+          grep -Fq 'has_provider_authorization' "$S"
+          grep -Fq 'meta_ads_platform_not_configured' "$S"
+          grep -Fq 'const PROVIDER="meta_ads"' "$C"
+          grep -Fq 'fb_exchange_token' "$C"
+          grep -Fq 'me/permissions' "$C"
+          grep -Fq 'meta_ads_required_permissions_missing' "$C"
+          grep -Fq 'me/adaccounts' "$C"
+          grep -Fq 'service_store_secret' "$C"
+          grep -Fq 'service_update_secret' "$C"
+          grep -Fq 'refresh_token_secret_id:null' "$C"
+          grep -Fq 'connection_mode:"ads_management"' "$C"
+          grep -Fq 'payment_card_data_not_allowed' "$M"
+          grep -Fq 'automation_worker_token' "$M"
+          grep -Fq 'owner_admin_approval_required' "$M"
+          grep -Fq 'meta_campaign_status_confirmation_failed' "$M"
+          grep -Fq 'meta_daily_budget_confirmation_failed' "$M"
+          grep -Fq 'status:"PAUSED"' "$M"
+          grep -Fq 'provider_key",PROVIDER' "$M"
+          grep -Fq "'meta_ads','Meta Ads','ads','oauth2'" "$D"
+          grep -Fq "delete from public.provider_capabilities where provider_key='meta'" "$D"
+          grep -Fq "('meta_ads','ads.meta.accounts'" "$D"
+          grep -Fq "v_provider='meta_ads'" "$D"
+          grep -Fq 'cloudflare-pwa-release-v10' "$D"
+          grep -Fq "META_PROVIDER='meta_ads'" "$U"
+          grep -Fq "META_FN='cloudflare-pwa-release-v10'" "$U"
+          grep -Fq "META_START='cloudflare-pwa-release-v7'" "$U"
+          grep -Fq "META_COMPLETE='cloudflare-pwa-release-v9'" "$U"
+          grep -Fq 'La conexión Dataset/CAPI permanece separada' "$U"
+          grep -Fq "META_FN='cloudflare-pwa-release-v10'" "$A"
+          echo 'CloudSales Google + isolated Meta Ads invariants OK'
