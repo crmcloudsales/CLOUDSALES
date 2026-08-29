@@ -11,7 +11,14 @@ const ORIGINS = new Set([
   "http://localhost:3000",
   "http://localhost:5173",
 ]);
-const VIEWER_ACTIONS = new Set(["analytics.snapshot", "report.generate", "support.diagnose", "ecosystem.sync"]);
+const VIEWER_ACTIONS = new Set([
+  "analytics.snapshot", "report.generate", "support.diagnose", "ecosystem.sync",
+  "ads.meta.accounts", "ads.meta.sync",
+]);
+const META_MANAGE_ACTIONS = new Set([
+  "ads.meta.account.select", "ads.meta.pause", "ads.meta.resume", "ads.meta.budget", "ads.meta.create_campaign",
+]);
+const META_ZERO_DECIMAL = new Set(["BIF","CLP","DJF","GNF","JPY","KMF","KRW","MGA","PYG","RWF","UGX","VND","VUV","XAF","XOF","XPF"]);
 
 function cors(origin: string | null) {
   const allowed = origin && ORIGINS.has(origin) ? origin : "https://app.cloudsales.app";
@@ -50,6 +57,36 @@ async function same(a: string, b: string) {
 }
 
 const text = (value: any, max = 4000) => String(value ?? "").trim().slice(0, max);
+const numeric = (value: any) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+const now = () => new Date().toISOString();
+const metaMinorFactor = (currency: string) => META_ZERO_DECIMAL.has(String(currency || "USD").toUpperCase()) ? 1 : 100;
+const metaMajor = (value: any, currency: string) => {
+  const n = numeric(value);
+  return n === null ? null : n / metaMinorFactor(currency);
+};
+const metaMinor = (value: any, currency: string) => {
+  const n = numeric(value);
+  if (n === null || n <= 0) throw new Error("meta_budget_must_be_positive");
+  return Math.round(n * metaMinorFactor(currency));
+};
+const metaLocalStatus = (value: any) => {
+  const s = String(value || "").toUpperCase();
+  if (s === "ACTIVE") return "active";
+  if (s === "PAUSED") return "paused";
+  if (["DELETED", "ARCHIVED"].includes(s)) return "archived";
+  if (["COMPLETED", "ENDED"].includes(s)) return "completed";
+  return "draft";
+};
+function metaGraphError(data: any, fallback = "meta_request_failed") {
+  const e = data?.error || {};
+  const message = text(e.message, 500) || fallback;
+  const code = e.code ? `:${e.code}` : "";
+  const sub = e.error_subcode ? `:${e.error_subcode}` : "";
+  return `${fallback}${code}${sub}:${message}`;
+}
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -98,7 +135,7 @@ Deno.serve(async (req) => {
 
     const { data: locked } = await svc
       .from("automation_jobs")
-      .update({ status: "running", started_at: new Date().toISOString() })
+      .update({ status: "running", started_at: now() })
       .eq("id", jobId)
       .eq("status", "queued")
       .select("id")
@@ -140,18 +177,21 @@ Deno.serve(async (req) => {
     actorRole = String(membership.role);
     actorUserId = user.id;
 
-    // Viewers are read-only by default. support.diagnose is read-only only
-    // when it does not create a support case. Future actions are denied to
-    // viewers unless explicitly added to VIEWER_ACTIONS.
     if (actorRole === "viewer" && (!VIEWER_ACTIONS.has(action) || (action === "support.diagnose" && input.create_case === true))) {
       return json({ error: "insufficient_role" }, 403, origin);
+    }
+    if (META_MANAGE_ACTIONS.has(action) && !["owner", "admin", "operator"].includes(actorRole)) {
+      return json({ error: "insufficient_role" }, 403, origin);
+    }
+    if (["ads.meta.account.select", "ads.meta.budget", "ads.meta.create_campaign"].includes(action) && !["owner", "admin"].includes(actorRole)) {
+      return json({ error: "owner_or_admin_required" }, 403, origin);
     }
   }
 
   async function finish(status: "succeeded" | "failed", output: any, error: string | null = null) {
     if (internal && jobId) {
       await svc.from("automation_jobs")
-        .update({ status, output: output || null, error, finished_at: new Date().toISOString() })
+        .update({ status, output: output || null, error, finished_at: now() })
         .eq("id", jobId);
     }
   }
@@ -175,6 +215,142 @@ Deno.serve(async (req) => {
     };
   }
 
+  async function metaConnection() {
+    const { data: connection } = await svc.from("connections")
+      .select("id,status,external_account_id,external_account_name,scopes,metadata,last_sync_at")
+      .eq("organization_id", organizationId)
+      .eq("provider_key", "meta")
+      .eq("status", "connected")
+      .limit(1)
+      .maybeSingle();
+    if (!connection) throw new Error("meta_connection_required");
+    const { data: secret } = await svc.from("connection_secrets")
+      .select("access_token_secret_id")
+      .eq("connection_id", connection.id)
+      .maybeSingle();
+    if (!secret?.access_token_secret_id) throw new Error("meta_access_token_missing");
+    const { data: token } = await svc.rpc("service_read_secret", { p_secret_id: secret.access_token_secret_id });
+    if (!token) throw new Error("meta_access_token_unavailable");
+    return { connection, token: String(token), version: String(connection.metadata?.graph_api_version || "v24.0") };
+  }
+
+  async function graph(version: string, token: string, path: string, method = "GET", params: Record<string, any> = {}) {
+    const url = new URL(`https://graph.facebook.com/${version}/${String(path).replace(/^\/+/, "")}`);
+    const values = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined || value === null || value === "") continue;
+      values.set(key, typeof value === "string" ? value : JSON.stringify(value));
+    }
+    if (method === "GET") url.search = values.toString();
+    const response = await fetch(url.toString(), {
+      method,
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json", ...(method === "GET" ? {} : { "content-type": "application/x-www-form-urlencoded;charset=UTF-8" }) },
+      body: method === "GET" ? undefined : values.toString(),
+    });
+    const raw = await response.text();
+    let data: any = {};
+    try { data = JSON.parse(raw); } catch { data = { raw: raw.slice(0, 800) }; }
+    if (!response.ok || data?.error) throw new Error(metaGraphError(data));
+    return data;
+  }
+
+  async function metaAccountsState() {
+    const state = await metaConnection();
+    const data = await graph(state.version, state.token, "me/adaccounts", "GET", {
+      fields: "id,name,account_status,currency,timezone_name,business,amount_spent",
+      limit: 100,
+    });
+    const accounts = Array.isArray(data?.data) ? data.data.map((x: any) => ({
+      id: String(x.id || ""), name: text(x.name, 200), account_status: x.account_status ?? null,
+      currency: String(x.currency || "USD"), timezone_name: text(x.timezone_name, 120),
+      business: x.business ? { id: x.business.id || null, name: text(x.business.name, 200) } : null,
+      amount_spent: x.amount_spent ?? null,
+    })).filter((x: any) => x.id.startsWith("act_")) : [];
+    const selected = String(state.connection.metadata?.selected_ad_account_id || "");
+    return { ...state, accounts, selected_ad_account_id: accounts.some((x: any) => x.id === selected) ? selected : null };
+  }
+
+  async function requireMetaAccount(requested?: string) {
+    const state = await metaAccountsState();
+    const wanted = String(requested || state.selected_ad_account_id || "");
+    if (!wanted) {
+      if (state.accounts.length === 1) return { ...state, account: state.accounts[0] };
+      throw new Error("meta_ad_account_selection_required");
+    }
+    const account = state.accounts.find((x: any) => x.id === wanted);
+    if (!account) throw new Error("meta_ad_account_not_authorized");
+    return { ...state, account };
+  }
+
+  async function discoverMetaBudget(state: any, campaign: any) {
+    const currency = String(state.account.currency || "USD");
+    if (campaign.daily_budget != null || campaign.lifetime_budget != null) {
+      return {
+        scope: "campaign", object_id: campaign.id,
+        daily_budget: metaMajor(campaign.daily_budget, currency),
+        lifetime_budget: metaMajor(campaign.lifetime_budget, currency),
+        adsets: [],
+      };
+    }
+    const data = await graph(state.version, state.token, `${campaign.id}/adsets`, "GET", {
+      fields: "id,name,status,effective_status,daily_budget,lifetime_budget",
+      limit: 100,
+    });
+    const adsets = (data?.data || []).map((x: any) => ({
+      id: x.id, name: text(x.name, 200), status: x.status, effective_status: x.effective_status,
+      daily_budget: metaMajor(x.daily_budget, currency), lifetime_budget: metaMajor(x.lifetime_budget, currency),
+    }));
+    const budgeted = adsets.filter((x: any) => x.daily_budget != null || x.lifetime_budget != null);
+    if (budgeted.length === 1) return { scope: "adset", object_id: budgeted[0].id, daily_budget: budgeted[0].daily_budget, lifetime_budget: budgeted[0].lifetime_budget, adsets };
+    if (budgeted.length > 1) return { scope: "multiple_adsets", object_id: null, daily_budget: null, lifetime_budget: null, adsets };
+    return { scope: "none", object_id: null, daily_budget: null, lifetime_budget: null, adsets };
+  }
+
+  async function syncMetaCampaignRow(state: any, campaign: any, budget: any, insight: any = null) {
+    const currency = String(state.account.currency || "USD");
+    const actions = Array.isArray(insight?.actions) ? insight.actions : [];
+    const leads = actions.reduce((sum: number, a: any) => /lead/i.test(String(a.action_type || "")) ? sum + (Number(a.value) || 0) : sum, 0);
+    const existing = await svc.from("marketing_campaigns")
+      .select("id,qualified_leads,revenue,metadata")
+      .eq("organization_id", organizationId).eq("provider_key", "meta").eq("external_campaign_id", String(campaign.id)).maybeSingle();
+    const metadata = {
+      ...(existing.data?.metadata || {}),
+      meta_effective_status: campaign.effective_status || null,
+      meta_buying_type: campaign.buying_type || null,
+      meta_budget_scope: budget.scope,
+      meta_budget_object_id: budget.object_id,
+      meta_adsets: budget.adsets || [],
+      meta_account_id: state.account.id,
+      meta_account_name: state.account.name,
+      provider_confirmed_at: now(),
+    };
+    const row: any = {
+      organization_id: organizationId, provider_key: "meta", external_campaign_id: String(campaign.id),
+      name: text(campaign.name, 180) || `Meta ${campaign.id}`, objective: text(campaign.objective, 180),
+      status: metaLocalStatus(campaign.status || campaign.effective_status),
+      daily_budget: budget.daily_budget, lifetime_budget: budget.lifetime_budget, currency,
+      spend: numeric(insight?.spend) ?? 0, leads: Math.max(0, Math.round(leads)),
+      last_sync_at: now(), metadata, updated_at: now(),
+    };
+    if (existing.data?.id) {
+      const { data, error } = await svc.from("marketing_campaigns").update(row).eq("id", existing.data.id).select("*").single();
+      if (error) throw new Error("meta_campaign_local_sync_failed");
+      return data;
+    }
+    row.qualified_leads = 0; row.revenue = 0; row.created_by = actorUserId;
+    const { data, error } = await svc.from("marketing_campaigns").insert(row).select("*").single();
+    if (error) throw new Error("meta_campaign_local_insert_failed");
+    return data;
+  }
+
+  async function metaCampaignByLocal(id: string) {
+    const { data } = await svc.from("marketing_campaigns")
+      .select("*").eq("id", id).eq("organization_id", organizationId).eq("provider_key", "meta").maybeSingle();
+    if (!data) throw new Error("meta_campaign_not_found");
+    if (!data.external_campaign_id) throw new Error("meta_campaign_not_linked");
+    return data;
+  }
+
   let output: any;
   try {
     if (action === "analytics.snapshot") {
@@ -183,7 +359,7 @@ Deno.serve(async (req) => {
       const state = await snapshot();
       const failed = (state.recent_jobs || []).filter((x: any) => x.status === "failed");
       output = {
-        generated_at: new Date().toISOString(),
+        generated_at: now(),
         headline: {
           lead_attempts_30d: state.metrics?.lead_attempts_30d || 0,
           accepted_30d: state.metrics?.leads_accepted_30d || 0,
@@ -265,7 +441,7 @@ Deno.serve(async (req) => {
       const id = String(input.agent_id || input.id || "");
       if (!id) throw new Error("agent_id_required");
       const { data: agent } = await svc.from("cloudy_agents")
-        .update({ status: "paused", updated_at: new Date().toISOString() })
+        .update({ status: "paused", updated_at: now() })
         .eq("id", id)
         .eq("organization_id", organizationId)
         .select("id,name,status")
@@ -275,7 +451,7 @@ Deno.serve(async (req) => {
     } else if (action === "agent.update") {
       const id = String(input.agent_id || input.id || "");
       if (!id) throw new Error("agent_id_required");
-      const patch: any = { updated_at: new Date().toISOString() };
+      const patch: any = { updated_at: now() };
       if (input.name !== undefined) patch.name = text(input.name, 120);
       if (input.voice_key !== undefined) patch.voice_key = input.voice_key || null;
       if (input.autonomy_mode !== undefined && ["assist", "guarded", "autonomous"].includes(String(input.autonomy_mode))) patch.autonomy_mode = String(input.autonomy_mode);
@@ -290,6 +466,110 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (!agent) throw new Error("agent_not_found");
       output = { agent };
+    } else if (action === "ads.meta.accounts") {
+      const state = await metaAccountsState();
+      output = {
+        connected: true,
+        scopes: state.connection.scopes || [],
+        selected_ad_account_id: state.selected_ad_account_id,
+        accounts: state.accounts,
+        graph_api_version: state.version,
+      };
+    } else if (action === "ads.meta.account.select") {
+      const state = await requireMetaAccount(String(input.account_id || ""));
+      const metadata = { ...(state.connection.metadata || {}), selected_ad_account_id: state.account.id, selected_ad_account_name: state.account.name, selected_ad_account_currency: state.account.currency, ad_account_selected_at: now() };
+      const { error } = await svc.from("connections").update({ metadata, last_sync_at: now() }).eq("id", state.connection.id);
+      if (error) throw new Error("meta_ad_account_selection_save_failed");
+      output = { selected: state.account };
+    } else if (action === "ads.meta.sync") {
+      const state = await requireMetaAccount(String(input.account_id || ""));
+      const data = await graph(state.version, state.token, `${state.account.id}/campaigns`, "GET", {
+        fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget,budget_remaining,start_time,stop_time,buying_type,created_time,updated_time",
+        limit: Math.min(200, Math.max(1, Number(input.limit || 100))),
+      });
+      const synced: any[] = [];
+      for (const campaign of (data?.data || [])) {
+        const budget = await discoverMetaBudget(state, campaign);
+        let insight: any = null;
+        try {
+          const insightData = await graph(state.version, state.token, `${campaign.id}/insights`, "GET", { fields: "spend,actions", date_preset: "last_30d", limit: 1 });
+          insight = insightData?.data?.[0] || null;
+        } catch { insight = null; }
+        synced.push(await syncMetaCampaignRow(state, campaign, budget, insight));
+      }
+      const metadata = { ...(state.connection.metadata || {}), selected_ad_account_id: state.account.id, selected_ad_account_name: state.account.name, selected_ad_account_currency: state.account.currency, meta_campaigns_last_sync_at: now() };
+      await svc.from("connections").update({ metadata, last_sync_at: now() }).eq("id", state.connection.id);
+      output = { account: state.account, campaigns: synced, count: synced.length, synced_at: now() };
+    } else if (action === "ads.meta.pause" || action === "ads.meta.resume") {
+      const local = await metaCampaignByLocal(String(input.id || input.campaign_id || ""));
+      const state = await requireMetaAccount(String(local.metadata?.meta_account_id || input.account_id || ""));
+      const requested = action === "ads.meta.pause" ? "PAUSED" : "ACTIVE";
+      await graph(state.version, state.token, String(local.external_campaign_id), "POST", { status: requested });
+      const confirmed = await graph(state.version, state.token, String(local.external_campaign_id), "GET", { fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget,buying_type,updated_time" });
+      const budget = await discoverMetaBudget(state, confirmed);
+      const row = await syncMetaCampaignRow(state, confirmed, budget, null);
+      if (String(confirmed.status || "").toUpperCase() !== requested) throw new Error("meta_status_confirmation_failed");
+      output = { campaign: row, provider_status: confirmed.status, confirmed: true, confirmed_at: now() };
+    } else if (action === "ads.meta.budget") {
+      const local = await metaCampaignByLocal(String(input.id || input.campaign_id || ""));
+      const state = await requireMetaAccount(String(local.metadata?.meta_account_id || input.account_id || ""));
+      const campaign = await graph(state.version, state.token, String(local.external_campaign_id), "GET", { fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget,buying_type" });
+      const discovered = await discoverMetaBudget(state, campaign);
+      const objectId = String(input.budget_object_id || discovered.object_id || "");
+      const scope = input.budget_object_id ? "adset" : discovered.scope;
+      if (!objectId) {
+        if (discovered.scope === "multiple_adsets") throw new Error("meta_budget_multiple_adsets_requires_scope");
+        throw new Error("meta_budget_object_not_found");
+      }
+      const currency = String(state.account.currency || local.currency || "USD");
+      const params: any = {};
+      if (input.daily_budget !== undefined) params.daily_budget = metaMinor(input.daily_budget, currency);
+      if (input.lifetime_budget !== undefined) params.lifetime_budget = metaMinor(input.lifetime_budget, currency);
+      if (!Object.keys(params).length) throw new Error("meta_budget_value_required");
+      await graph(state.version, state.token, objectId, "POST", params);
+      const confirmedObject = await graph(state.version, state.token, objectId, "GET", { fields: "id,name,daily_budget,lifetime_budget,status,effective_status" });
+      if (params.daily_budget !== undefined && Number(confirmedObject.daily_budget) !== Number(params.daily_budget)) throw new Error("meta_daily_budget_confirmation_failed");
+      if (params.lifetime_budget !== undefined && Number(confirmedObject.lifetime_budget) !== Number(params.lifetime_budget)) throw new Error("meta_lifetime_budget_confirmation_failed");
+      const metadata = {
+        ...(local.metadata || {}), meta_budget_scope: scope, meta_budget_object_id: objectId,
+        budget_sync_status: "confirmed", budget_provider_confirmed_at: now(),
+      };
+      const patch: any = { metadata, last_sync_at: now(), updated_at: now() };
+      if (confirmedObject.daily_budget != null) patch.daily_budget = metaMajor(confirmedObject.daily_budget, currency);
+      if (confirmedObject.lifetime_budget != null) patch.lifetime_budget = metaMajor(confirmedObject.lifetime_budget, currency);
+      const { data: updated, error } = await svc.from("marketing_campaigns").update(patch).eq("id", local.id).select("*").single();
+      if (error) throw new Error("meta_budget_local_confirmation_save_failed");
+      output = { campaign: updated, provider: { object_id: objectId, scope, daily_budget: patch.daily_budget ?? null, lifetime_budget: patch.lifetime_budget ?? null, currency }, confirmed: true, confirmed_at: now() };
+    } else if (action === "ads.meta.create_campaign") {
+      const state = await requireMetaAccount(String(input.account_id || ""));
+      const localId = String(input.local_campaign_id || input.id || "");
+      let local: any = null;
+      if (localId) {
+        const result = await svc.from("marketing_campaigns").select("*").eq("id", localId).eq("organization_id", organizationId).maybeSingle();
+        local = result.data;
+        if (!local) throw new Error("campaign_not_found");
+        if (local.external_campaign_id) throw new Error("campaign_already_linked_to_provider");
+      }
+      const name = text(input.name || local?.name, 180);
+      if (!name) throw new Error("campaign_name_required");
+      const requestedObjective = String(input.objective || local?.objective || "OUTCOME_LEADS").toUpperCase();
+      const objective = ["OUTCOME_LEADS","OUTCOME_SALES","OUTCOME_TRAFFIC","OUTCOME_ENGAGEMENT","OUTCOME_AWARENESS","OUTCOME_APP_PROMOTION"].includes(requestedObjective) ? requestedObjective : "OUTCOME_LEADS";
+      const created = await graph(state.version, state.token, `${state.account.id}/campaigns`, "POST", {
+        name, objective, status: "PAUSED", buying_type: "AUCTION", special_ad_categories: [],
+      });
+      if (!created?.id) throw new Error("meta_campaign_create_missing_id");
+      const confirmed = await graph(state.version, state.token, String(created.id), "GET", { fields: "id,name,status,effective_status,objective,daily_budget,lifetime_budget,buying_type,created_time,updated_time" });
+      const budget = await discoverMetaBudget(state, confirmed);
+      let row: any;
+      if (local) {
+        const metadata = { ...(local.metadata || {}), meta_account_id: state.account.id, meta_account_name: state.account.name, provider_confirmed_at: now(), provider_creation_mode: "paused_container_only", meta_budget_scope: budget.scope, meta_budget_object_id: budget.object_id };
+        const { data, error } = await svc.from("marketing_campaigns").update({ external_campaign_id: String(created.id), name: confirmed.name || name, objective: confirmed.objective || objective, status: "paused", currency: state.account.currency, last_sync_at: now(), metadata, updated_at: now() }).eq("id", local.id).select("*").single();
+        if (error) throw new Error("meta_campaign_link_local_failed");
+        row = data;
+      } else {
+        row = await syncMetaCampaignRow(state, confirmed, budget, null);
+      }
+      output = { campaign: row, provider_campaign: { id: confirmed.id, name: confirmed.name, status: confirmed.status, objective: confirmed.objective }, confirmed: String(confirmed.status).toUpperCase() === "PAUSED", publish_state: "paused_container_only", next_required: ["adset", "creative", "ad"] };
     } else if (action === "ecosystem.sync") {
       const state = await snapshot();
       output = {
@@ -309,10 +589,11 @@ Deno.serve(async (req) => {
       entity_type: internal ? "automation_job" : "organization",
       entity_id: internal ? jobId : organizationId,
       success: true,
+      context: action.startsWith("ads.meta.") ? { provider: "meta", confirmed: Boolean(output?.confirmed), account_id: output?.account?.id || output?.provider?.account_id || null } : {},
     });
     return json({ ok: true, action, output, job_id: jobId }, 200, origin);
   } catch (e) {
-    const message = String((e as Error).message || "core_command_failed");
+    const message = String((e as Error).message || "core_command_failed").slice(0, 900);
     await finish("failed", null, message);
     await svc.from("audit_log").insert({
       organization_id: organizationId,
