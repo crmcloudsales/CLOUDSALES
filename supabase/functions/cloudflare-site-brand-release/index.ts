@@ -9,6 +9,8 @@ const VERSION = "2026.08.29.1";
 const COMMAND = "cloudsales_site_brand_v15";
 const RAW = "https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web";
 const SUPA = "https://fkahaqprzgcimgyathqx.supabase.co";
+const HL = `${SUPA}/functions/v1/icon-build-diagnose`;
+const OMNI = `${SUPA}/functions/v1/cloudflare-pennyworth-audit-v1`;
 const U = Deno.env.get("SUPABASE_URL")!;
 const K = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const db = createClient(U, K, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -84,10 +86,12 @@ function b64(data: Uint8Array) {
 function brand(source: string, isRoot = false) {
   let html = source;
   html = html.replace(/CloudSales CRM/g, "CloudSales");
-  html = html.replace(/<link\s+rel=["']icon["'][^>]*href=["']\/icon\.svg["'][^>]*>/gi, `<link rel="icon" type="image/png" href="/favicon.png?v=${VERSION}">`);
+  html = html.replace(/<link\s+rel=["']icon["'][^>]*>/gi, `<link rel="icon" type="image/png" href="/favicon.png?v=${VERSION}">`);
+  if (!/rel=["']icon["']/i.test(html)) html = html.replace("</head>", `<link rel="icon" type="image/png" href="/favicon.png?v=${VERSION}"></head>`);
+  html = html.replace(/<link\s+rel=["']apple-touch-icon["'][^>]*>/gi, `<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=${VERSION}">`);
   if (!/rel=["']apple-touch-icon["']/i.test(html)) html = html.replace("</head>", `<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=${VERSION}"></head>`);
-  else html = html.replace(/<link\s+rel=["']apple-touch-icon["'][^>]*>/gi, `<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=${VERSION}">`);
-  html = html.replace(/src=["']\/icon\.svg["']/gi, `src="/cloudsales-official-icon-v3.png?v=${VERSION}"`);
+  html = html.replace(/src=["']\/icon\.svg(?:\?[^"']*)?["']/gi, `src="/cloudsales-official-icon-v3.png?v=${VERSION}"`);
+  html = html.replace(/src=["']\/cloudsales-official-icon-v3\.png(?:\?[^"']*)?["']/gi, `src="/cloudsales-official-icon-v3.png?v=${VERSION}"`);
   html = html.replace(/https:\/\/app\.cloudsales\.app\/#install-ios/g, "https://app.cloudsales.app/?install=ios");
   html = html.replace(/https:\/\/app\.cloudsales\.app\/#install-android/g, "https://app.cloudsales.app/?install=android");
   html = html.replace(/https:\/\/app\.cloudsales\.app\/#install-desktop/g, "https://app.cloudsales.app/?install=desktop");
@@ -99,8 +103,8 @@ function brand(source: string, isRoot = false) {
   html = html.replace(/target=["']_blank["'](?![^>]*\brel=)/gi, 'target="_blank" rel="noopener noreferrer"');
   html = html.replace(/\s+onerror=("[^"]*"|'[^']*')/gi, "");
   if (isRoot) {
-    html = html.replace(/<section class="section"><div class="wrap"><h2>Descarga CloudSales\./, '<section class="section" id="download"><div class="wrap"><h2>Descarga CloudSales.');
-    html = html.replace(/href=["']#pricing["']>Descargar la app</gi, 'href="#download">Descargar la app<');
+    if (!/id=["']download["']/i.test(html)) html = html.replace(/<h2>\s*Descarga CloudSales\.\s*<\/h2>/i, `<span id="download"></span><h2>Descarga CloudSales.</h2>`);
+    html = html.replace(/href=["']#pricing["'](?=[^>]*>\s*Descargar la app\s*<)/gi, 'href="#download"');
   }
   return html;
 }
@@ -130,12 +134,12 @@ async function upload(token: string, code: string) {
   return { ok: r.ok && data?.success !== false, status: r.status, errors: data?.errors || [] };
 }
 
-function worker(pages: Record<string, string>, csps: Record<string, string>, icon: string, widget: string) {
-  return `const P=${JSON.stringify(pages)},CSP=${JSON.stringify(csps)},ICON=${JSON.stringify(icon)},WIDGET=${JSON.stringify(widget)},V=${JSON.stringify(VERSION)};\nconst H={'x-cloudsales-release':V,'x-content-type-options':'nosniff','x-frame-options':'DENY','referrer-policy':'strict-origin-when-cross-origin','permissions-policy':'camera=(),geolocation=(),microphone=(),payment=(self)','cross-origin-opener-policy':'same-origin-allow-popups','origin-agent-cluster':'?1','x-permitted-cross-domain-policies':'none'};\nfunction r(b,t='text/html; charset=utf-8',c='no-store',extra={},csp=null){return new Response(b,{headers:{...H,'content-type':t,'cache-control':c,...extra,...(csp?{'content-security-policy':csp}:{})}})}\nfunction img(){const u=Uint8Array.from(atob(ICON),c=>c.charCodeAt(0));return new Response(u,{headers:{...H,'content-type':'image/png','cache-control':'public,max-age=31536000,immutable'}})}\nexport default{async fetch(req){const u=new URL(req.url),p=u.pathname.replace(/\\\/+$/,'')||'/';if(u.hostname==='www.cloudsales.app')return Response.redirect('https://cloudsales.app'+u.pathname+u.search,301);if(p==='/__version')return r(V,'text/plain');if(p==='/webchat.js')return r(WIDGET,'application/javascript; charset=utf-8','public,max-age=300,stale-while-revalidate=3600',{'access-control-allow-origin':'*','cross-origin-resource-policy':'cross-origin'});if(['/cloudsales-official-icon-v3.png','/icon-192.png','/icon-512.png','/apple-touch-icon.png','/favicon.png','/favicon.ico'].includes(p))return img();if(p==='/icon.svg'||p==='/favicon.svg')return Response.redirect(u.origin+'/favicon.png?v='+V,301);if(p==='/robots.txt')return r('User-agent: *\\nAllow: /\\nDisallow: /webhooks/\\nSitemap: https://cloudsales.app/sitemap.xml\\n','text/plain');if(p==='/sitemap.xml')return r('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/sitemap/0.9"><url><loc>https://cloudsales.app/</loc></url><url><loc>https://cloudsales.app/cloudco</loc></url><url><loc>https://cloudsales.app/academy</loc></url><url><loc>https://cloudsales.app/services</loc></url><url><loc>https://cloudsales.app/affiliate</loc></url><url><loc>https://cloudsales.app/terms</loc></url><url><loc>https://cloudsales.app/privacy</loc></url></urlset>','application/xml');return r(P[p]||P['/'],'text/html; charset=utf-8','no-store',{},CSP[p]||CSP['/'])}};`;
+function worker(pages: Record<string, string>, csps: Record<string, string>, icon: string, widget: string, cloudcoLogo: string) {
+  return `const P=${JSON.stringify(pages)},CSP=${JSON.stringify(csps)},ICON=${JSON.stringify(icon)},WIDGET=${JSON.stringify(widget)},CL=${JSON.stringify(cloudcoLogo)},V=${JSON.stringify(VERSION)},HL=${JSON.stringify(HL)},OMNI=${JSON.stringify(OMNI)};\nconst H={'x-cloudsales-release':V,'x-content-type-options':'nosniff','x-frame-options':'DENY','referrer-policy':'strict-origin-when-cross-origin','permissions-policy':'camera=(),geolocation=(),microphone=(),payment=(self)','cross-origin-opener-policy':'same-origin-allow-popups','origin-agent-cluster':'?1','x-permitted-cross-domain-policies':'none'};\nfunction r(b,t='text/html; charset=utf-8',c='no-store',extra={},csp=null){return new Response(b,{headers:{...H,'content-type':t,'cache-control':c,...extra,...(csp?{'content-security-policy':csp}:{})}})}\nfunction bin(x,type){const u=Uint8Array.from(atob(x),c=>c.charCodeAt(0));return new Response(u,{headers:{...H,'content-type':type,'cache-control':'public,max-age=31536000,immutable'}})}\nasync function proxy(req,url,allowed){const h=new Headers();for(const k of allowed){const v=req.headers.get(k);if(v)h.set(k,v)}const init={method:req.method,headers:h,body:['GET','HEAD'].includes(req.method)?undefined:req.body,redirect:'manual'};const x=await fetch(url,init);const out=new Headers();out.set('content-type',x.headers.get('content-type')||'application/json');out.set('cache-control','no-store');out.set('x-content-type-options','nosniff');return new Response(x.body,{status:x.status,headers:out})}\nexport default{async fetch(req){const u=new URL(req.url),p=u.pathname.replace(/\\\/+$/,'')||'/';if(u.hostname==='www.cloudsales.app')return Response.redirect('https://cloudsales.app'+u.pathname+u.search,301);if(p==='/webhooks/highlevel')return proxy(req,HL,['content-type','x-ghl-signature','x-wh-signature','x-webhook-id','user-agent']);const m=p.match(/^\\/webhooks\\/(telegram|tiktok)\\/([0-9a-f-]{36})$/i);if(m)return proxy(req,OMNI+'/'+m[1].toLowerCase()+'/'+m[2],['content-type','x-telegram-bot-api-secret-token','x-tiktok-signature','x-signature','user-agent']);if(p==='/__version')return r(V,'text/plain');if(p==='/webchat.js')return r(WIDGET,'application/javascript; charset=utf-8','public,max-age=300,stale-while-revalidate=3600',{'access-control-allow-origin':'*','cross-origin-resource-policy':'cross-origin'});if(p==='/cloudco-assets/cloudco-logo-official.webp')return bin(CL,'image/webp');if(['/cloudsales-official-icon-v3.png','/icon-192.png','/icon-512.png','/apple-touch-icon.png','/favicon.png','/favicon.ico'].includes(p))return bin(ICON,'image/png');if(p==='/icon.svg'||p==='/favicon.svg')return Response.redirect(u.origin+'/favicon.png?v='+V,301);if(p==='/robots.txt')return r('User-agent: *\\nAllow: /\\nDisallow: /webhooks/\\nSitemap: https://cloudsales.app/sitemap.xml\\n','text/plain');if(p==='/sitemap.xml')return r('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://cloudsales.app/</loc></url><url><loc>https://cloudsales.app/cloudco</loc></url><url><loc>https://cloudsales.app/academy</loc></url><url><loc>https://cloudsales.app/services</loc></url><url><loc>https://cloudsales.app/affiliate</loc></url><url><loc>https://cloudsales.app/terms</loc></url><url><loc>https://cloudsales.app/privacy</loc></url></urlset>','application/xml');return r(P[p]||P['/'],'text/html; charset=utf-8','no-store',{},CSP[p]||CSP['/'])}};`;
 }
 
-async function check(url: string) {
-  const r = await fetch(url + (url.includes("?") ? "&" : "?") + "qa=" + Date.now(), { redirect: "manual", headers: { "cache-control": "no-cache", pragma: "no-cache" } });
+async function check(url: string, method = "GET", body?: string) {
+  const r = await fetch(url + (url.includes("?") ? "&" : "?") + "qa=" + Date.now(), { method, body, redirect: "manual", headers: { "cache-control": "no-cache", pragma: "no-cache", ...(body ? { "content-type": "application/json" } : {}) } });
   return { status: r.status, text: await r.text(), type: r.headers.get("content-type") || "", release: r.headers.get("x-cloudsales-release"), location: r.headers.get("location") };
 }
 
@@ -164,8 +168,9 @@ Deno.serve(async (req) => {
     }
     const icon = await bytes(`${RAW}/assets/cloudsales-isotipo-official-512.png`);
     const widget = await text(`${RAW}/webchat.js`);
+    const cloudcoLogo = await bytes("https://cloudsales.app/cloudco-assets/cloudco-logo-official.webp");
 
-    result.upload = await upload(token, worker(pages, csps, b64(icon), widget));
+    result.upload = await upload(token, worker(pages, csps, b64(icon), widget, b64(cloudcoLogo)));
     if (!result.upload.ok) throw new Error("upload_failed");
 
     const before = await domains(token);
@@ -178,6 +183,9 @@ Deno.serve(async (req) => {
     const root = await check("https://cloudsales.app/");
     const www = await check("https://www.cloudsales.app/");
     const favicon = await check("https://cloudsales.app/favicon.png");
+    const cloudco = await check("https://cloudsales.app/cloudco-assets/cloudco-logo-official.webp");
+    const highlevel = await check("https://cloudsales.app/webhooks/highlevel", "POST", "{}");
+    const omni = await check("https://cloudsales.app/webhooks/telegram/00000000-0000-0000-0000-000000000000", "POST", "{}");
     const tests = {
       release: root.status === 200 && root.release === VERSION,
       official_favicon: root.text.includes(`/favicon.png?v=${VERSION}`) && favicon.status === 200 && /image\/png/i.test(favicon.type),
@@ -186,6 +194,9 @@ Deno.serve(async (req) => {
       install_links: ["?install=ios", "?install=android", "?install=desktop"].every((x) => root.text.includes(x)),
       no_trial: !/14 días de prueba/i.test(root.text),
       no_legacy_cta: !/Probar CloudSales/i.test(root.text),
+      cloudco_asset: cloudco.status === 200 && /image\/webp/i.test(cloudco.type),
+      highlevel_webhook: highlevel.status >= 400 && highlevel.status < 500 && !/text\/html/i.test(highlevel.type),
+      omni_webhook: omni.status >= 400 && omni.status < 500 && !/text\/html/i.test(omni.type),
       www_redirect: www.status === 301 && String(www.location || "").startsWith("https://cloudsales.app"),
     };
     result.tests = tests;
