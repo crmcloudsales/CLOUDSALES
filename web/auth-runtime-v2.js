@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '2026.08.28.19';
+  const VERSION = '2026.08.29.2';
   let resendTimer = null;
 
   function node(id) { return document.getElementById(id); }
@@ -18,14 +18,37 @@
       invalid_email: 'Escribe un correo válido.',
       weak_password: 'Usa una contraseña de al menos 8 caracteres.',
       rate_limited: 'Demasiados intentos. Espera unos minutos y vuelve a intentar.',
-      signup_temporarily_limited: 'El servicio de confirmación está ocupado. Espera unos 40 segundos y vuelve a tocar Crear cuenta.',
+      signup_temporarily_limited: 'El servicio de confirmación está ocupado. Espera unos minutos y vuelve a tocar Crear cuenta.',
       confirmation_wait: 'El correo ya fue solicitado. Espera unos segundos antes de reenviarlo.',
       confirmation_delivery_failed: 'No pudimos enviar el correo de confirmación. Intenta nuevamente en unos minutos.',
       signup_unavailable: 'No se pudo completar el registro. Intenta nuevamente.',
       signin_unavailable: 'No pudimos iniciar sesión. Revisa tu email y contraseña, y confirma tu correo si la cuenta es nueva.',
-      resend_unavailable: 'No se pudo reenviar el correo ahora. Intenta nuevamente en unos minutos.'
+      resend_unavailable: 'No se pudo reenviar el correo ahora. Intenta nuevamente en unos minutos.',
+      email_authorization_required: 'CloudSales necesita tu autorización explícita para enviar este correo de confirmación.'
     };
     return map[code] || 'No se pudo completar la operación. Intenta nuevamente.';
+  }
+
+  function ensureEmailNotice() {
+    let notice = node('signupEmailNotice');
+    if (notice) return notice;
+    const button = node('authBtn');
+    if (!button?.parentNode) return null;
+    notice = document.createElement('div');
+    notice.id = 'signupEmailNotice';
+    notice.className = 'notice hidden';
+    notice.style.margin = '10px 0 12px';
+    notice.style.fontSize = '11px';
+    notice.innerHTML = 'Al tocar <b>Crear cuenta</b> autorizas a CloudSales a enviarte <b>un correo de confirmación</b> a la dirección que escribiste. No autoriza campañas ni otros correos.';
+    button.parentNode.insertBefore(notice, button);
+    return notice;
+  }
+
+  function syncEmailNotice() {
+    const notice = ensureEmailNotice();
+    if (!notice) return;
+    const currentMode = typeof mode !== 'undefined' ? mode : 'signin';
+    notice.classList.toggle('hidden', currentMode !== 'signup');
   }
 
   function startCooldown(seconds = 40) {
@@ -49,7 +72,12 @@
     const button = node('resendConfirmation');
     if (button) { button.disabled = true; button.textContent = 'Enviando…'; }
     try {
-      const result = await direct('auth-session', { action: 'resend_confirmation', email }, false);
+      const result = await direct('auth-session', {
+        action: 'resend_confirmation',
+        email,
+        authorize_email: true,
+        email_purpose: 'signup_confirmation_resend'
+      }, false);
       if (result?.message_code === 'account_already_confirmed') {
         existingAccount('Esta cuenta ya está confirmada. Entra con tu correo y contraseña.');
         return;
@@ -84,6 +112,8 @@
   function bind() {
     const button = node('authBtn');
     if (!button || typeof direct !== 'function') return false;
+    ensureEmailNotice();
+    syncEmailNotice();
 
     button.onclick = async () => {
       message('');
@@ -101,12 +131,17 @@
       button.textContent = currentMode === 'signin' ? 'Entrando…' : 'Creando cuenta…';
 
       try {
-        const data = await direct('auth-session', {
+        const payload = {
           action: currentMode === 'signin' ? 'sign_in' : 'sign_up',
           email,
           password,
           full_name: fullName
-        }, false);
+        };
+        if (currentMode === 'signup') {
+          payload.authorize_email = true;
+          payload.email_purpose = 'signup_confirmation';
+        }
+        const data = await direct('auth-session', payload, false);
 
         if (data.session) {
           saveSession(data.session);
@@ -127,11 +162,9 @@
           } else if (data.message_code === 'confirmation_delivery_failed_pending') {
             confirmationActions('La cuenta quedó creada, pero el correo no pudo enviarse. Espera un momento y toca Reenviar correo.', 40);
           } else if (data.message_code === 'account_exists_or_confirmation_pending') {
-            confirmationActions(data.resent
-              ? 'La cuenta ya existe o está pendiente de confirmación. Reenviamos el correo; revisa tu bandeja.'
-              : 'La cuenta ya existe o está pendiente de confirmación. Revisa tu correo o reenvía la confirmación.');
+            confirmationActions('La cuenta ya existe o está pendiente de confirmación. Revisa tu correo o toca Reenviar correo para autorizar un nuevo envío.', 40);
           } else {
-            confirmationActions('Cuenta creada. Revisa tu correo para confirmar y después entra a CloudSales.', 40);
+            confirmationActions('Cuenta creada. Te enviamos el correo de confirmación que autorizaste. Confirma tu email y después entra a CloudSales.', 40);
           }
           return;
         }
@@ -151,6 +184,7 @@
       const btn = node('authBtn');
       if (btn) btn.disabled = false;
       message('');
+      setTimeout(syncEmailNotice, 0);
     }));
 
     document.documentElement.dataset.authRuntime = VERSION;
