@@ -1,0 +1,80 @@
+name: CloudSales Auth Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'web/auth-runtime-v2.js'
+      - 'supabase/functions/auth-session/**'
+      - 'supabase/migrations/*auth_explicit_confirmation_email*'
+      - '.github/workflows/cloudsales-auth-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web/auth-runtime-v2.js'
+      - 'supabase/functions/auth-session/**'
+      - 'supabase/migrations/*auth_explicit_confirmation_email*'
+      - '.github/workflows/cloudsales-auth-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  auth:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate explicit confirmation-email authorization invariants
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --check web/auth-runtime-v2.js
+          node <<'NODE'
+          const fs=require('fs');
+          const ui=fs.readFileSync('web/auth-runtime-v2.js','utf8');
+          for(const x of [
+            'authorize_email: true',
+            "email_purpose: 'signup_confirmation'",
+            "email_purpose: 'signup_confirmation_resend'",
+            'un único correo de confirmación',
+            'Esto no autoriza campañas',
+            'email_authorization_required'
+          ]) if(!ui.includes(x)) throw new Error('auth_ui_missing_'+x);
+
+          const fn=fs.readFileSync('supabase/functions/auth-session/index.ts','utf8');
+          for(const x of [
+            'CLOUDCO_EMAIL_EXPLICIT_SINGLE_SEND',
+            'email_authorization_required',
+            'email_send_authorizations',
+            'signup_confirmation',
+            'signup_confirmation_resend',
+            'scope: "single_send"',
+            'explicit_user_action: true',
+            'client.auth.signUp',
+            'client.auth.resend',
+            'consumed_at'
+          ]) if(!fn.includes(x)) throw new Error('auth_backend_missing_'+x);
+          if(/if\s*\(\s*action\s*===\s*["']sign_up["']\s*\|\|\s*action\s*===\s*["']resend_confirmation["']\s*\)\s*return\s+j\(\{error:["']email_send_blocked/i.test(fn)) throw new Error('legacy_absolute_email_kill_switch_present');
+          const insertPos=fn.indexOf('.from("email_send_authorizations")');
+          const signupPos=fn.indexOf('client.auth.signUp');
+          const resendPos=fn.indexOf('client.auth.resend');
+          if(insertPos<0||signupPos<0||resendPos<0||insertPos>signupPos||insertPos>resendPos) throw new Error('authorization_must_precede_email_capable_calls');
+          if(!fn.includes('body.authorize_email !== true')) throw new Error('backend_explicit_boolean_gate_missing');
+          if(!fn.includes('String(body.email_purpose || "") !== expectedPurpose')) throw new Error('backend_exact_purpose_gate_missing');
+
+          const migrations=fs.readdirSync('supabase/migrations').filter(x=>x.includes('auth_explicit_confirmation_email'));
+          if(migrations.length!==1) throw new Error('auth_email_migration_missing');
+          const sql=fs.readFileSync('supabase/migrations/'+migrations[0],'utf8');
+          for(const x of [
+            'alter column user_id drop not null',
+            'email_send_authorizations_actor_scope_check',
+            "purpose in ('signup_confirmation','signup_confirmation_resend')",
+            'enable row level security'
+          ]) if(!sql.toLowerCase().includes(x.toLowerCase())) throw new Error('auth_migration_missing_'+x);
+          console.log('CloudSales explicit one-send auth email boundary OK');
+          NODE
