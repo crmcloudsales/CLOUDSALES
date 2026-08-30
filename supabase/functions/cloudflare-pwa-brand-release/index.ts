@@ -1,18 +1,17 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const CF = "https://api.cloudflare.com/client/v4";
-const ACCOUNT = "bd94cb0580e86e7f40b4271a03052426";
-const ZONE = "44753df079f42f8995124c358b135597";
-const HOST = "app.cloudsales.app";
-const SERVICE = "cloudsales-pwa-v30";
-const VERSION = "2026.08.29.8";
-const COMMAND = "cloudsales_pwa_meta_ads_oauth_v30";
-const U = Deno.env.get("SUPABASE_URL")!;
-const K = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const db = createClient(U, K, { auth: { persistSession: false, autoRefreshToken: false } });
+const CF="https://api.cloudflare.com/client/v4";
+const ACCOUNT="bd94cb0580e86e7f40b4271a03052426";
+const ZONE="44753df079f42f8995124c358b135597";
+const HOST="app.cloudsales.app";
+const SERVICE="cloudsales-pwa-v30";
+const VERSION="2026.08.30.1";
+const COMMAND="cloudsales_pwa_meta_ads_oauth_v30";
+const U=Deno.env.get("SUPABASE_URL")!,K=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const db=createClient(U,K,{auth:{persistSession:false,autoRefreshToken:false}});
 
-const PAGE_RUNTIMES = [
+const PAGE_RUNTIMES=[
   "/auth-runtime-v2.js",
   "/app-runtime-v14.js",
   "/meta-runtime-v1.js",
@@ -24,249 +23,27 @@ const PAGE_RUNTIMES = [
   "/ai-chat-channels-v1.js",
   "/calendar-runtime-v1.js",
   "/ai-chat-calendar-bridge-v1.js",
+  "/contact-profile-runtime-v1.js",
 ];
-const SERVED_SCRIPTS = ["/install.js", ...PAGE_RUNTIMES];
+const SERVED_SCRIPTS=["/install.js",...PAGE_RUNTIMES];
+const json=(b:unknown,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{"content-type":"application/json","cache-control":"no-store"}});
+async function cmd(id:string){return(await db.from("internal_command_queue").select("*").eq("id",id).maybeSingle()).data}
+async function done(id:string,status:string,result:unknown,error:string|null=null){await db.from("internal_command_queue").update({status,result,error,finished_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id)}
+async function cf(token:string,path:string,method="GET",body?:unknown){const r=await fetch(CF+path,{method,headers:{Authorization:`Bearer ${token}`,Accept:"application/json","content-type":"application/json"},body:body===undefined?undefined:JSON.stringify(body)}),t=await r.text();let d:any={};try{d=JSON.parse(t)}catch{d={raw:t}}return{ok:r.ok&&d?.success!==false,status:r.status,data:d}}
+async function domains(token:string){const r=await cf(token,`/accounts/${ACCOUNT}/workers/domains`);return Array.isArray(r.data?.result)?r.data.result:[]}
+async function attach(token:string){const list=await domains(token),old=list.find((x:any)=>x.hostname===HOST&&x.zone_id===ZONE)||null;if(old?.service===SERVICE)return{ok:true,old};if(old){const d=await cf(token,`/accounts/${ACCOUNT}/workers/domains/${old.id}`,"DELETE");if(!d.ok)return{ok:false,old}}const a=await cf(token,`/accounts/${ACCOUNT}/workers/domains`,"PUT",{hostname:HOST,service:SERVICE,zone_id:ZONE,zone_name:"cloudsales.app"});return{ok:a.ok,old,errors:a.data?.errors||[]}}
+async function restore(token:string,old:any){const list=await domains(token),cur=list.find((x:any)=>x.hostname===HOST&&x.zone_id===ZONE);if(cur)await cf(token,`/accounts/${ACCOUNT}/workers/domains/${cur.id}`,"DELETE");if(old?.service)await cf(token,`/accounts/${ACCOUNT}/workers/domains`,"PUT",{hostname:HOST,service:old.service,zone_id:ZONE,zone_name:"cloudsales.app"})}
+async function text(url:string){const r=await fetch(`${url}${url.includes("?")?"&":"?"}r=${Date.now()}`,{headers:{"cache-control":"no-cache",pragma:"no-cache"}});if(!r.ok)throw new Error(`fetch_${r.status}_${url}`);return r.text()}
+async function bytes(url:string){const r=await fetch(`${url}${url.includes("?")?"&":"?"}r=${Date.now()}`,{headers:{"cache-control":"no-cache"}});if(!r.ok)throw new Error(`fetch_${r.status}_${url}`);return new Uint8Array(await r.arrayBuffer())}
+function b64(a:Uint8Array){let s="";for(let i=0;i<a.length;i+=32768)s+=String.fromCharCode(...a.subarray(i,Math.min(i+32768,a.length)));return btoa(s)}
+async function digest(a:Uint8Array){return[...new Uint8Array(await crypto.subtle.digest("SHA-256",a))].map(x=>x.toString(16).padStart(2,"0")).join("")}
+async function h64(s:string){const h=new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)));let o="";for(const x of h)o+=String.fromCharCode(x);return btoa(o)}
+function brand(src:string){let p=src;p=p.replace(/<link rel="manifest"[^>]*>/i,`<link rel="manifest" href="/manifest.webmanifest?v=${VERSION}">`).replace(/<link rel="icon"[^>]*>/gi,"").replace(/<link rel="apple-touch-icon"[^>]*>/gi,"");p=p.replace("</head>",`<link rel="icon" type="image/png" sizes="512x512" href="/cloudsales-favicon-official-v2.png?v=${VERSION}"><link rel="shortcut icon" type="image/png" href="/cloudsales-favicon-official-v2.png?v=${VERSION}"><link rel="apple-touch-icon" sizes="512x512" href="/cloudsales-app-icon-official-v2.png?v=${VERSION}"></head>`).replace(/install\.js\?v=[^\"']+/g,`install.js?v=${VERSION}`).replace(/<div class="logo"><img src="\/icon\.svg" alt="">CloudSales<\/div>/gi,`<div class="logo official-logo"><img src="/cloudsales-logo-official-v2.png?v=${VERSION}" alt="CloudSales"></div>`).replace(/<div class="brandrow"><img src="\/icon\.svg" alt="">CloudSales<\/div>/gi,`<div class="brandrow official-brandrow"><img src="/cloudsales-logo-official-v2.png?v=${VERSION}" alt="CloudSales"></div>`).replace(/src="\/icon\.svg"/gi,`src="/cloudsales-app-icon-official-v2.png?v=${VERSION}"`).replace("</style>",`.official-logo img{width:min(250px,80vw)!important;height:auto!important;max-width:none!important}.official-brandrow img{width:185px!important;height:auto!important;max-width:100%!important}</style>`);for(const path of PAGE_RUNTIMES)if(!p.includes(path))p=p.replace("</body>",`<script src="${path}?v=${VERSION}"></script></body>`);return p}
+async function csp(page:string){const inline=[...page.matchAll(/<script(?![^>]+src=)[^>]*>([\s\S]*?)<\/script>/gi)].map(m=>m[1]),hashes=await Promise.all(inline.map(h64));return`default-src 'self'; script-src 'self' ${hashes.map(h=>`'sha256-${h}'`).join(" ")}; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://storage.googleapis.com; connect-src 'self' https://fkahaqprzgcimgyathqx.supabase.co; worker-src 'self' blob:; font-src 'self' data:; media-src 'self' blob: data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';`}
+function worker(page:string,manifest:string,sw:string,scripts:Record<string,string>,i512:string,i192:string,logo:string,policy:string){return`const PAGE=${JSON.stringify(page)},MANIFEST=${JSON.stringify(manifest)},SW=${JSON.stringify(sw)},SCRIPTS=${JSON.stringify(scripts)},I512=${JSON.stringify(i512)},I192=${JSON.stringify(i192)},LOGO=${JSON.stringify(logo)},CSP=${JSON.stringify(policy)},V=${JSON.stringify(VERSION)};const H={'x-cloudsales-release':V,'x-content-type-options':'nosniff','x-frame-options':'DENY','referrer-policy':'strict-origin-when-cross-origin','permissions-policy':'camera=(),geolocation=(),payment=(self),microphone=(self)','cross-origin-resource-policy':'same-origin','cross-origin-opener-policy':'same-origin-allow-popups','origin-agent-cluster':'?1','x-permitted-cross-domain-policies':'none','x-robots-tag':'noindex, noarchive, nosnippet'};function r(b,t='text/html; charset=utf-8',c='no-store',pc=true){return new Response(b,{headers:{...H,'content-type':t,'cache-control':c,...(pc?{'content-security-policy':CSP}:{})}})}function img(x){const u=Uint8Array.from(atob(x),c=>c.charCodeAt(0));return new Response(u,{headers:{...H,'content-type':'image/png','cache-control':'public,max-age=31536000,immutable'}})}export default{async fetch(req){const u=new URL(req.url),p=u.pathname;if(p==='/__version')return r(V,'text/plain','no-store',false);if(p==='/manifest.webmanifest')return r(MANIFEST,'application/manifest+json','no-store',false);if(p==='/sw.js')return r(SW,'application/javascript; charset=utf-8','no-cache',false);if(SCRIPTS[p])return r(SCRIPTS[p],'application/javascript; charset=utf-8','no-cache',false);if(p==='/cloudsales-logo-official-v2.png')return img(LOGO);if(p==='/cloudsales-app-icon-official-v2-192.png'||p==='/icon-192.png')return img(I192);if(['/cloudsales-app-icon-official-v2.png','/cloudsales-favicon-official-v2.png','/favicon.png','/favicon.ico','/apple-touch-icon.png','/icon-512.png'].includes(p))return img(I512);if(p==='/icon.svg'||p==='/favicon.svg')return Response.redirect(u.origin+'/cloudsales-favicon-official-v2.png?v='+V,301);return r(PAGE)}};`}
+async function upload(token:string,code:string){const f=new FormData();f.append("metadata",new Blob([JSON.stringify({main_module:"main.mjs",compatibility_date:"2026-08-30"})],{type:"application/json"}));f.append("main.mjs",new Blob([code],{type:"application/javascript+module"}),"main.mjs");const r=await fetch(`${CF}/accounts/${ACCOUNT}/workers/scripts/${SERVICE}`,{method:"PUT",headers:{Authorization:`Bearer ${token}`},body:f}),t=await r.text();let d:any={};try{d=JSON.parse(t)}catch{d={raw:t}}return{ok:r.ok&&d?.success!==false,status:r.status,errors:d?.errors||[]}}
+async function check(path:string){const r=await fetch(`https://${HOST}${path}${path.includes("?")?"&":"?"}qa=${Date.now()}`,{headers:{"cache-control":"no-cache",pragma:"no-cache"}});return{status:r.status,body:await r.text(),release:r.headers.get("x-cloudsales-release")||""}}
+async function bcheck(path:string){const r=await fetch(`https://${HOST}${path}?qa=${Date.now()}`,{headers:{"cache-control":"no-cache"}}),a=new Uint8Array(await r.arrayBuffer());return{status:r.status,hash:await digest(a),size:a.length}}
 
-const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), {
-  status: s,
-  headers: { "content-type": "application/json", "cache-control": "no-store" },
-});
-async function cmd(id: string) {
-  return (await db.from("internal_command_queue").select("*").eq("id", id).maybeSingle()).data;
-}
-async function done(id: string, status: string, result: unknown, error: string | null = null) {
-  await db.from("internal_command_queue").update({
-    status,
-    result,
-    error,
-    finished_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }).eq("id", id);
-}
-async function cf(token: string, path: string, method = "GET", body?: unknown) {
-  const r = await fetch(CF + path, {
-    method,
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const t = await r.text();
-  let d: any = {};
-  try { d = JSON.parse(t); } catch { d = { raw: t }; }
-  return { ok: r.ok && d?.success !== false, status: r.status, data: d };
-}
-async function domains(token: string) {
-  const r = await cf(token, `/accounts/${ACCOUNT}/workers/domains`);
-  return Array.isArray(r.data?.result) ? r.data.result : [];
-}
-async function attach(token: string) {
-  const list = await domains(token);
-  const old = list.find((x: any) => x.hostname === HOST && x.zone_id === ZONE) || null;
-  if (old?.service === SERVICE) return { ok: true, old };
-  if (old) {
-    const d = await cf(token, `/accounts/${ACCOUNT}/workers/domains/${old.id}`, "DELETE");
-    if (!d.ok) return { ok: false, old };
-  }
-  const a = await cf(token, `/accounts/${ACCOUNT}/workers/domains`, "PUT", {
-    hostname: HOST,
-    service: SERVICE,
-    zone_id: ZONE,
-    zone_name: "cloudsales.app",
-  });
-  return { ok: a.ok, old, errors: a.data?.errors || [] };
-}
-async function restore(token: string, old: any) {
-  const list = await domains(token);
-  const cur = list.find((x: any) => x.hostname === HOST && x.zone_id === ZONE);
-  if (cur) await cf(token, `/accounts/${ACCOUNT}/workers/domains/${cur.id}`, "DELETE");
-  if (old?.service) {
-    await cf(token, `/accounts/${ACCOUNT}/workers/domains`, "PUT", {
-      hostname: HOST,
-      service: old.service,
-      zone_id: ZONE,
-      zone_name: "cloudsales.app",
-    });
-  }
-}
-async function text(url: string) {
-  const r = await fetch(`${url}${url.includes("?") ? "&" : "?"}r=${Date.now()}`, {
-    headers: { "cache-control": "no-cache", pragma: "no-cache" },
-  });
-  if (!r.ok) throw new Error(`fetch_${r.status}_${url}`);
-  return await r.text();
-}
-async function bytes(url: string) {
-  const r = await fetch(`${url}${url.includes("?") ? "&" : "?"}r=${Date.now()}`, {
-    headers: { "cache-control": "no-cache" },
-  });
-  if (!r.ok) throw new Error(`fetch_${r.status}_${url}`);
-  return new Uint8Array(await r.arrayBuffer());
-}
-function b64(a: Uint8Array) {
-  let s = "";
-  for (let i = 0; i < a.length; i += 32768) s += String.fromCharCode(...a.subarray(i, Math.min(i + 32768, a.length)));
-  return btoa(s);
-}
-async function digest(a: Uint8Array) {
-  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", a))]
-    .map((x) => x.toString(16).padStart(2, "0")).join("");
-}
-async function h64(s: string) {
-  const h = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)));
-  let o = "";
-  for (const x of h) o += String.fromCharCode(x);
-  return btoa(o);
-}
-function brand(src: string) {
-  let p = src;
-  p = p.replace(/<link rel="manifest"[^>]*>/i, `<link rel="manifest" href="/manifest.webmanifest?v=${VERSION}">`)
-    .replace(/<link rel="icon"[^>]*>/gi, "")
-    .replace(/<link rel="apple-touch-icon"[^>]*>/gi, "");
-  p = p.replace("</head>", `<link rel="icon" type="image/png" sizes="512x512" href="/cloudsales-favicon-official-v2.png?v=${VERSION}"><link rel="shortcut icon" type="image/png" href="/cloudsales-favicon-official-v2.png?v=${VERSION}"><link rel="apple-touch-icon" sizes="512x512" href="/cloudsales-app-icon-official-v2.png?v=${VERSION}"></head>`)
-    .replace(/install\.js\?v=[^\"']+/g, `install.js?v=${VERSION}`)
-    .replace(/<div class="logo"><img src="\/icon\.svg" alt="">CloudSales<\/div>/gi, `<div class="logo official-logo"><img src="/cloudsales-logo-official-v2.png?v=${VERSION}" alt="CloudSales"></div>`)
-    .replace(/<div class="brandrow"><img src="\/icon\.svg" alt="">CloudSales<\/div>/gi, `<div class="brandrow official-brandrow"><img src="/cloudsales-logo-official-v2.png?v=${VERSION}" alt="CloudSales"></div>`)
-    .replace(/src="\/icon\.svg"/gi, `src="/cloudsales-app-icon-official-v2.png?v=${VERSION}"`)
-    .replace("</style>", `.official-logo img{width:min(250px,80vw)!important;height:auto!important;max-width:none!important}.official-brandrow img{width:185px!important;height:auto!important;max-width:100%!important}</style>`);
-  for (const path of PAGE_RUNTIMES) {
-    if (!p.includes(path)) p = p.replace("</body>", `<script src="${path}?v=${VERSION}"></script></body>`);
-  }
-  return p;
-}
-async function csp(page: string) {
-  const a = [...page.matchAll(/<script(?![^>]+src=)[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]);
-  const hs = await Promise.all(a.map(h64));
-  return `default-src 'self'; script-src 'self' ${hs.map((h) => `'sha256-${h}'`).join(" ")}; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://storage.googleapis.com; connect-src 'self' https://fkahaqprzgcimgyathqx.supabase.co; worker-src 'self' blob:; font-src 'self' data:; media-src 'self' blob: data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';`;
-}
-function worker(page: string, manifest: string, sw: string, scripts: Record<string, string>, i512: string, i192: string, logo: string, policy: string) {
-  return `const PAGE=${JSON.stringify(page)},MANIFEST=${JSON.stringify(manifest)},SW=${JSON.stringify(sw)},SCRIPTS=${JSON.stringify(scripts)},I512=${JSON.stringify(i512)},I192=${JSON.stringify(i192)},LOGO=${JSON.stringify(logo)},CSP=${JSON.stringify(policy)},V=${JSON.stringify(VERSION)};const H={'x-cloudsales-release':V,'x-content-type-options':'nosniff','x-frame-options':'DENY','referrer-policy':'strict-origin-when-cross-origin','permissions-policy':'camera=(),geolocation=(),payment=(self),microphone=(self)','cross-origin-resource-policy':'same-origin','cross-origin-opener-policy':'same-origin-allow-popups','origin-agent-cluster':'?1','x-permitted-cross-domain-policies':'none','x-robots-tag':'noindex, noarchive, nosnippet'};function r(b,t='text/html; charset=utf-8',c='no-store',pc=true){return new Response(b,{headers:{...H,'content-type':t,'cache-control':c,...(pc?{'content-security-policy':CSP}:{})}})}function img(x){const u=Uint8Array.from(atob(x),c=>c.charCodeAt(0));return new Response(u,{headers:{...H,'content-type':'image/png','cache-control':'public,max-age=31536000,immutable'}})}export default{async fetch(req){const u=new URL(req.url),p=u.pathname;if(p==='/__version')return r(V,'text/plain','no-store',false);if(p==='/manifest.webmanifest')return r(MANIFEST,'application/manifest+json','no-store',false);if(p==='/sw.js')return r(SW,'application/javascript; charset=utf-8','no-cache',false);if(SCRIPTS[p])return r(SCRIPTS[p],'application/javascript; charset=utf-8','no-cache',false);if(p==='/cloudsales-logo-official-v2.png')return img(LOGO);if(p==='/cloudsales-app-icon-official-v2-192.png'||p==='/icon-192.png')return img(I192);if(['/cloudsales-app-icon-official-v2.png','/cloudsales-favicon-official-v2.png','/favicon.png','/favicon.ico','/apple-touch-icon.png','/icon-512.png'].includes(p))return img(I512);if(p==='/icon.svg'||p==='/favicon.svg')return Response.redirect(u.origin+'/cloudsales-favicon-official-v2.png?v='+V,301);return r(PAGE)}};`;
-}
-async function upload(token: string, code: string) {
-  const f = new FormData();
-  f.append("metadata", new Blob([JSON.stringify({ main_module: "main.mjs", compatibility_date: "2026-08-29" })], { type: "application/json" }));
-  f.append("main.mjs", new Blob([code], { type: "application/javascript+module" }), "main.mjs");
-  const r = await fetch(`${CF}/accounts/${ACCOUNT}/workers/scripts/${SERVICE}`, {
-    method: "PUT",
-    headers: { Authorization: `Bearer ${token}` },
-    body: f,
-  });
-  const t = await r.text();
-  let d: any = {};
-  try { d = JSON.parse(t); } catch { d = { raw: t }; }
-  return { ok: r.ok && d?.success !== false, status: r.status, errors: d?.errors || [] };
-}
-async function check(path: string) {
-  const r = await fetch(`https://${HOST}${path}${path.includes("?") ? "&" : "?"}qa=${Date.now()}`, {
-    headers: { "cache-control": "no-cache", pragma: "no-cache" },
-  });
-  return { status: r.status, body: await r.text(), release: r.headers.get("x-cloudsales-release") || "" };
-}
-async function bcheck(path: string) {
-  const r = await fetch(`https://${HOST}${path}?qa=${Date.now()}`, { headers: { "cache-control": "no-cache" } });
-  const a = new Uint8Array(await r.arrayBuffer());
-  return { status: r.status, hash: await digest(a), size: a.length };
-}
-
-Deno.serve(async (req) => {
-  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
-  const body = await req.json().catch(() => ({}));
-  const id = String(body.command_id || "");
-  const q = await cmd(id);
-  if (!q || q.command_type !== COMMAND || q.status !== "queued" || new Date(q.expires_at).getTime() <= Date.now()) {
-    return json({ error: "invalid_command" }, 403);
-  }
-  await db.from("internal_command_queue").update({ status: "running", started_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id);
-  const token = Deno.env.get("CLOUDFLARE_API_TOKEN_CLOUDSALES") || "";
-  if (!token) {
-    await done(id, "failed", null, "cloudflare_token_missing");
-    return json({ error: "cloudflare_token_missing" }, 503);
-  }
-  const result: any = { version: VERSION, service: SERVICE };
-  let old: any = null;
-  try {
-    const sourceCommit = /^[0-9a-f]{40}$/.test(String(q.input?.source_commit || "")) ? String(q.input.source_commit) : "main";
-    const RAW = `https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/${sourceCommit}/web`;
-    result.source_commit = sourceCommit;
-    const page = brand(await text(`${RAW}/pwa.html`));
-    const policy = await csp(page);
-    const manifest = await text(`${RAW}/manifest.webmanifest`);
-    const sw = await text(`${RAW}/sw.js`);
-    const scripts: Record<string, string> = {};
-    for (const p of SERVED_SCRIPTS) scripts[p] = await text(`${RAW}${p}`);
-    const [i512, i192, logo] = await Promise.all([
-      bytes(`${RAW}/assets/cloudsales-app-icon-official-v2.png`),
-      bytes(`${RAW}/assets/cloudsales-app-icon-official-v2-192.png`),
-      bytes(`${RAW}/assets/cloudsales-logo-official-v2.png`),
-    ]);
-    const expected = { icon512: await digest(i512), icon192: await digest(i192), logo: await digest(logo) };
-    result.upload = await upload(token, worker(page, manifest, sw, scripts, b64(i512), b64(i192), b64(logo), policy));
-    if (!result.upload.ok) throw new Error("upload_failed");
-    const a = await attach(token);
-    old = a.old;
-    if (!a.ok) throw new Error("attach_failed");
-    await new Promise((r) => setTimeout(r, 7000));
-
-    const [root, m, installer, auth, ops, meta, cloudy, works, adspend, aiChat, aiChannels, calendar, calendarBridge, swLive] = await Promise.all([
-      check("/"),
-      check("/manifest.webmanifest"),
-      check("/install.js"),
-      check("/auth-runtime-v2.js"),
-      check("/app-runtime-v14.js"),
-      check("/meta-runtime-v1.js"),
-      check("/cloudy-runtime-v3.js"),
-      check("/works-runtime-v1.js"),
-      check("/ad-spend-runtime-v1.js"),
-      check("/ai-chat-runtime-v2.js"),
-      check("/ai-chat-channels-v1.js"),
-      check("/calendar-runtime-v1.js"),
-      check("/ai-chat-calendar-bridge-v1.js"),
-      check("/sw.js"),
-    ]);
-    const [live512, live192, liveLogo] = await Promise.all([
-      bcheck("/cloudsales-app-icon-official-v2.png"),
-      bcheck("/cloudsales-app-icon-official-v2-192.png"),
-      bcheck("/cloudsales-logo-official-v2.png"),
-    ]);
-
-    const tests = {
-      release: root.status === 200 && root.release === VERSION,
-      exact_logo_visible: root.body.includes(`/cloudsales-logo-official-v2.png?v=${VERSION}`),
-      exact_favicon: root.body.includes(`/cloudsales-favicon-official-v2.png?v=${VERSION}`),
-      no_legacy_icon: !root.body.includes("/icon.svg"),
-      manifest_new_identity: m.body.includes('"id": "/cloudsales-app-v2"'),
-      installer_native_prompt: installer.body.includes("beforeinstallprompt"),
-      auth_runtime_loaded: root.body.includes(`/auth-runtime-v2.js?v=${VERSION}`) && auth.body.includes("claimPending"),
-      mobile_ops_runtime_loaded: root.body.includes(`/app-runtime-v14.js?v=${VERSION}`) && ops.body.includes("Operational Center") && ops.body.includes("tenant-ops-api"),
-      meta_ads_runtime: root.body.includes(`/meta-runtime-v1.js?v=${VERSION}`) && meta.body.includes("META_PROVIDER='meta_ads'") && meta.body.includes("META_FN='cloudflare-pwa-release-v10'") && meta.body.includes("La conexión Dataset/CAPI permanece separada"),
-      cloudy_conversation_runtime: root.body.includes(`/cloudy-runtime-v3.js?v=${VERSION}`) && cloudy.body.includes("MediaRecorder") && cloudy.body.includes("cloudy-voice?mode=transcribe") && cloudy.body.includes("cloudy-voice?mode=tts") && !cloudy.body.includes("SpeechRecognition"),
-      works_runtime_loaded: root.body.includes(`/works-runtime-v1.js?v=${VERSION}`) && works.body.includes("Works · Trabajos") && works.body.includes("works.snapshot") && works.body.includes("Media spend"),
-      ad_spend_runtime_loaded: root.body.includes(`/ad-spend-runtime-v1.js?v=${VERSION}`) && adspend.body.includes("Ad Spend & Billing") && adspend.body.includes("META_FN='cloudflare-pwa-release-v10'") && adspend.body.includes("google-ads-command") && adspend.body.includes("CloudSales no recibe ni almacena"),
-      ai_chat_runtime_loaded: root.body.includes(`/ai-chat-runtime-v2.js?v=${VERSION}`) && aiChat.body.includes("AI CHAT") && aiChat.body.includes("conversation.search") && aiChat.body.includes("highlevel-command"),
-      ai_chat_channels_loaded: root.body.includes(`/ai-chat-channels-v1.js?v=${VERSION}`) && aiChannels.body.includes("send_provider") && aiChannels.body.includes("send_local"),
-      calendar_runtime_loaded: root.body.includes(`/calendar-runtime-v1.js?v=${VERSION}`) && calendar.body.includes("page-calendar") && calendar.body.includes("crm.appointment.create"),
-      ai_chat_calendar_bridge_loaded: root.body.includes(`/ai-chat-calendar-bridge-v1.js?v=${VERSION}`) && calendarBridge.body.includes("a2schedule") && calendarBridge.body.includes("csNewAppointment"),
-      sw_release: swLive.body.includes("cloudsales-pwa-2026.08.29.8") && PAGE_RUNTIMES.every((path) => swLive.body.includes(path)),
-      exact_icon512_bytes: live512.hash === expected.icon512,
-      exact_icon192_bytes: live192.hash === expected.icon192,
-      exact_logo_bytes: liveLogo.hash === expected.logo,
-    };
-    result.tests = tests;
-    result.hashes = expected;
-    if (Object.values(tests).some((v) => v !== true)) throw new Error("cloudsales_pwa_smoke_failed");
-    await db.from("audit_log").insert({
-      actor_type: "system",
-      action: "cloudsales.pwa.meta_ads_oauth_v30.promoted",
-      entity_type: "release",
-      entity_id: VERSION,
-      success: true,
-      context: { service: SERVICE, source_commit: sourceCommit, tests, hashes: expected },
-    });
-    await done(id, "succeeded", result, null);
-    return json(result);
-  } catch (e) {
-    const er = String((e as Error).message || e).slice(0, 500);
-    result.error = er;
-    if (old?.service) await restore(token, old);
-    await done(id, "failed", result, er);
-    return json(result, 500);
-  }
-});
+Deno.serve(async req=>{if(req.method!=="POST")return json({error:"method_not_allowed"},405);const body=await req.json().catch(()=>({})),id=String(body.command_id||""),q=await cmd(id);if(!q||q.command_type!==COMMAND||q.status!=="queued"||new Date(q.expires_at).getTime()<=Date.now())return json({error:"invalid_command"},403);await db.from("internal_command_queue").update({status:"running",started_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id);const token=Deno.env.get("CLOUDFLARE_API_TOKEN_CLOUDSALES")||"";if(!token){await done(id,"failed",null,"cloudflare_token_missing");return json({error:"cloudflare_token_missing"},503)}const result:any={version:VERSION,service:SERVICE};let old:any=null;try{const sourceCommit=/^[0-9a-f]{40}$/.test(String(q.input?.source_commit||""))?String(q.input.source_commit):"main",RAW=`https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/${sourceCommit}/web`;result.source_commit=sourceCommit;const page=brand(await text(`${RAW}/pwa.html`)),policy=await csp(page),manifest=await text(`${RAW}/manifest.webmanifest`),sw=await text(`${RAW}/sw.js`),scripts:Record<string,string>={};for(const p of SERVED_SCRIPTS)scripts[p]=await text(`${RAW}${p}`);const[i512,i192,logo]=await Promise.all([bytes(`${RAW}/assets/cloudsales-app-icon-official-v2.png`),bytes(`${RAW}/assets/cloudsales-app-icon-official-v2-192.png`),bytes(`${RAW}/assets/cloudsales-logo-official-v2.png`)]),expected={icon512:await digest(i512),icon192:await digest(i192),logo:await digest(logo)};result.upload=await upload(token,worker(page,manifest,sw,scripts,b64(i512),b64(i192),b64(logo),policy));if(!result.upload.ok)throw new Error("upload_failed");const a=await attach(token);old=a.old;if(!a.ok)throw new Error("attach_failed");await new Promise(r=>setTimeout(r,7000));
+const[root,m,installer,auth,ops,meta,cloudy,works,adspend,aiChat,aiChannels,calendar,calendarBridge,contactProfile,swLive]=await Promise.all([check("/"),check("/manifest.webmanifest"),check("/install.js"),check("/auth-runtime-v2.js"),check("/app-runtime-v14.js"),check("/meta-runtime-v1.js"),check("/cloudy-runtime-v3.js"),check("/works-runtime-v1.js"),check("/ad-spend-runtime-v1.js"),check("/ai-chat-runtime-v2.js"),check("/ai-chat-channels-v1.js"),check("/calendar-runtime-v1.js"),check("/ai-chat-calendar-bridge-v1.js"),check("/contact-profile-runtime-v1.js"),check("/sw.js")]);const[live512,live192,liveLogo]=await Promise.all([bcheck("/cloudsales-app-icon-official-v2.png"),bcheck("/cloudsales-app-icon-official-v2-192.png"),bcheck("/cloudsales-logo-official-v2.png")]);const tests={release:root.status===200&&root.release===VERSION,exact_logo_visible:root.body.includes(`/cloudsales-logo-official-v2.png?v=${VERSION}`),exact_favicon:root.body.includes(`/cloudsales-favicon-official-v2.png?v=${VERSION}`),no_legacy_icon:!root.body.includes("/icon.svg"),manifest_new_identity:m.body.includes('"id": "/cloudsales-app-v2"'),installer_native_prompt:installer.body.includes("beforeinstallprompt"),auth_runtime_loaded:root.body.includes(`/auth-runtime-v2.js?v=${VERSION}`)&&auth.body.includes("claimPending"),mobile_ops_runtime_loaded:root.body.includes(`/app-runtime-v14.js?v=${VERSION}`)&&ops.body.includes("Operational Center")&&ops.body.includes("tenant-ops-api"),meta_ads_runtime:root.body.includes(`/meta-runtime-v1.js?v=${VERSION}`)&&meta.body.includes("META_PROVIDER='meta_ads'"),cloudy_conversation_runtime:root.body.includes(`/cloudy-runtime-v3.js?v=${VERSION}`)&&cloudy.body.includes("MediaRecorder")&&cloudy.body.includes("cloudy-voice?mode=transcribe"),works_runtime_loaded:root.body.includes(`/works-runtime-v1.js?v=${VERSION}`)&&works.body.includes("Works · Trabajos")&&works.body.includes("works.snapshot"),ad_spend_runtime_loaded:root.body.includes(`/ad-spend-runtime-v1.js?v=${VERSION}`)&&adspend.body.includes("Ad Spend & Billing"),ai_chat_runtime_loaded:root.body.includes(`/ai-chat-runtime-v2.js?v=${VERSION}`)&&aiChat.body.includes("AI CHAT")&&aiChat.body.includes("conversation.search")&&aiChat.body.includes("highlevel-command"),ai_chat_channels_loaded:root.body.includes(`/ai-chat-channels-v1.js?v=${VERSION}`)&&aiChannels.body.includes("send_provider"),calendar_runtime_loaded:root.body.includes(`/calendar-runtime-v1.js?v=${VERSION}`)&&calendar.body.includes("page-calendar")&&calendar.body.includes("crm.appointment.create"),ai_chat_calendar_bridge_loaded:root.body.includes(`/ai-chat-calendar-bridge-v1.js?v=${VERSION}`)&&calendarBridge.body.includes("a2schedule"),contact_profile_runtime_loaded:root.body.includes(`/contact-profile-runtime-v1.js?v=${VERSION}`)&&contactProfile.body.includes("crm.snapshot.sync")&&contactProfile.body.includes("crm.note.create")&&contactProfile.body.includes("workspace-files")&&contactProfile.body.includes("opportunity.move"),sw_runtimes:PAGE_RUNTIMES.every(path=>swLive.body.includes(path)),exact_icon512_bytes:live512.hash===expected.icon512,exact_icon192_bytes:live192.hash===expected.icon192,exact_logo_bytes:liveLogo.hash===expected.logo};result.tests=tests;result.hashes=expected;if(Object.values(tests).some(v=>v!==true))throw new Error("cloudsales_pwa_smoke_failed");await db.from("audit_log").insert({actor_type:"system",action:"cloudsales.pwa.release.promoted",entity_type:"release",entity_id:VERSION,success:true,context:{service:SERVICE,source_commit:sourceCommit,tests,hashes:expected}});await done(id,"succeeded",result,null);return json(result)}catch(e){const er=String((e as Error).message||e).slice(0,500);result.error=er;if(old?.service)await restore(token,old);await done(id,"failed",result,er);return json(result,500)}});
