@@ -62,9 +62,9 @@ jobs:
 
             const seoPage=await browser.newPage({viewport:{width:1280,height:900},locale:'es-MX'});
             const seoErrors=[]; seoPage.on('pageerror',e=>seoErrors.push(String(e.message||e)));
-            const seoResponse=await seoPage.goto('https://pennyworth.cloudsales.app/?seoqa='+Date.now(),{waitUntil:'networkidle',timeout:45000});
+            const seoResponse=await seoPage.goto('https://pennyworth.cloudsales.app/?seoqa='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
             if(!seoResponse||!seoResponse.ok()) throw new Error('seo_page_http_'+(seoResponse&&seoResponse.status()));
-            await seoPage.waitForTimeout(1000);
+            await seoPage.waitForTimeout(2500);
             const robots=await seoPage.locator('meta[name="robots"]').getAttribute('content');
             const canonical=await seoPage.locator('link[rel="canonical"]').getAttribute('href');
             const title=await seoPage.title();
