@@ -1,4 +1,5 @@
 name: Pennyworth Live Browser Smoke
+# Live browser verification after contact-gate hotfix
 
 on:
   push:
