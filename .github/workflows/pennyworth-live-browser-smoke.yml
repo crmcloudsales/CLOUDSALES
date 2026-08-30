@@ -1,5 +1,5 @@
 name: Pennyworth Live Browser Smoke
-# Verify live SEO, localization, unified contact form and secure field rules
+# Verify live SEO, localization, unified contact form, secure fields and automatic property context
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Verify Pennyworth live form, locales and SEO
+      - name: Verify Pennyworth live form, locales, property context and SEO
         shell: bash
         run: |
           node <<'NODE'
@@ -58,24 +58,46 @@ jobs:
             if(await email.getAttribute('required')===null)throw new Error('email_not_required');
             if(await delivery.getAttribute('required')!==null)throw new Error('delivery_should_be_optional');
             const opts=await delivery.locator('option').evaluateAll(os=>os.map(o=>({value:o.value,text:o.textContent.trim()})));
-            console.log('DELIVERY_OPTIONS='+JSON.stringify(opts));
             const expected=['','Inmediata','Hasta 6 meses','6 meses o más'];
             if(JSON.stringify(opts.map(x=>x.value))!==JSON.stringify(expected))throw new Error('delivery_options_invalid');
+
+            // Dynamic inventory: clicking a property must inherit it into the same form automatically.
+            const inventoryButton=page.locator('[data-inventory-id]').first();
+            await inventoryButton.waitFor({state:'visible',timeout:10000});
+            const inventoryId=await inventoryButton.getAttribute('data-inventory-id');
+            const inventoryName=(await inventoryButton.locator('xpath=ancestor::article[1]//h3').innerText()).trim();
+            await inventoryButton.click();
+            await page.waitForTimeout(200);
+            const dynamicInterest=await page.locator('#interest').inputValue();
+            const dynamicBadge=(await page.locator('#pwPropertyPicked').innerText()).trim();
+            if(!inventoryId||!dynamicInterest.includes(inventoryName)||!dynamicBadge.includes(inventoryName))throw new Error('dynamic_property_not_inherited');
+            console.log('DYNAMIC_PROPERTY_CONTEXT='+JSON.stringify({inventoryId,inventoryName,dynamicInterest}));
+
+            // Static IDILIK CTA must overwrite the context automatically, with no extra field for the visitor.
+            const idilik=page.locator('.idilik a[href="#contact"]').first();
+            await idilik.waitFor({state:'visible',timeout:5000});
+            await idilik.click();
+            await page.waitForTimeout(200);
+            const idilikInterest=await page.locator('#interest').inputValue();
+            const idilikBadge=(await page.locator('#pwPropertyPicked').innerText()).trim();
+            if(!idilikInterest.includes('IDILIK Residences')||!idilikBadge.includes('IDILIK Residences'))throw new Error('idilik_property_not_inherited');
 
             await page.locator('#pwChatLaunch').click();
             const panel=page.locator('#pwUnifiedPanel');await panel.waitFor({state:'visible',timeout:5000});
             if(await page.locator('#leadForm').count()!==1||await panel.locator('#leadForm').count()!==1)throw new Error('chat_not_using_shared_form');
+            if(!(await panel.locator('#pwPropertyPicked').innerText()).includes('IDILIK Residences'))throw new Error('property_context_lost_in_chat');
             await panel.locator('.pwClose').click();await page.waitForTimeout(200);
             if(await page.locator('#contact #leadForm').count()!==1)throw new Error('form_not_restored');
             await page.locator('#pwWaLaunch').click();await panel.waitFor({state:'visible',timeout:5000});
             if(await panel.locator('#leadForm').count()!==1)throw new Error('whatsapp_not_using_shared_form');
+            if(!(await panel.locator('#pwPropertyPicked').innerText()).includes('IDILIK Residences'))throw new Error('property_context_lost_in_whatsapp');
             await panel.locator('.pwClose').click();
 
             const robots=await page.locator('meta[name="robots"]').getAttribute('content');
             const canonical=await page.locator('link[rel="canonical"]').getAttribute('href');
             const title=await page.title();
             if(!robots||robots.includes('noindex')||canonical!=='https://pennyworth.cloudsales.app/'||!title.includes('PENNYWORTH')||!title.includes('CloudSales'))throw new Error('seo_regression');
-            console.log('PENNYWORTH_UNIFIED_REQUIRED_EMAIL_OPTIONAL_DELIVERY_PASS');
+            console.log('PENNYWORTH_PROPERTY_CONTEXT_UNIFIED_FORM_PASS');
             await page.close();await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
