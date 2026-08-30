@@ -1,5 +1,5 @@
 name: Pennyworth Live Browser Smoke
-# Verify live contact gates and automatic browser/device localization
+# Verify live SEO, contact gates and automatic browser/device localization
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Verify Pennyworth browser locale detection, RTL and contact gates
+      - name: Verify Pennyworth SEO, browser locale detection, RTL and contact gates
         shell: bash
         run: |
           node <<'NODE'
@@ -59,7 +59,40 @@ jobs:
             }
             await check('fr-FR','fr','Nous redéfinissons l’expérience d’investissement.');
             await check('ar-AE','ar-AE','نعيد تعريف تجربة الاستثمار.','rtl');
-            console.log('PENNYWORTH_AUTODETECT_AND_CONTACT_GATES_PASS');
+
+            const seoPage=await browser.newPage({viewport:{width:1280,height:900},locale:'es-MX'});
+            const seoErrors=[]; seoPage.on('pageerror',e=>seoErrors.push(String(e.message||e)));
+            const seoResponse=await seoPage.goto('https://pennyworth.cloudsales.app/?seoqa='+Date.now(),{waitUntil:'networkidle',timeout:45000});
+            if(!seoResponse||!seoResponse.ok()) throw new Error('seo_page_http_'+(seoResponse&&seoResponse.status()));
+            await seoPage.waitForTimeout(1000);
+            const robots=await seoPage.locator('meta[name="robots"]').getAttribute('content');
+            const canonical=await seoPage.locator('link[rel="canonical"]').getAttribute('href');
+            const title=await seoPage.title();
+            const description=await seoPage.locator('meta[name="description"]').getAttribute('content');
+            const ogTitle=await seoPage.locator('meta[property="og:title"]').getAttribute('content');
+            const seoSection=seoPage.locator('[data-seo-section="pennyworth-cloudsales-v1"]');
+            const jsonLd=(await seoPage.locator('script[type="application/ld+json"]').allTextContents()).join('\n');
+            const bodyText=await seoSection.innerText();
+            const diagnostics={robots,canonical,title,description,ogTitle,seoVisible:await seoSection.isVisible(),hasPennyworth:jsonLd.includes('PENNYWORTH'),hasCloudSales:jsonLd.includes('CloudSales'),seoMentionsCloudSales:bodyText.includes('CloudSales'),seoErrors};
+            console.log('PENNYWORTH_SEO_DIAGNOSTICS='+JSON.stringify(diagnostics));
+            if(seoErrors.length) throw new Error('seo_page_errors:'+seoErrors.join('|'));
+            if(!robots||robots.includes('noindex')||!robots.includes('index')) throw new Error('seo_robots_invalid:'+robots);
+            if(canonical!=='https://pennyworth.cloudsales.app/') throw new Error('seo_canonical_invalid:'+canonical);
+            if(!title.includes('PENNYWORTH')||!title.includes('CloudSales')) throw new Error('seo_title_invalid:'+title);
+            if(!description||!description.includes('Riviera Maya')||!description.includes('CloudSales')) throw new Error('seo_description_invalid');
+            if(!ogTitle||!ogTitle.includes('CloudSales')) throw new Error('seo_og_invalid');
+            await seoSection.waitFor({state:'visible',timeout:5000});
+            if(!jsonLd.includes('https://pennyworth.vip/#organization')||!jsonLd.includes('https://www.cloudsales.app/#organization')) throw new Error('seo_jsonld_brands_missing');
+            if(!bodyText.includes('PENNYWORTH')||!bodyText.includes('CloudSales')) throw new Error('seo_dual_brand_content_missing');
+            await seoPage.close();
+
+            const robotsResponse=await fetch('https://pennyworth.cloudsales.app/robots.txt?seoqa='+Date.now(),{headers:{'cache-control':'no-cache'}});
+            const robotsText=await robotsResponse.text();
+            if(!robotsResponse.ok||!robotsText.includes('Sitemap: https://pennyworth.cloudsales.app/sitemap.xml')||!robotsText.includes('Allow: /')) throw new Error('robots_txt_invalid');
+            const sitemapResponse=await fetch('https://pennyworth.cloudsales.app/sitemap.xml?seoqa='+Date.now(),{headers:{'cache-control':'no-cache'}});
+            const sitemapText=await sitemapResponse.text();
+            if(!sitemapResponse.ok||!sitemapText.includes('<loc>https://pennyworth.cloudsales.app/</loc>')) throw new Error('sitemap_invalid');
+            console.log('PENNYWORTH_SEO_AUTODETECT_AND_CONTACT_GATES_PASS');
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
