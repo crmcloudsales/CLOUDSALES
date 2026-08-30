@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const U = Deno.env.get("SUPABASE_URL")!;
 const A = Deno.env.get("SUPABASE_ANON_KEY")!;
 const S = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const VERSION = "2026.08.30.2";
+const VERSION = "2026.08.30.3";
 const POLICY = "CLOUDCO_EMAIL_EXPLICIT_SINGLE_SEND";
 const APP_URL = "https://app.cloudsales.app/";
 const ORIGINS = new Set([
@@ -51,6 +51,16 @@ async function rateLimited(svc: any, key: string, limit: number, seconds: number
   });
   return data !== true;
 }
+function sessionPayload(data: any) {
+  return {
+    user: data.user ? { id: data.user.id, email: data.user.email } : null,
+    session: data.session ? {
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_at: data.session.expires_at,
+    } : null,
+  };
+}
 
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
@@ -64,7 +74,7 @@ Deno.serve(async (req) => {
   catch { return json({ error: "invalid_json" }, 400, origin); }
 
   const action = String(body.action || "");
-  if (!["sign_up", "sign_in", "refresh", "resend_confirmation"].includes(action)) {
+  if (!["sign_up", "claim_sign_up", "sign_in", "refresh", "resend_confirmation"].includes(action)) {
     return json({ error: "unsupported_action" }, 400, origin);
   }
 
@@ -86,14 +96,7 @@ Deno.serve(async (req) => {
     }
     const { data, error } = await client.auth.signInWithPassword({ email, password });
     if (error || !data.session) return json({ error: "signin_unavailable" }, 401, origin);
-    return json({
-      user: { id: data.user.id, email: data.user.email },
-      session: {
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-        expires_at: data.session.expires_at,
-      },
-    }, 200, origin);
+    return json(sessionPayload(data), 200, origin);
   }
 
   if (action === "refresh") {
@@ -105,18 +108,65 @@ Deno.serve(async (req) => {
     }
     const { data, error } = await client.auth.refreshSession({ refresh_token: refreshToken });
     if (error || !data.session) return json({ error: "refresh_failed" }, 401, origin);
-    return json({
-      user: data.user ? { id: data.user.id, email: data.user.email } : null,
-      session: {
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-        expires_at: data.session.expires_at,
-      },
-    }, 200, origin);
+    return json(sessionPayload(data), 200, origin);
   }
 
   const email = normalizeEmail(body.email);
   if (!validEmail(email)) return json({ error: "invalid_email" }, 400, origin);
+
+  if (action === "claim_sign_up") {
+    const password = String(body.password || "");
+    const fullName = safeText(body.full_name, 160);
+    const claimToken = String(body.claim_token || "").trim();
+    if (password.length < 8) return json({ error: "weak_password" }, 400, origin);
+    if (claimToken.length < 32 || claimToken.length > 512) return json({ error: "invalid_claim_token" }, 400, origin);
+    const emailHash = await sha(email);
+    if (await rateLimited(svc, `auth:claim-signup:${ipHash.slice(0, 16)}:${emailHash.slice(0, 20)}`, 5, 3600)) {
+      return json({ error: "rate_limited" }, 429, origin);
+    }
+    const tokenHash = await sha(claimToken);
+    const { data: claim } = await svc.from("organization_claim_tokens")
+      .select("id,organization_id,role,expected_email,expires_at,consumed_at")
+      .eq("token_hash", tokenHash)
+      .maybeSingle();
+    if (!claim || claim.consumed_at || new Date(claim.expires_at).getTime() <= Date.now()) {
+      return json({ error: "claim_invalid_or_expired" }, 410, origin);
+    }
+    const expectedEmail = normalizeEmail(claim.expected_email);
+    if (!expectedEmail) return json({ error: "claim_not_email_bound" }, 403, origin);
+    if (expectedEmail !== email) return json({ error: "claim_email_mismatch" }, 403, origin);
+
+    const { data: created, error: createError } = await svc.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: fullName ? { full_name: fullName, enrollment: "email_bound_claim" } : { enrollment: "email_bound_claim" },
+    });
+    if (createError || !created.user) {
+      const message = String(createError?.message || "").toLowerCase();
+      if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
+        return json({ error: "account_exists_use_signin" }, 409, origin);
+      }
+      return json({ error: "claim_signup_unavailable" }, 400, origin);
+    }
+
+    const { data: signedIn, error: signInError } = await client.auth.signInWithPassword({ email, password });
+    if (signInError || !signedIn.session) {
+      return json({ error: "claim_signup_signin_required", account_created: true }, 409, origin);
+    }
+    await svc.from("audit_log").insert({
+      organization_id: claim.organization_id,
+      actor_user_id: created.user.id,
+      actor_type: "user",
+      action: "auth.claim_signup_created",
+      entity_type: "organization",
+      entity_id: claim.organization_id,
+      success: true,
+      context: { role: claim.role, email_bound: true, email_sent: false, version: VERSION },
+    });
+    return json({ ...sessionPayload(signedIn), claim_ready: true, email_sent: false }, 200, origin);
+  }
+
   if (action === "sign_up" && String(body.password || "").length < 8) {
     return json({ error: "weak_password" }, 400, origin);
   }
@@ -137,8 +187,6 @@ Deno.serve(async (req) => {
     return json({ error: "rate_limited" }, 429, origin);
   }
 
-  // The authorization row is written BEFORE any API call capable of sending email.
-  // It authorizes exactly one signup confirmation operation and nothing else.
   const baseContext = {
     policy: POLICY,
     source: "auth-session",
@@ -191,16 +239,7 @@ Deno.serve(async (req) => {
       context: { ...baseContext, provider_call_completed: true },
     }).eq("id", authorization.id);
 
-    if (data.session) {
-      return json({
-        user: data.user ? { id: data.user.id, email: data.user.email } : null,
-        session: {
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-          expires_at: data.session.expires_at,
-        },
-      }, 200, origin);
-    }
+    if (data.session) return json(sessionPayload(data), 200, origin);
 
     const identities = Array.isArray(data.user?.identities) ? data.user.identities : null;
     return json({
@@ -222,9 +261,7 @@ Deno.serve(async (req) => {
       context: { ...baseContext, provider_call_completed: false, provider_error: "resend_failed" },
     }).eq("id", authorization.id);
     const message = String(error.message || "").toLowerCase();
-    if (message.includes("rate") || error.status === 429) {
-      return json({ error: "confirmation_wait" }, 429, origin);
-    }
+    if (message.includes("rate") || error.status === 429) return json({ error: "confirmation_wait" }, 429, origin);
     return json({ error: "resend_unavailable" }, 400, origin);
   }
 
