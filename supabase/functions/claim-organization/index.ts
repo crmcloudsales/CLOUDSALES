@@ -6,6 +6,7 @@ const ORIGINS=new Set(["https://cloudsales.app","https://www.cloudsales.app","ht
 function cors(o:string|null){const v=o&&ORIGINS.has(o)?o:"https://app.cloudsales.app";return{"Access-Control-Allow-Origin":v,"Access-Control-Allow-Headers":"authorization,apikey,content-type,x-client-info","Access-Control-Allow-Methods":"POST,OPTIONS","Vary":"Origin"}}
 function json(b:unknown,s=200,o:string|null=null){return new Response(JSON.stringify(b),{status:s,headers:{...cors(o),"content-type":"application/json;charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff","referrer-policy":"no-referrer"}})}
 async function sha(v:string){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return[...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+const email=(v:any)=>String(v??"").trim().toLowerCase().slice(0,320);
 
 Deno.serve(async req=>{
   const origin=req.headers.get("origin");
@@ -18,8 +19,13 @@ Deno.serve(async req=>{
   let body:any;try{body=await req.json()}catch{return json({error:"invalid_json"},400,origin)}
   const token=String(body.token||"").trim();if(token.length<32||token.length>512)return json({error:"invalid_claim_token"},400,origin);
   const svc=createClient(U,S,{auth:{persistSession:false,autoRefreshToken:false}}),tokenHash=await sha(token);
-  const {data:claim}=await svc.from("organization_claim_tokens").select("id,organization_id,role,expires_at,consumed_at").eq("token_hash",tokenHash).maybeSingle();
+  const {data:claim}=await svc.from("organization_claim_tokens").select("id,organization_id,role,expected_email,expires_at,consumed_at").eq("token_hash",tokenHash).maybeSingle();
   if(!claim||claim.consumed_at||new Date(claim.expires_at).getTime()<=Date.now())return json({error:"claim_invalid_or_expired"},410,origin);
+  const expected=email(claim.expected_email),actual=email(user.email);
+  if(expected&&(!actual||actual!==expected)){
+    await svc.from("audit_log").insert({organization_id:claim.organization_id,actor_user_id:user.id,actor_type:"user",action:"organization.claim_email_mismatch",entity_type:"organization",entity_id:claim.organization_id,success:false,context:{expected_email_bound:true}});
+    return json({error:"claim_email_mismatch"},403,origin);
+  }
   const {data:org}=await svc.from("organizations").select("id,name,slug,status,plan_key").eq("id",claim.organization_id).maybeSingle();
   if(!org||org.status!=="active")return json({error:"organization_unavailable"},409,origin);
   const requestedRole=["owner","admin","operator","viewer"].includes(String(claim.role||""))?String(claim.role):"operator";
@@ -31,6 +37,6 @@ Deno.serve(async req=>{
   if(me)return json({error:"membership_create_failed",detail:me.message},500,origin);
   const {error:ce}=await svc.from("organization_claim_tokens").update({consumed_at:new Date().toISOString(),consumed_by:user.id}).eq("id",claim.id).is("consumed_at",null);
   if(ce)return json({error:"claim_consume_failed"},500,origin);
-  await svc.from("audit_log").insert({organization_id:org.id,actor_user_id:user.id,actor_type:"user",action:"organization.claimed",entity_type:"organization",entity_id:org.id,success:true,context:{role,requested_role:requestedRole,existing_member:Boolean(existing)}});
+  await svc.from("audit_log").insert({organization_id:org.id,actor_user_id:user.id,actor_type:"user",action:"organization.claimed",entity_type:"organization",entity_id:org.id,success:true,context:{role,requested_role:requestedRole,existing_member:Boolean(existing),expected_email_bound:Boolean(expected)}});
   return json({ok:true,organization:org,role},200,origin);
 });
