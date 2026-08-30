@@ -1,5 +1,5 @@
 name: Pennyworth Live Browser Smoke
-# Live browser verification after contact-gate hotfix
+# Live browser verification after contact-panel layer fix
 
 on:
   push:
@@ -64,10 +64,12 @@ jobs:
             await chat.click();
             await page.locator('#pwPanel-chat').waitFor({state:'visible',timeout:5000});
             if(await page.locator('#pwPanel-chat input[name="name"]').count()!==1) throw new Error('chat_form_missing');
-            await page.locator('.pwClose').first().click();
+            await page.locator('#pwPanel-chat .pwClose').click();
             await wa.click();
             await page.locator('#pwPanel-whatsapp').waitFor({state:'visible',timeout:5000});
             if(await page.locator('#pwPanel-whatsapp input[name="name"]').count()!==1) throw new Error('whatsapp_form_missing');
+            await page.locator('#pwPanel-whatsapp .pwClose').click();
+            console.log('PENNYWORTH_CONTACT_GATES_PASS');
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
