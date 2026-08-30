@@ -22,6 +22,7 @@ jobs:
           p=Path('web/clients/pennyworth/worker-edge-template.mjs')
           s=p.read_text()
           s=s.replace('String.raw\\`','String.raw`')
+          s=s.replace('</script>\\`;','</script>`;')
           if '.pwPanel{position:fixed;' not in s:
               needle='#pwUnifiedPanel{position:fixed;'
               if needle not in s:
@@ -29,7 +30,9 @@ jobs:
               s=s.replace(needle,'.pwPanel{position:fixed;display:none}\n'+needle,1)
           p.write_text(s)
           if 'const CONTACT_GATES_SCRIPT=String.raw`' not in s:
-              raise SystemExit('String.raw normalization failed')
+              raise SystemExit('String.raw opening normalization failed')
+          if '})();</script>`;' not in s:
+              raise SystemExit('String.raw closing normalization failed')
           PY
       - name: Commit compatibility fix
         run: |
@@ -37,5 +40,5 @@ jobs:
           git config user.name 'cloudsales-bot'
           git config user.email 'cloudsales-bot@users.noreply.github.com'
           git add web/clients/pennyworth/worker-edge-template.mjs
-          git commit -m 'fix(pennyworth): normalize unified contact template'
+          git commit -m 'fix(pennyworth): normalize unified contact template closure'
           git push origin main
