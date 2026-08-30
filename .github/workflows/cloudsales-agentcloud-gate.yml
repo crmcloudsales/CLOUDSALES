@@ -1,0 +1,64 @@
+name: CloudSales AgentCloud Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/cloudy-chat/**'
+      - 'supabase/functions/cloudy-orchestrator/**'
+      - '.github/workflows/cloudsales-agentcloud-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/cloudy-chat/**'
+      - 'supabase/functions/cloudy-orchestrator/**'
+      - '.github/workflows/cloudsales-agentcloud-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  agentcloud:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Cloudy → AgentCloud delegation invariants
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const chat=fs.readFileSync('supabase/functions/cloudy-chat/index.ts','utf8');
+          for(const x of [
+            'chooseAgent',
+            'organization_members',
+            'cloudy_agents',
+            '.eq("organization_id", organizationId)',
+            '.eq("status", "active")',
+            'body.agent_id = delegatedAgent.id',
+            'delegated_agent: publicAgent(delegatedAgent)',
+            'appointment_setter',
+            'omnichannel_sdr',
+            'inbound_concierge',
+            'ads_operator',
+            'marketing_analyst',
+            'sales_copilot',
+            'crm_hygiene',
+            'support_specialist'
+          ]) if(!chat.includes(x)) throw new Error('agentcloud_chat_missing_'+x);
+          if(!chat.includes('membership.status !== "active"')) throw new Error('agentcloud_membership_guard_missing');
+          const orchestrator=fs.readFileSync('supabase/functions/cloudy-orchestrator/index.ts','utf8');
+          for(const x of [
+            'const agentId = body.agent_id',
+            '.eq("organization_id", organizationId)',
+            'agent_not_found',
+            'agent_id: agentId',
+            'cloudy_tool_runs'
+          ]) if(!orchestrator.includes(x)) throw new Error('agentcloud_orchestrator_missing_'+x);
+          console.log('Cloudy → AgentCloud routing invariants OK');
+          NODE
