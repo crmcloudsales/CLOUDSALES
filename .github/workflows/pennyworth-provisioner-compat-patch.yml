@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Normalize unified template and preserve provisioner marker
+      - name: Normalize template and bake SEO routes into source
         run: |
           python3 - <<'PY'
           from pathlib import Path
@@ -31,19 +31,27 @@ jobs:
               if needle not in s:
                   raise SystemExit('unified panel marker missing')
               s=s.replace(needle,'.pwPanel{position:fixed;display:none}\n'+needle,1)
+          if 'u.pathname==="/robots.txt"' not in s:
+              anchor=' const u=new URL(req.url);\n'
+              routes=''' const u=new URL(req.url);\n if(req.method==="GET"&&u.pathname==="/robots.txt")return new Response("User-agent: *\\nAllow: /\\nDisallow: /lead\\nDisallow: /challenge\\nDisallow: /health\\nSitemap: https://pennyworth.cloudsales.app/sitemap.xml\\n",{headers:{"content-type":"text/plain; charset=utf-8","cache-control":"public,max-age=3600"}});\n if(req.method==="GET"&&u.pathname==="/sitemap.xml")return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://pennyworth.cloudsales.app/</loc><changefreq>daily</changefreq><priority>1.0</priority></url></urlset>',{headers:{"content-type":"application/xml; charset=utf-8","cache-control":"public,max-age=3600"}});\n'''
+              if anchor not in s:
+                  raise SystemExit('fetch URL anchor missing')
+              s=s.replace(anchor,routes,1)
           p.write_text(s)
           if 'const CONTACT_GATES_SCRIPT=String.raw`' not in s:
               raise SystemExit('String.raw opening normalization failed')
           if '})();</script>`;' not in s:
               raise SystemExit('String.raw closing normalization failed')
+          if 'u.pathname==="/robots.txt"' not in s or 'u.pathname==="/sitemap.xml"' not in s:
+              raise SystemExit('SEO routes missing')
           PY
       - name: Syntax check worker template
         run: node --check web/clients/pennyworth/worker-edge-template.mjs
-      - name: Commit compatibility fix
+      - name: Commit worker source fix
         run: |
           if git diff --quiet; then exit 0; fi
           git config user.name 'cloudsales-bot'
           git config user.email 'cloudsales-bot@users.noreply.github.com'
           git add web/clients/pennyworth/worker-edge-template.mjs
-          git commit -m 'fix(pennyworth): normalize unified contact template syntax'
+          git commit -m 'fix(pennyworth): bake SEO routes into unified worker'
           git push origin main
