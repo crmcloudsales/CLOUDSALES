@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const U = Deno.env.get("SUPABASE_URL")!;
 const A = Deno.env.get("SUPABASE_ANON_KEY")!;
 const S = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const VERSION = "2026.08.30.1";
+const VERSION = "2026.08.30.2";
 const POLICY = "CLOUDCO_EMAIL_EXPLICIT_SINGLE_SEND";
 const APP_URL = "https://app.cloudsales.app/";
 const ORIGINS = new Set([
@@ -117,6 +117,10 @@ Deno.serve(async (req) => {
 
   const email = normalizeEmail(body.email);
   if (!validEmail(email)) return json({ error: "invalid_email" }, 400, origin);
+  if (action === "sign_up" && String(body.password || "").length < 8) {
+    return json({ error: "weak_password" }, 400, origin);
+  }
+
   const expectedPurpose = action === "sign_up" ? "signup_confirmation" : "signup_confirmation_resend";
   if (body.authorize_email !== true || String(body.email_purpose || "") !== expectedPurpose) {
     return json({
@@ -135,6 +139,15 @@ Deno.serve(async (req) => {
 
   // The authorization row is written BEFORE any API call capable of sending email.
   // It authorizes exactly one signup confirmation operation and nothing else.
+  const baseContext = {
+    policy: POLICY,
+    source: "auth-session",
+    action,
+    version: VERSION,
+    origin: origin || "direct",
+    ip_hash: ipHash,
+    explicit_user_action: true,
+  };
   const { data: authorization, error: authorizationError } = await svc
     .from("email_send_authorizations")
     .insert({
@@ -144,15 +157,7 @@ Deno.serve(async (req) => {
       purpose: expectedPurpose,
       scope: "single_send",
       expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-      context: {
-        policy: POLICY,
-        source: "auth-session",
-        action,
-        version: VERSION,
-        origin: origin || "direct",
-        ip_hash: ipHash,
-        explicit_user_action: true,
-      },
+      context: baseContext,
     })
     .select("id")
     .single();
@@ -162,7 +167,6 @@ Deno.serve(async (req) => {
 
   if (action === "sign_up") {
     const password = String(body.password || "");
-    if (password.length < 8) return json({ error: "weak_password" }, 400, origin);
     const fullName = safeText(body.full_name, 160);
     const { data, error } = await client.auth.signUp({
       email,
@@ -173,6 +177,9 @@ Deno.serve(async (req) => {
       },
     });
     if (error) {
+      await svc.from("email_send_authorizations").update({
+        context: { ...baseContext, provider_call_completed: false, provider_error: "signup_failed" },
+      }).eq("id", authorization.id);
       const message = String(error.message || "").toLowerCase();
       if (message.includes("rate") || error.status === 429) return json({ error: "signup_temporarily_limited" }, 429, origin);
       return json({ error: "signup_unavailable" }, 400, origin);
@@ -181,16 +188,7 @@ Deno.serve(async (req) => {
     await svc.from("email_send_authorizations").update({
       user_id: data.user?.id || null,
       consumed_at: new Date().toISOString(),
-      context: {
-        policy: POLICY,
-        source: "auth-session",
-        action,
-        version: VERSION,
-        origin: origin || "direct",
-        ip_hash: ipHash,
-        explicit_user_action: true,
-        provider_call_completed: true,
-      },
+      context: { ...baseContext, provider_call_completed: true },
     }).eq("id", authorization.id);
 
     if (data.session) {
@@ -214,12 +212,15 @@ Deno.serve(async (req) => {
     }, 200, origin);
   }
 
-  const { data, error } = await client.auth.resend({
+  const { error } = await client.auth.resend({
     type: "signup",
     email,
     options: { emailRedirectTo: APP_URL },
   });
   if (error) {
+    await svc.from("email_send_authorizations").update({
+      context: { ...baseContext, provider_call_completed: false, provider_error: "resend_failed" },
+    }).eq("id", authorization.id);
     const message = String(error.message || "").toLowerCase();
     if (message.includes("rate") || error.status === 429) {
       return json({ error: "confirmation_wait" }, 429, origin);
@@ -228,18 +229,8 @@ Deno.serve(async (req) => {
   }
 
   await svc.from("email_send_authorizations").update({
-    user_id: data.user?.id || null,
     consumed_at: new Date().toISOString(),
-    context: {
-      policy: POLICY,
-      source: "auth-session",
-      action,
-      version: VERSION,
-      origin: origin || "direct",
-      ip_hash: ipHash,
-      explicit_user_action: true,
-      provider_call_completed: true,
-    },
+    context: { ...baseContext, provider_call_completed: true },
   }).eq("id", authorization.id);
 
   return json({
