@@ -1,0 +1,66 @@
+name: Pennyworth Live Browser Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/clients/pennyworth/**'
+      - '.github/workflows/pennyworth-live-browser-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Verify Pennyworth live contact gates
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          (async()=>{
+            const browser = await chromium.launch({headless:true});
+            const page = await browser.newPage({viewport:{width:390,height:844}});
+            const pageErrors=[];
+            const consoleErrors=[];
+            page.on('pageerror',e=>pageErrors.push(String(e.message||e)));
+            page.on('console',m=>{if(m.type()==='error') consoleErrors.push(m.text())});
+            const url='https://pennyworth.cloudsales.app/?qa='+Date.now();
+            const response=await page.goto(url,{waitUntil:'networkidle',timeout:45000});
+            if(!response || !response.ok()) throw new Error('page_http_'+(response&&response.status()));
+            const chat=page.locator('#pwChatLaunch');
+            const wa=page.locator('#pwWaLaunch');
+            await chat.waitFor({state:'visible',timeout:15000});
+            await wa.waitFor({state:'visible',timeout:15000});
+            await chat.click();
+            await page.locator('#pwPanel-chat').waitFor({state:'visible',timeout:5000});
+            if(await page.locator('#pwPanel-chat input[name="name"]').count()!==1) throw new Error('chat_form_missing');
+            await page.locator('.pwClose').first().click();
+            await wa.click();
+            await page.locator('#pwPanel-whatsapp').waitFor({state:'visible',timeout:5000});
+            if(await page.locator('#pwPanel-whatsapp input[name="name"]').count()!==1) throw new Error('whatsapp_form_missing');
+            await page.screenshot({path:'pennyworth-live-mobile.png',fullPage:true});
+            console.log(JSON.stringify({url,status:response.status(),chatVisible:await chat.isVisible(),waVisible:await wa.isVisible(),pageErrors,consoleErrors},null,2));
+            if(pageErrors.length) throw new Error('page_errors: '+pageErrors.join(' | '));
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
+      - name: Upload live screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pennyworth-live-mobile-smoke
+          path: pennyworth-live-mobile.png
+          if-no-files-found: ignore
+          retention-days: 2
