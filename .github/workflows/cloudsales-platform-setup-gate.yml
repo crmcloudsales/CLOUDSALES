@@ -1,0 +1,48 @@
+name: CloudSales Platform Setup Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/admin-secrets-setup/**'
+      - '.github/workflows/cloudsales-platform-setup-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/admin-secrets-setup/**'
+      - '.github/workflows/cloudsales-platform-setup-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  secure-platform-setup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate secure platform setup invariants
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          F='supabase/functions/admin-secrets-setup/index.ts'
+          test -f "$F"
+          grep -Fq 'admin_setup_tokens' "$F"
+          grep -Fq 'service_store_secret' "$F"
+          grep -Fq 'service_update_secret' "$F"
+          grep -Fq 'provider_app_credentials' "$F"
+          grep -Fq 'google_ads_developer_token' "$F"
+          grep -Fq 'providerKey,"google_ads"' "$F" || grep -Fq '"google_ads",googleId' "$F"
+          grep -Fq '"https://www.googleapis.com/auth/adwords"' "$F"
+          grep -Fq '"meta_ads",metaId' "$F"
+          grep -Fq '["ads_read","ads_management"]' "$F"
+          grep -Fq 'oauth-callback-relay' "$F"
+          grep -Fq 'cache-control":"no-store' "$F"
+          grep -Fq 'referrer-policy":"no-referrer"' "$F"
+          grep -Fq 'Secret values are never shown back' "$F"
+          grep -Fq 'CloudSales does not collect advertising card numbers' "$F"
+          ! grep -Eq 'console\.(log|debug|info).*Secret' "$F"
+          ! grep -Eq 'localStorage|sessionStorage|document\.cookie' "$F"
+          ! grep -Eq 'name="(card|card_number|pan|cvc|cvv|expiry|expiration|security_code)"' "$F"
+          ! grep -Eq 'meta_ads_app_secret.*metadata|google_ads_client_secret.*metadata' "$F"
+          echo 'CloudSales secure platform setup invariants OK'
