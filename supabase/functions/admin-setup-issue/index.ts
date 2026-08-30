@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const U=Deno.env.get("SUPABASE_URL")!;
 const S=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const PURPOSE="cloudsales_platform_integrations";
 const te=new TextEncoder();
 const json=(b:unknown,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{"content-type":"application/json;charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff","referrer-policy":"no-referrer"}});
 
@@ -20,15 +21,14 @@ Deno.serve(async req=>{
   if(!expected||!(await same(supplied,String(expected))))return json({error:"forbidden"},403);
 
   let body:any={};try{body=await req.json()}catch{return json({error:"invalid_json"},400)}
-  const purpose=String(body.purpose||"cloudsales_platform_integrations").trim().replace(/[^a-z0-9_.-]/gi,"_").slice(0,80)||"cloudsales_platform_integrations";
   const requested=Number(body.ttl_minutes||30);
   const ttl=Math.min(60,Math.max(5,Number.isFinite(requested)?Math.round(requested):30));
   const token=randomToken(36),hash=await sha(token),expiresAt=new Date(Date.now()+ttl*60_000).toISOString();
 
-  await svc.from("admin_setup_tokens").update({revoked_at:new Date().toISOString()}).eq("purpose",purpose).is("revoked_at",null).gt("expires_at",new Date().toISOString());
-  const {error}=await svc.from("admin_setup_tokens").insert({token_hash:hash,purpose,expires_at:expiresAt,use_count:0});
+  await svc.from("admin_setup_tokens").update({revoked_at:new Date().toISOString()}).eq("purpose",PURPOSE).is("revoked_at",null).gt("expires_at",new Date().toISOString());
+  const {error}=await svc.from("admin_setup_tokens").insert({token_hash:hash,purpose:PURPOSE,expires_at:expiresAt,use_count:0});
   if(error)return json({error:"setup_token_create_failed"},500);
 
-  await svc.from("audit_log").insert({actor_type:"system",action:"admin.setup.link.issued",entity_type:"admin_setup_token",entity_id:hash.slice(0,24),success:true,context:{purpose,ttl_minutes:ttl,expires_at:expiresAt}});
-  return json({setup_url:`${U}/functions/v1/admin-secrets-setup?token=${encodeURIComponent(token)}`,expires_at:expiresAt,purpose,ttl_minutes:ttl},200);
+  await svc.from("audit_log").insert({actor_type:"system",action:"admin.setup.link.issued",entity_type:"admin_setup_token",entity_id:hash.slice(0,24),success:true,context:{purpose:PURPOSE,ttl_minutes:ttl,expires_at:expiresAt}});
+  return json({setup_url:`${U}/functions/v1/admin-secrets-setup?token=${encodeURIComponent(token)}`,expires_at:expiresAt,purpose:PURPOSE,ttl_minutes:ttl},200);
 });
