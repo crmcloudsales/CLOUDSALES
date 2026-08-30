@@ -56,5 +56,8 @@ jobs:
           grep -Fq 'admin.setup.link.issued' "$F"
           grep -Fq 'cloudsales_platform_integrations' "$F"
           grep -Fq 'pathname.endsWith("/issue")' "$F"
+          grep -Fq 'const SUPABASE_URL=Deno.env.get("SUPABASE_URL")' "$F"
+          grep -Fq 'new globalThis.URL(req.url)' "$F"
+          ! grep -Eq '^const URL[[:space:]]*=' "$F"
           ! grep -Eq 'console\.(log|debug|info)|localStorage|sessionStorage|document\.cookie' "$F"
           echo 'CloudSales secure platform setup invariants OK'
