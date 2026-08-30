@@ -1,5 +1,5 @@
 name: Pennyworth Live Browser Smoke
-# Live browser verification after contact-panel layer fix
+# Live browser verification with WhatsApp close diagnostics
 
 on:
   push:
@@ -40,36 +40,30 @@ jobs:
             const url='https://pennyworth.cloudsales.app/?qa='+Date.now();
             const response=await page.goto(url,{waitUntil:'networkidle',timeout:45000});
             if(!response || !response.ok()) throw new Error('page_http_'+(response&&response.status()));
-            await page.waitForTimeout(1500);
-            const chat=page.locator('#pwChatLaunch');
-            const wa=page.locator('#pwWaLaunch');
-            const diagnostics={
-              url,
-              status:response.status(),
-              title:await page.title(),
-              chatCount:await chat.count(),
-              waCount:await wa.count(),
-              chatVisible:await chat.isVisible().catch(()=>false),
-              waVisible:await wa.isVisible().catch(()=>false),
-              bodyHasGateMarkup:(await page.locator('body').innerHTML()).includes('pwContactGates'),
-              pageErrors,
-              consoleErrors
-            };
+            await page.waitForTimeout(1000);
+            const chat=page.locator('#pwChatLaunch'),wa=page.locator('#pwWaLaunch');
+            const diagnostics={url,status:response.status(),chatCount:await chat.count(),waCount:await wa.count(),chatVisible:await chat.isVisible().catch(()=>false),waVisible:await wa.isVisible().catch(()=>false),pageErrors,consoleErrors};
             console.log('PENNYWORTH_BROWSER_DIAGNOSTICS='+JSON.stringify(diagnostics));
-            await page.screenshot({path:'pennyworth-live-mobile.png',fullPage:true});
             if(pageErrors.length) throw new Error('page_errors: '+pageErrors.join(' | '));
-            if(consoleErrors.length) console.error('console_errors: '+consoleErrors.join(' | '));
             await chat.waitFor({state:'visible',timeout:3000});
             await wa.waitFor({state:'visible',timeout:3000});
             await chat.click();
-            await page.locator('#pwPanel-chat').waitFor({state:'visible',timeout:5000});
-            if(await page.locator('#pwPanel-chat input[name="name"]').count()!==1) throw new Error('chat_form_missing');
-            await page.locator('#pwPanel-chat .pwClose').click();
+            const chatPanel=page.locator('#pwPanel-chat');
+            await chatPanel.waitFor({state:'visible',timeout:5000});
+            if(await chatPanel.locator('input[name="name"]').count()!==1) throw new Error('chat_form_missing');
+            console.log('CHAT_CLOSE_COUNT='+(await chatPanel.locator('.pwClose').count()));
+            await chatPanel.locator('.pwClose').click();
             await wa.click();
-            await page.locator('#pwPanel-whatsapp').waitFor({state:'visible',timeout:5000});
-            if(await page.locator('#pwPanel-whatsapp input[name="name"]').count()!==1) throw new Error('whatsapp_form_missing');
-            await page.locator('#pwPanel-whatsapp .pwClose').click();
+            const waPanel=page.locator('#pwPanel-whatsapp');
+            await waPanel.waitFor({state:'visible',timeout:5000});
+            if(await waPanel.locator('input[name="name"]').count()!==1) throw new Error('whatsapp_form_missing');
+            const waCloseCount=await waPanel.locator('.pwClose').count();
+            console.log('WHATSAPP_CLOSE_COUNT='+waCloseCount);
+            console.log('WHATSAPP_PANEL_HTML='+(await waPanel.evaluate(el=>el.outerHTML)).slice(0,2500));
+            if(waCloseCount!==1) throw new Error('whatsapp_close_missing');
+            await waPanel.locator('.pwClose').click();
             console.log('PENNYWORTH_CONTACT_GATES_PASS');
+            await page.screenshot({path:'pennyworth-live-mobile.png',fullPage:true});
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
