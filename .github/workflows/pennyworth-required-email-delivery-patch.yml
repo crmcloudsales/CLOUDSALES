@@ -31,7 +31,6 @@ jobs:
               raise SystemExit('landing email field marker missing')
           if old in s:
               s=s.replace(old,new,1)
-          # Keep the standalone form handler aligned with the shared Worker handler.
           s=s.replace("const interest=document.getElementById('interest').value;const r=await fetch('/lead'", "const interest=document.getElementById('interest').value,delivery=document.getElementById('delivery')?.value||'';const r=await fetch('/lead'",1)
           s=s.replace("attribution:{...a,property_interest:interest},notes:'Property interest: '+interest})", "form_answers:{interest:interest,delivery_timeline:delivery},attribution:{...a,property_interest:interest},notes:'Property interest: '+interest+(delivery?' | Delivery: '+delivery:'')})",1)
           landing.write_text(s)
@@ -84,11 +83,10 @@ jobs:
               t=t.replace(marker,','+rows+marker,1)
               i18n.write_text(t)
 
-          # Assertions: one shared form, email required, delivery optional, server enforcement.
           s=landing.read_text(); w=worker.read_text(); t=i18n.read_text()
           assert s.count('id="leadForm"') == 1
           assert 'id="email" type="email" autocomplete="email" maxlength="320" required' in s
-          assert 'id="delivery"' in s and 'id="delivery"' in w
+          assert 'id="delivery"' in s and "getElementById('delivery')" in w
           assert 'required_email_missing_or_invalid' in w
           assert 'delivery_timeline:deliveryValue' in w and 'delivery_timeline:delivery' in w
           assert "['Fecha de entrega (opcional)'" in t
