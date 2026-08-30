@@ -23,7 +23,7 @@ const fine=document.querySelector('#leadForm .fine');
 if(fine)fine.innerHTML='<strong>Condiciones de contacto:</strong> Al enviar tus datos, autorizas su uso para atender tu solicitud, identificar opciones inmobiliarias que coincidan con tus necesidades y compartir tu información con terceros o profesionales inmobiliarios que puedan ofrecerte propiedades relevantes. Podrás ser contactado en relación con tu búsqueda inmobiliaria. Este formulario utiliza la capa de calidad de leads de CloudSales. <a href="https://pennyworth.vip/privacy-policy" target="_blank" rel="noopener">Aviso de privacidad</a>.';
 })();</script>`;
 
-const CONTACT_GATES_SCRIPT=String.raw\`<style>
+const CONTACT_GATES_SCRIPT=String.raw`<style>
 a.wa{display:none!important}
 #pwContactGates{position:fixed;right:18px;bottom:18px;z-index:2147483000;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
 .pwLaunch{display:flex;align-items:center;justify-content:center;gap:9px;border:0;border-radius:999px;color:#fff;font-weight:950;font-size:15px;padding:13px 17px;box-shadow:0 18px 45px rgba(0,0,0,.42);cursor:pointer;min-width:112px}
