@@ -1,0 +1,41 @@
+name: Pennyworth Unified Contact Patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pennyworth-unified-contact-patch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Apply unified contact patch
+        run: node scripts/patch-pennyworth-unified-contact.mjs
+      - name: Verify expected markers
+        run: |
+          grep -q 'shared-single-form' web/clients/pennyworth/worker-edge-template.mjs
+          grep -q 'chat_grant' web/clients/pennyworth/worker-edge-template.mjs
+          grep -q 'pennyworth_shared_' web/clients/pennyworth/worker-edge-template.mjs
+          grep -q "document.getElementById('leadForm')" web/clients/pennyworth/worker-edge-template.mjs
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo 'No changes required'
+            exit 0
+          fi
+          git config user.name 'cloudsales-bot'
+          git config user.email 'cloudsales-bot@users.noreply.github.com'
+          git add web/clients/pennyworth/worker-edge-template.mjs
+          git commit -m 'feat(pennyworth): unify contact form and secure chat grant'
+          git push origin main
