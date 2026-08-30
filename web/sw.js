@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.08.29.8';
+const CACHE='cloudsales-pwa-2026.08.30.1';
 const CORE=[
   '/',
   '/manifest.webmanifest',
