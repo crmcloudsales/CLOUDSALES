@@ -1,5 +1,5 @@
 name: Pennyworth Live Browser Smoke
-# Final live verification of CHAT and WhatsApp contact gates
+# Final live verification after legacy WhatsApp CSS scope fix
 
 on:
   push:
@@ -50,15 +50,15 @@ jobs:
             const chatPanel=page.locator('#pwPanel-chat');
             await chatPanel.waitFor({state:'visible',timeout:5000});
             if(await chatPanel.locator('input[name="name"]').count()!==1) throw new Error('chat_form_missing');
-            if(await chatPanel.locator('.pwSubmit').count()!==1) throw new Error('chat_submit_missing');
-            if(await chatPanel.locator('.pwClose').count()!==1) throw new Error('chat_close_missing');
+            await chatPanel.locator('.pwSubmit').waitFor({state:'visible',timeout:3000});
+            await chatPanel.locator('.pwClose').waitFor({state:'visible',timeout:3000});
             await chatPanel.locator('.pwClose').click();
             await wa.click();
             const waPanel=page.locator('#pwPanel-whatsapp');
             await waPanel.waitFor({state:'visible',timeout:5000});
             if(await waPanel.locator('input[name="name"]').count()!==1) throw new Error('whatsapp_form_missing');
-            if(await waPanel.locator('.pwSubmit').count()!==1) throw new Error('whatsapp_submit_missing');
-            if(await waPanel.locator('.pwClose').count()!==1) throw new Error('whatsapp_close_missing');
+            await waPanel.locator('.pwSubmit').waitFor({state:'visible',timeout:3000});
+            await waPanel.locator('.pwClose').waitFor({state:'visible',timeout:3000});
             await waPanel.locator('.pwClose').click();
             await page.screenshot({path:'pennyworth-live-mobile.png',fullPage:true});
             console.log('PENNYWORTH_CONTACT_GATES_PASS');
