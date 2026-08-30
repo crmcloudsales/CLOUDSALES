@@ -6,12 +6,14 @@ on:
     paths:
       - 'supabase/functions/cloudy-chat/**'
       - 'supabase/functions/cloudy-orchestrator/**'
+      - 'supabase/migrations/*agentcloud*'
       - '.github/workflows/cloudsales-agentcloud-gate.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/functions/cloudy-chat/**'
       - 'supabase/functions/cloudy-orchestrator/**'
+      - 'supabase/migrations/*agentcloud*'
       - '.github/workflows/cloudsales-agentcloud-gate.yml'
   workflow_dispatch:
 
@@ -27,7 +29,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Validate Cloudy → AgentCloud delegation invariants
+      - name: Validate Cloudy → AgentCloud delegation and execution boundaries
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -52,13 +54,37 @@ jobs:
             'support_specialist'
           ]) if(!chat.includes(x)) throw new Error('agentcloud_chat_missing_'+x);
           if(!chat.includes('membership.status !== "active"')) throw new Error('agentcloud_membership_guard_missing');
+
           const orchestrator=fs.readFileSync('supabase/functions/cloudy-orchestrator/index.ts','utf8');
           for(const x of [
             'const agentId = body.agent_id',
             '.eq("organization_id", organizationId)',
             'agent_not_found',
             'agent_id: agentId',
+            'requested_via: "cloudy-orchestrator"',
             'cloudy_tool_runs'
           ]) if(!orchestrator.includes(x)) throw new Error('agentcloud_orchestrator_missing_'+x);
-          console.log('Cloudy → AgentCloud routing invariants OK');
+
+          const migrations=fs.readdirSync('supabase/migrations').filter(x=>x.includes('agentcloud_capability_boundary'));
+          if(migrations.length!==1) throw new Error('agentcloud_capability_migration_missing');
+          const sql=fs.readFileSync('supabase/migrations/'+migrations[0],'utf8');
+          for(const x of [
+            'enforce_agentcloud_job_capability',
+            'trg_agentcloud_job_capability',
+            "new.input->>'requested_via'",
+            "new.input->>'agent_id'",
+            'v_agent_org <> new.organization_id',
+            "v_agent_status <> 'active'",
+            'new.job_type = any',
+            'agentcloud_capability_not_allowed',
+            'revoke all on function public.enforce_agentcloud_job_capability() from public',
+            'revoke all on function public.enforce_agentcloud_job_capability() from anon',
+            'revoke all on function public.enforce_agentcloud_job_capability() from authenticated',
+            "template_key = 'marketing_analyst'",
+            "'ads.meta.budget'",
+            "'ads.meta.create_campaign'",
+            "'ads.google.budget'",
+            "'ads.google.create_campaign'"
+          ]) if(!sql.includes(x)) throw new Error('agentcloud_boundary_missing_'+x);
+          console.log('Cloudy → AgentCloud routing + hard capability boundary OK');
           NODE

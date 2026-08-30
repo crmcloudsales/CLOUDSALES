@@ -10,7 +10,7 @@ const getStore=(s,k)=>{try{return s.getItem(k)||''}catch{return''}};
 const setStore=(s,k,v)=>{try{s.setItem(k,v)}catch{}};
 let anon=getStore(localStorage,'pw_anon_v1');if(!anon){anon=uuid();setStore(localStorage,'pw_anon_v1',anon)}
 let session=getStore(sessionStorage,'pw_session_v1');if(!session){session=uuid();setStore(sessionStorage,'pw_session_v1',session)}
-const cookie=name=>{const m=document.cookie.match(new RegExp('(?:^|; )'+name.replace(/[.$?*|{}()\\[\\]\\/+^]/g,'\\$&')+'=([^;]*)'));return m?decodeURIComponent(m[1]):''};
+const cookie=name=>{for(const part of document.cookie.split(';')){const bits=part.trim().split('=');const key=bits.shift();if(key===name)return decodeURIComponent(bits.join('='))}return''};
 let attr={};try{attr=JSON.parse(getStore(localStorage,'pw_attr_v1')||'{}')||{}}catch{attr={}}
 const take=(key,vals)=>{for(const v of vals){if(clean(v)){attr[key]=clean(v);return}}};
 take('fbclid',[qs.get('fbclid')]);take('fbc',[cookie('_fbc')]);take('fbp',[cookie('_fbp')]);
