@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.08.29.8';
+const CACHE='cloudsales-pwa-2026.08.30.1';
 const CORE=[
   '/',
   '/manifest.webmanifest',
@@ -14,6 +14,7 @@ const CORE=[
   '/ai-chat-channels-v1.js',
   '/calendar-runtime-v1.js',
   '/ai-chat-calendar-bridge-v1.js',
+  '/contact-profile-runtime-v1.js',
   '/icon-192.png',
   '/icon-512.png',
   '/apple-touch-icon.png',
