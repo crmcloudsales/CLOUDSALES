@@ -25,7 +25,6 @@ const setStore=(s,k,v)=>{try{s.setItem(k,v)}catch{}};
 let anon=getStore(localStorage,'pw_anon_v1');if(!anon){anon=uuid();setStore(localStorage,'pw_anon_v1',anon)}
 let session=getStore(sessionStorage,'pw_session_v1');if(!session){session=uuid();setStore(sessionStorage,'pw_session_v1',session)}
 const cookie=name=>{const m=document.cookie.match(new RegExp('(?:^|; )'+name.replace(/[.$?*|{}()\\[\\]\\/+^]/g,'\\$&')+'=([^;]*)'));return m?decodeURIComponent(m[1]):''};
-const attrKeys=['fbclid','fbc','fbp','campaign_id','ad_group_id','ad_id','utm_source','utm_medium','utm_campaign','utm_content'];
 let attr={};try{attr=JSON.parse(getStore(localStorage,'pw_attr_v1')||'{}')||{}}catch{attr={}}
 const take=(key,vals)=>{for(const v of vals){if(clean(v)){attr[key]=clean(v);return}}};
 take('fbclid',[qs.get('fbclid')]);take('fbc',[cookie('_fbc')]);take('fbp',[cookie('_fbp')]);
@@ -135,8 +134,7 @@ Deno.serve(async req=>{
     if(html.includes('content="noindex'))throw new Error('live_noindex_detected');
     if(!rawTmpl.includes('__HTML_JSON__'))throw new Error('template_placeholder_missing');
     if(!rawTmpl.includes('u.pathname==="/robots.txt"')||!rawTmpl.includes('u.pathname==="/sitemap.xml"'))throw new Error('seo_routes_missing_from_source');
-    const code=rawTmpl.replace('__HTML_JSON__',JSON.stringify(html));
-    if(code.includes('__HTML_JSON__'))throw new Error('template_replacement_failed');
+    const code=rawTmpl.split('__HTML_JSON__').join(JSON.stringify(html));
     result.steps.generated={lines:code.split('\n').slice(68,80)};
     const challengeSecret=crypto.randomUUID()+crypto.randomUUID()+crypto.randomUUID();
     const up=await upload(token,code,edgeToken,challengeSecret);
