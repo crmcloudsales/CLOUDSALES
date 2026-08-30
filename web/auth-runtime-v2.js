@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '2026.08.29.20';
+  const VERSION = '2026.08.30.1';
   const CLAIM_KEY = 'cs_pending_claim';
   let resendTimer = null;
 
@@ -47,17 +47,40 @@
       invalid_email: 'Escribe un correo válido.',
       weak_password: 'Usa una contraseña de al menos 8 caracteres.',
       rate_limited: 'Demasiados intentos. Espera unos minutos y vuelve a intentar.',
-      signup_temporarily_limited: 'El servicio de confirmación está ocupado. Espera unos 40 segundos y vuelve a tocar Crear cuenta.',
+      signup_temporarily_limited: 'El servicio de confirmación está ocupado. Espera unos minutos y vuelve a intentar.',
       confirmation_wait: 'El correo ya fue solicitado. Espera unos segundos antes de reenviarlo.',
       confirmation_delivery_failed: 'No pudimos enviar el correo de confirmación. Intenta nuevamente en unos minutos.',
       signup_unavailable: 'No se pudo completar el registro. Intenta nuevamente.',
       signin_unavailable: 'No pudimos iniciar sesión. Revisa tu email y contraseña, y confirma tu correo si la cuenta es nueva.',
       resend_unavailable: 'No se pudo reenviar el correo ahora. Intenta nuevamente en unos minutos.',
+      email_authorization_required: 'CloudSales necesita tu autorización explícita para enviar este único correo de confirmación.',
+      email_authorization_audit_failed: 'No pudimos registrar de forma segura tu autorización de correo. Intenta nuevamente.',
       claim_invalid_or_expired: 'Este acceso ya fue utilizado o expiró. Solicita un nuevo enlace de acceso.',
       organization_owner_already_assigned: 'Este enlace de propietario ya no es válido porque el workspace ya tiene propietario.',
       organization_unavailable: 'El workspace no está disponible en este momento.'
     };
     return map[code] || 'No se pudo completar la operación. Intenta nuevamente.';
+  }
+
+  function ensureEmailNotice() {
+    let notice = node('signupEmailNotice');
+    if (notice) return notice;
+    const button = node('authBtn');
+    if (!button?.parentNode) return null;
+    notice = document.createElement('div');
+    notice.id = 'signupEmailNotice';
+    notice.className = 'notice hidden';
+    notice.style.margin = '10px 0 12px';
+    notice.style.fontSize = '11px';
+    notice.innerHTML = 'Al tocar <b>Crear cuenta</b> autorizas a CloudSales a enviarte <b>un único correo de confirmación</b> a la dirección que escribiste. Esto no autoriza campañas, promociones ni otros correos.';
+    button.parentNode.insertBefore(notice, button);
+    return notice;
+  }
+  function syncEmailNotice() {
+    const notice = ensureEmailNotice();
+    if (!notice) return;
+    const currentMode = typeof mode !== 'undefined' ? mode : 'signin';
+    notice.classList.toggle('hidden', currentMode !== 'signup');
   }
 
   function startCooldown(seconds = 40) {
@@ -81,12 +104,17 @@
     const button = node('resendConfirmation');
     if (button) { button.disabled = true; button.textContent = 'Enviando…'; }
     try {
-      const result = await direct('auth-session', { action: 'resend_confirmation', email }, false);
+      const result = await direct('auth-session', {
+        action: 'resend_confirmation',
+        email,
+        authorize_email: true,
+        email_purpose: 'signup_confirmation_resend'
+      }, false);
       if (result?.message_code === 'account_already_confirmed') {
         existingAccount('Esta cuenta ya está confirmada. Entra con tu correo y contraseña.');
         return;
       }
-      message('Correo de confirmación reenviado. Revisa también Spam o Promociones.', true, ` <button id="goSigninAfterResend" class="btn small" type="button" style="margin-left:8px">Ir a Entrar</button>`);
+      message('Correo de confirmación reenviado con tu autorización. Revisa también Spam o Promociones.', true, ` <button id="goSigninAfterResend" class="btn small" type="button" style="margin-left:8px">Ir a Entrar</button>`);
       node('goSigninAfterResend')?.addEventListener('click', () => setMode('signin'));
     } catch (err) {
       if (String(err?.message || '') === 'confirmation_wait') confirmationActions('La cuenta ya está creada. El correo de confirmación se solicitó recientemente.', 40);
@@ -97,7 +125,7 @@
   }
 
   function confirmationActions(text, cooldown = 0) {
-    message(text, true, ` <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button id="resendConfirmation" class="btn small" type="button">Reenviar correo</button><button id="goSignin" class="btn small" type="button">Ya confirmé · Entrar</button></div>`);
+    message(text, true, ` <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button id="resendConfirmation" class="btn small" type="button">Autorizar y reenviar correo</button><button id="goSignin" class="btn small" type="button">Ya confirmé · Entrar</button></div><div style="margin-top:7px;font-size:10px;color:#aaa">Reenviar autoriza solamente ese correo de confirmación.</div>`);
     node('resendConfirmation')?.addEventListener('click', resend);
     node('goSignin')?.addEventListener('click', () => setMode('signin'));
     if (cooldown > 0) startCooldown(cooldown);
@@ -114,15 +142,15 @@
     saveSession(data.session);
     const claimed = await claimPending();
     await boot();
-    if (claimed?.organization?.name) {
-      message(`Acceso activado: ${claimed.organization.name}.`, true);
-    }
+    if (claimed?.organization?.name) message(`Acceso activado: ${claimed.organization.name}.`, true);
   }
 
   function bind() {
     const button = node('authBtn');
     if (!button || typeof direct !== 'function') return false;
     captureClaim();
+    ensureEmailNotice();
+    syncEmailNotice();
 
     button.onclick = async () => {
       message('');
@@ -138,7 +166,17 @@
       const original = button.textContent;
       button.textContent = currentMode === 'signin' ? 'Entrando…' : 'Creando cuenta…';
       try {
-        const data = await direct('auth-session', { action: currentMode === 'signin' ? 'sign_in' : 'sign_up', email, password, full_name: fullName }, false);
+        const payload = {
+          action: currentMode === 'signin' ? 'sign_in' : 'sign_up',
+          email,
+          password,
+          full_name: fullName
+        };
+        if (currentMode === 'signup') {
+          payload.authorize_email = true;
+          payload.email_purpose = 'signup_confirmation';
+        }
+        const data = await direct('auth-session', payload, false);
         if (data.session) { await finishLogin(data); return; }
         if (currentMode === 'signup' && data.message_code === 'account_exists') { existingAccount(); return; }
         if (currentMode === 'signup' && data.confirmation_required) {
@@ -146,8 +184,8 @@
           button.textContent = 'Cuenta creada';
           if (data.message_code === 'confirmation_pending_wait') confirmationActions('La cuenta ya está creada y el correo de confirmación ya fue enviado. Revisa tu bandeja, Spam o Promociones.', Number(data.retry_after_seconds || 40));
           else if (data.message_code === 'confirmation_delivery_failed_pending') confirmationActions('La cuenta quedó creada, pero el correo no pudo enviarse. Espera un momento y toca Reenviar correo.', 40);
-          else if (data.message_code === 'account_exists_or_confirmation_pending') confirmationActions(data.resent ? 'La cuenta ya existe o está pendiente de confirmación. Reenviamos el correo; revisa tu bandeja.' : 'La cuenta ya existe o está pendiente de confirmación. Revisa tu correo o reenvía la confirmación.');
-          else confirmationActions('Cuenta creada. Revisa tu correo para confirmar y después entra a CloudSales.', 40);
+          else if (data.message_code === 'account_exists_or_confirmation_pending') confirmationActions('La cuenta ya existe o está pendiente de confirmación. Revisa tu correo o autoriza un reenvío si lo necesitas.', 40);
+          else confirmationActions('Cuenta creada. Te enviamos el único correo de confirmación que autorizaste. Confirma tu email y después entra a CloudSales.', 40);
           return;
         }
       } catch (err) {
@@ -161,6 +199,7 @@
       clearTimeout(resendTimer); resendTimer = null;
       const btn = node('authBtn'); if (btn) btn.disabled = false;
       message('');
+      setTimeout(syncEmailNotice, 0);
     }));
 
     if (captureClaim() && typeof session !== 'undefined' && session?.access_token) {
