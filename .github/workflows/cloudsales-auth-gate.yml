@@ -39,7 +39,7 @@ jobs:
           const ui=fs.readFileSync('web/auth-runtime-v2.js','utf8');
           for(const x of [
             'authorize_email: true',
-            "email_purpose: 'signup_confirmation'",
+            "payload.email_purpose = 'signup_confirmation'",
             "email_purpose: 'signup_confirmation_resend'",
             'un único correo de confirmación',
             'Esto no autoriza campañas',
