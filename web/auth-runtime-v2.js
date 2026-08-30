@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '2026.08.30.1';
+  const VERSION = '2026.08.30.2';
   const CLAIM_KEY = 'cs_pending_claim';
   let resendTimer = null;
 
@@ -51,11 +51,17 @@
       confirmation_wait: 'El correo ya fue solicitado. Espera unos segundos antes de reenviarlo.',
       confirmation_delivery_failed: 'No pudimos enviar el correo de confirmación. Intenta nuevamente en unos minutos.',
       signup_unavailable: 'No se pudo completar el registro. Intenta nuevamente.',
-      signin_unavailable: 'No pudimos iniciar sesión. Revisa tu email y contraseña, y confirma tu correo si la cuenta es nueva.',
+      signin_unavailable: 'No pudimos iniciar sesión. Revisa tu email y contraseña.',
       resend_unavailable: 'No se pudo reenviar el correo ahora. Intenta nuevamente en unos minutos.',
       email_authorization_required: 'CloudSales necesita tu autorización explícita para enviar este único correo de confirmación.',
       email_authorization_audit_failed: 'No pudimos registrar de forma segura tu autorización de correo. Intenta nuevamente.',
+      invalid_claim_token: 'El enlace de acceso no es válido.',
       claim_invalid_or_expired: 'Este acceso ya fue utilizado o expiró. Solicita un nuevo enlace de acceso.',
+      claim_not_email_bound: 'Este enlace no cumple la política de acceso seguro de CloudSales.',
+      claim_email_mismatch: 'Este enlace fue asignado a otro correo. Usa exactamente el correo autorizado para este acceso.',
+      claim_signup_unavailable: 'No pudimos activar esta cuenta con el enlace privado. Intenta nuevamente.',
+      claim_signup_signin_required: 'La cuenta fue creada. Toca Entrar y usa la misma contraseña para terminar de activar el workspace.',
+      account_exists_use_signin: 'Esta cuenta ya existe. Entra con tu correo y contraseña para activar el acceso pendiente.',
       organization_owner_already_assigned: 'Este enlace de propietario ya no es válido porque el workspace ya tiene propietario.',
       organization_unavailable: 'El workspace no está disponible en este momento.'
     };
@@ -72,7 +78,6 @@
     notice.className = 'notice hidden';
     notice.style.margin = '10px 0 12px';
     notice.style.fontSize = '11px';
-    notice.innerHTML = 'Al tocar <b>Crear cuenta</b> autorizas a CloudSales a enviarte <b>un único correo de confirmación</b> a la dirección que escribiste. Esto no autoriza campañas, promociones ni otros correos.';
     button.parentNode.insertBefore(notice, button);
     return notice;
   }
@@ -80,7 +85,12 @@
     const notice = ensureEmailNotice();
     if (!notice) return;
     const currentMode = typeof mode !== 'undefined' ? mode : 'signin';
+    const invited = Boolean(captureClaim());
     notice.classList.toggle('hidden', currentMode !== 'signup');
+    if (currentMode !== 'signup') return;
+    notice.innerHTML = invited
+      ? 'Este es un <b>acceso privado asignado a tu correo</b>. Elige tu contraseña y CloudSales activará tu workspace sin enviarte un correo de confirmación.'
+      : 'Al tocar <b>Crear cuenta</b> autorizas a CloudSales a enviarte <b>un único correo de confirmación</b> a la dirección que escribiste. Esto no autoriza campañas, promociones ni otros correos.';
   }
 
   function startCooldown(seconds = 40) {
@@ -158,6 +168,7 @@
       const email = node('email')?.value?.trim() || '';
       const password = node('password')?.value || '';
       const fullName = node('fullName')?.value?.trim() || '';
+      const claimToken = currentMode === 'signup' ? captureClaim() : '';
       if (!email) return message('Escribe tu correo.');
       if (!password) return message('Escribe tu contraseña.');
       if (currentMode === 'signup' && password.length < 8) return message('Usa una contraseña de al menos 8 caracteres.');
@@ -167,12 +178,13 @@
       button.textContent = currentMode === 'signin' ? 'Entrando…' : 'Creando cuenta…';
       try {
         const payload = {
-          action: currentMode === 'signin' ? 'sign_in' : 'sign_up',
+          action: currentMode === 'signin' ? 'sign_in' : (claimToken ? 'claim_sign_up' : 'sign_up'),
           email,
           password,
           full_name: fullName
         };
-        if (currentMode === 'signup') {
+        if (currentMode === 'signup' && claimToken) payload.claim_token = claimToken;
+        if (currentMode === 'signup' && !claimToken) {
           payload.authorize_email = true;
           payload.email_purpose = 'signup_confirmation';
         }
@@ -189,7 +201,10 @@
           return;
         }
       } catch (err) {
-        message(friendly(err));
+        const code = String(err?.message || '');
+        if (code === 'account_exists_use_signin') existingAccount('Esta cuenta ya existe. Entra con la misma cuenta para activar este acceso privado.');
+        else if (code === 'claim_signup_signin_required') existingAccount('La cuenta quedó creada. Entra con el mismo correo y contraseña para terminar de activar el workspace.');
+        else message(friendly(err));
       } finally {
         if (!button.disabled || currentMode === 'signin') { button.disabled = false; button.textContent = original; }
       }
