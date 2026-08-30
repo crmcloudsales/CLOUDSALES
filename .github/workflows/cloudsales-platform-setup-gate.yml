@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/admin-secrets-setup/**'
+      - 'supabase/functions/admin-setup-issue/**'
       - '.github/workflows/cloudsales-platform-setup-gate.yml'
   push:
     branches: [main]
     paths:
       - 'supabase/functions/admin-secrets-setup/**'
+      - 'supabase/functions/admin-setup-issue/**'
       - '.github/workflows/cloudsales-platform-setup-gate.yml'
 
 permissions:
@@ -26,13 +28,15 @@ jobs:
         run: |
           set -Eeuo pipefail
           F='supabase/functions/admin-secrets-setup/index.ts'
+          I='supabase/functions/admin-setup-issue/index.ts'
           test -f "$F"
+          test -f "$I"
           grep -Fq 'admin_setup_tokens' "$F"
           grep -Fq 'service_store_secret' "$F"
           grep -Fq 'service_update_secret' "$F"
           grep -Fq 'provider_app_credentials' "$F"
           grep -Fq 'google_ads_developer_token' "$F"
-          grep -Fq 'providerKey,"google_ads"' "$F" || grep -Fq '"google_ads",googleId' "$F"
+          grep -Fq '"google_ads",googleId' "$F"
           grep -Fq '"https://www.googleapis.com/auth/adwords"' "$F"
           grep -Fq '"meta_ads",metaId' "$F"
           grep -Fq '["ads_read","ads_management"]' "$F"
@@ -45,4 +49,15 @@ jobs:
           ! grep -Eq 'localStorage|sessionStorage|document\.cookie' "$F"
           ! grep -Eq 'name="(card|card_number|pan|cvc|cvv|expiry|expiration|security_code)"' "$F"
           ! grep -Eq 'meta_ads_app_secret.*metadata|google_ads_client_secret.*metadata' "$F"
+
+          grep -Fq 'automation_worker_token' "$I"
+          grep -Fq 'x-cloudsales-worker-token' "$I"
+          grep -Fq 'service_read_secret' "$I"
+          grep -Fq 'admin_setup_tokens' "$I"
+          grep -Fq 'crypto.getRandomValues' "$I"
+          grep -Fq 'token_hash:hash' "$I"
+          grep -Fq 'Math.min(60,Math.max(5' "$I"
+          grep -Fq 'revoked_at:new Date().toISOString()' "$I"
+          grep -Fq 'admin.setup.link.issued' "$I"
+          ! grep -Eq 'console\.(log|debug|info)|localStorage|sessionStorage|document\.cookie' "$I"
           echo 'CloudSales secure platform setup invariants OK'
