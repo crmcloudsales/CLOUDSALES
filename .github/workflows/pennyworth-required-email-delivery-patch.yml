@@ -1,0 +1,107 @@
+name: Pennyworth Required Email Delivery Patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/pennyworth-required-email-delivery-patch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Patch shared form, gateway validation and translations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          landing=Path('web/clients/pennyworth/landing-edge.html')
+          s=landing.read_text()
+          old='<div class="field full"><label>Email (opcional)</label><input id="email" type="email" autocomplete="email" maxlength="320"></div><div class="field full"><label>Interés</label><select id="interest">'
+          new='<div class="field full"><label>Email</label><input id="email" type="email" autocomplete="email" maxlength="320" required></div><div class="field full"><label>Fecha de entrega (opcional)</label><select id="delivery"><option value="">Selecciona una opción</option><option value="Inmediata">Inmediata</option><option value="Hasta 6 meses">Hasta 6 meses</option><option value="6 meses o más">6 meses o más</option></select></div><div class="field full"><label>Interés</label><select id="interest">'
+          if old not in s and 'id="delivery"' not in s:
+              raise SystemExit('landing email field marker missing')
+          if old in s:
+              s=s.replace(old,new,1)
+          # Keep the standalone form handler aligned with the shared Worker handler.
+          s=s.replace("const interest=document.getElementById('interest').value;const r=await fetch('/lead'", "const interest=document.getElementById('interest').value,delivery=document.getElementById('delivery')?.value||'';const r=await fetch('/lead'",1)
+          s=s.replace("attribution:{...a,property_interest:interest},notes:'Property interest: '+interest})", "form_answers:{interest:interest,delivery_timeline:delivery},attribution:{...a,property_interest:interest},notes:'Property interest: '+interest+(delivery?' | Delivery: '+delivery:'')})",1)
+          landing.write_text(s)
+
+          worker=Path('web/clients/pennyworth/worker-edge-template.mjs')
+          w=worker.read_text()
+          old_client="phone=document.getElementById('phone').value.trim(),email=document.getElementById('email').value.trim(),interestValue=document.getElementById('interest').value,website=document.getElementById('website').value;if(!first||phone.replace(/\\\\D/g,'').length<8)"
+          new_client="phone=document.getElementById('phone').value.trim(),email=document.getElementById('email').value.trim(),deliveryValue=document.getElementById('delivery')?.value||'',interestValue=document.getElementById('interest').value,website=document.getElementById('website').value;if(!first||!email||phone.replace(/\\\\D/g,'').length<8)"
+          if old_client not in w and 'deliveryValue=' not in w:
+              raise SystemExit('worker client form marker missing')
+          if old_client in w:
+              w=w.replace(old_client,new_client,1)
+          old_answers="form_answers:{channel,interest:interestValue,distribution_target:'listia_subscriber_pool'},attribution:{...a,property_interest:interestValue},notes:'Property interest: '+interestValue"
+          new_answers="form_answers:{channel,interest:interestValue,delivery_timeline:deliveryValue,distribution_target:'listia_subscriber_pool'},attribution:{...a,property_interest:interestValue},notes:'Property interest: '+interestValue+(deliveryValue?' | Delivery: '+deliveryValue:'')"
+          if old_answers not in w and 'delivery_timeline:deliveryValue' not in w:
+              raise SystemExit('worker client answers marker missing')
+          if old_answers in w:
+              w=w.replace(old_answers,new_answers,1)
+          w=w.replace("async function startChat(grant,interest){const first='Interés: '+interest,", "async function startChat(grant,interest,delivery){const first='Interés: '+interest+(delivery?'\\nFecha de entrega: '+delivery:''),",1)
+          w=w.replace("await startChat(d.chat_grant,interestValue);", "await startChat(d.chat_grant,interestValue,deliveryValue);",1)
+          w=w.replace("+'\\\\nInterés: '+interestValue;form.reset();", "+'\\\\nInterés: '+interestValue+(deliveryValue?'\\\\nFecha de entrega: '+deliveryValue:'');form.reset();",1)
+
+          old_gate='const isGate=formId==="pennyworth_chat_gate_v1"||formId==="pennyworth_whatsapp_gate_v1";\n const interest=clean(answers.interest,180),message=clean(answers.message,900),consent=answers.consent===true;'
+          new_gate='const isGate=formId==="pennyworth_chat_gate_v1"||formId==="pennyworth_whatsapp_gate_v1";\n const isShared=formId.startsWith("pennyworth_shared_");\n const interest=clean(answers.interest,180),deliveryRaw=clean(answers.delivery_timeline,80),delivery=["Inmediata","Hasta 6 meses","6 meses o más"].includes(deliveryRaw)?deliveryRaw:"",message=clean(answers.message,900),consent=answers.consent===true;'
+          if old_gate not in w and 'const isShared=formId.startsWith("pennyworth_shared_")' not in w:
+              raise SystemExit('worker server form marker missing')
+          if old_gate in w:
+              w=w.replace(old_gate,new_gate,1)
+          email_guard=' if(isShared&&(!em||!validEmail(em))){score=0;reasons.push("required_email_missing_or_invalid")}\n'
+          score_marker=' if(isGate&&(!em||!validEmail(em)||phone.replace(/\\D/g,"").length<8||!consent)){score=0;reasons.push("required_gate_fields_missing")}\n'
+          if email_guard not in w:
+              if score_marker not in w:
+                  raise SystemExit('worker server score marker missing')
+              w=w.replace(score_marker,email_guard+score_marker,1)
+          old_payload='form_answers:isGate?{channel:clean(answers.channel,40),interest,message,consent:true,distribution_target:"listia_subscriber_pool"}:(b.form_answers||null),'
+          new_payload='form_answers:isGate?{channel:clean(answers.channel,40),interest,message,consent:true,distribution_target:"listia_subscriber_pool"}:isShared?{channel:clean(answers.channel,40),interest,delivery_timeline:delivery,distribution_target:"listia_subscriber_pool"}:(b.form_answers||null),'
+          if old_payload not in w and 'isShared?{channel:clean(answers.channel,40),interest,delivery_timeline:delivery' not in w:
+              raise SystemExit('worker payload marker missing')
+          if old_payload in w:
+              w=w.replace(old_payload,new_payload,1)
+          worker.write_text(w)
+
+          i18n=Path('web/clients/pennyworth/i18n.js')
+          t=i18n.read_text()
+          if "['Fecha de entrega (opcional)'" not in t:
+              marker='];\nconst metaDesc='
+              if marker not in t:
+                  raise SystemExit('i18n insertion marker missing')
+              rows="""['Fecha de entrega (opcional)','Delivery date (optional)','Date de livraison (facultatif)','Data di consegna (opzionale)','Data de entrega (opcional)','Übergabetermin (optional)','تاريخ التسليم (اختياري)','Срок сдачи (необязательно)','מועד מסירה (אופציונלי)','交付时间（可选）','引き渡し時期（任意）'],\n['Selecciona una opción','Select an option','Sélectionnez une option','Seleziona un’opzione','Selecione uma opção','Option auswählen','اختر خياراً','Выберите вариант','בחרו אפשרות','请选择','選択してください'],\n['Inmediata','Immediate','Immédiate','Immediata','Imediata','Sofort','فوري','Немедленно','מיידי','立即交付','即時'],\n['Hasta 6 meses','Up to 6 months','Jusqu’à 6 mois','Fino a 6 mesi','Até 6 meses','Bis zu 6 Monate','حتى 6 أشهر','До 6 месяцев','עד 6 חודשים','6个月以内','6か月以内'],\n['6 meses o más','6 months or more','6 mois ou plus','6 mesi o più','6 meses ou mais','6 Monate oder mehr','6 أشهر أو أكثر','6 месяцев и более','6 חודשים או יותר','6个月或更久','6か月以上']\n"""
+              t=t.replace(marker,','+rows+marker,1)
+              i18n.write_text(t)
+
+          # Assertions: one shared form, email required, delivery optional, server enforcement.
+          s=landing.read_text(); w=worker.read_text(); t=i18n.read_text()
+          assert s.count('id="leadForm"') == 1
+          assert 'id="email" type="email" autocomplete="email" maxlength="320" required' in s
+          assert 'id="delivery"' in s and 'id="delivery"' in w
+          assert 'required_email_missing_or_invalid' in w
+          assert 'delivery_timeline:deliveryValue' in w and 'delivery_timeline:delivery' in w
+          assert "['Fecha de entrega (opcional)'" in t
+          PY
+      - name: Syntax check Worker and i18n
+        run: |
+          node --check web/clients/pennyworth/worker-edge-template.mjs
+          node --check web/clients/pennyworth/i18n.js
+      - name: Commit form update
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'cloudsales-bot'
+          git config user.email 'cloudsales-bot@users.noreply.github.com'
+          git add web/clients/pennyworth/landing-edge.html web/clients/pennyworth/worker-edge-template.mjs web/clients/pennyworth/i18n.js
+          git commit -m 'feat(pennyworth): require email and capture optional delivery timeline'
+          git push origin main
