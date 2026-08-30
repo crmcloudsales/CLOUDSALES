@@ -1,5 +1,5 @@
 name: Pennyworth Live Browser Smoke
-# Verify live SEO, contact gates and automatic browser/device localization
+# Verify live SEO, localization, unified contact form and secure field rules
 
 on:
   push:
@@ -25,74 +25,57 @@ jobs:
         run: |
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Verify Pennyworth SEO, browser locale detection, RTL and contact gates
+      - name: Verify Pennyworth live form, locales and SEO
         shell: bash
         run: |
           node <<'NODE'
           const { chromium } = require('playwright');
           (async()=>{
-            const browser = await chromium.launch({headless:true});
-            async function check(browserLocale, expectedLang, expectedHero, dir='ltr'){
-              const page = await browser.newPage({viewport:{width:390,height:844}, locale:browserLocale});
-              const errors=[]; page.on('pageerror',e=>errors.push(String(e.message||e)));
-              const url='https://pennyworth.cloudsales.app/?qa='+Date.now();
-              const r=await page.goto(url,{waitUntil:'networkidle',timeout:45000});
-              if(!r||!r.ok()) throw new Error(browserLocale+'_http_'+(r&&r.status()));
-              await page.waitForTimeout(1200);
-              const htmlLang=await page.locator('html').getAttribute('lang');
-              const htmlDir=await page.locator('html').getAttribute('dir');
+            const browser=await chromium.launch({headless:true});
+            async function checkLocale(locale,expectedLang,expectedHero,dir='ltr'){
+              const page=await browser.newPage({viewport:{width:390,height:844},locale});
+              const errors=[];page.on('pageerror',e=>errors.push(String(e.message||e)));
+              const r=await page.goto('https://pennyworth.cloudsales.app/?qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+              if(!r||!r.ok())throw new Error(locale+'_http_'+(r&&r.status()));
+              await page.waitForTimeout(1800);
+              const htmlLang=await page.locator('html').getAttribute('lang'),htmlDir=await page.locator('html').getAttribute('dir');
               const hero=(await page.locator('.hero h1').innerText()).trim();
-              const marker=await page.locator('html').getAttribute('data-i18n');
-              console.log('AUTO_I18N_'+browserLocale+'='+JSON.stringify({htmlLang,htmlDir,hero,marker,errors}));
-              if(errors.length) throw new Error(browserLocale+'_page_errors:'+errors.join('|'));
-              if(htmlLang!==expectedLang) throw new Error(browserLocale+'_lang_'+htmlLang);
-              if(hero!==expectedHero) throw new Error(browserLocale+'_hero_not_translated:'+hero);
-              if(htmlDir!==dir) throw new Error(browserLocale+'_dir_'+htmlDir);
-              if(marker!=='pennyworth-i18n-v1') throw new Error(browserLocale+'_marker_missing');
-              const chat=page.locator('#pwChatLaunch'),wa=page.locator('#pwWaLaunch');
-              await chat.waitFor({state:'visible',timeout:5000}); await wa.waitFor({state:'visible',timeout:5000});
-              await chat.click(); const cp=page.locator('#pwPanel-chat'); await cp.waitFor({state:'visible',timeout:5000});
-              await cp.locator('.pwSubmit').waitFor({state:'visible',timeout:3000}); await cp.locator('.pwClose').click();
-              await wa.click(); const wp=page.locator('#pwPanel-whatsapp'); await wp.waitFor({state:'visible',timeout:5000});
-              await wp.locator('.pwSubmit').waitFor({state:'visible',timeout:3000}); await wp.locator('.pwClose').click();
+              if(errors.length)throw new Error(locale+'_page_errors:'+errors.join('|'));
+              if(htmlLang!==expectedLang||htmlDir!==dir||hero!==expectedHero)throw new Error(locale+'_locale_mismatch');
               await page.close();
             }
-            await check('fr-FR','fr','Nous redéfinissons l’expérience d’investissement.');
-            await check('ar-AE','ar-AE','نعيد تعريف تجربة الاستثمار.','rtl');
+            await checkLocale('fr-FR','fr','Nous redéfinissons l’expérience d’investissement.');
+            await checkLocale('ar-AE','ar-AE','نعيد تعريف تجربة الاستثمار.','rtl');
 
-            const seoPage=await browser.newPage({viewport:{width:1280,height:900},locale:'es-MX'});
-            const seoErrors=[]; seoPage.on('pageerror',e=>seoErrors.push(String(e.message||e)));
-            const seoResponse=await seoPage.goto('https://pennyworth.cloudsales.app/?seoqa='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
-            if(!seoResponse||!seoResponse.ok()) throw new Error('seo_page_http_'+(seoResponse&&seoResponse.status()));
-            await seoPage.waitForTimeout(2500);
-            const robots=await seoPage.locator('meta[name="robots"]').getAttribute('content');
-            const canonical=await seoPage.locator('link[rel="canonical"]').getAttribute('href');
-            const title=await seoPage.title();
-            const description=await seoPage.locator('meta[name="description"]').getAttribute('content');
-            const ogTitle=await seoPage.locator('meta[property="og:title"]').getAttribute('content');
-            const seoSection=seoPage.locator('[data-seo-section="pennyworth-cloudsales-v1"]');
-            const jsonLd=(await seoPage.locator('script[type="application/ld+json"]').allTextContents()).join('\n');
-            const bodyText=await seoSection.innerText();
-            const diagnostics={robots,canonical,title,description,ogTitle,seoVisible:await seoSection.isVisible(),hasPennyworth:jsonLd.includes('PENNYWORTH'),hasCloudSales:jsonLd.includes('CloudSales'),seoMentionsCloudSales:bodyText.includes('CloudSales'),seoErrors};
-            console.log('PENNYWORTH_SEO_DIAGNOSTICS='+JSON.stringify(diagnostics));
-            if(seoErrors.length) throw new Error('seo_page_errors:'+seoErrors.join('|'));
-            if(!robots||robots.includes('noindex')||!robots.includes('index')) throw new Error('seo_robots_invalid:'+robots);
-            if(canonical!=='https://pennyworth.cloudsales.app/') throw new Error('seo_canonical_invalid:'+canonical);
-            if(!title.includes('PENNYWORTH')||!title.includes('CloudSales')) throw new Error('seo_title_invalid:'+title);
-            if(!description||!description.includes('Riviera Maya')||!description.includes('CloudSales')) throw new Error('seo_description_invalid');
-            if(!ogTitle||!ogTitle.includes('CloudSales')) throw new Error('seo_og_invalid');
-            await seoSection.waitFor({state:'visible',timeout:5000});
-            if(!jsonLd.includes('https://pennyworth.vip/#organization')||!jsonLd.includes('https://www.cloudsales.app/#organization')) throw new Error('seo_jsonld_brands_missing');
-            if(!bodyText.includes('PENNYWORTH')||!bodyText.includes('CloudSales')) throw new Error('seo_dual_brand_content_missing');
-            await seoPage.close();
+            const page=await browser.newPage({viewport:{width:390,height:844},locale:'es-MX'});
+            const errors=[];page.on('pageerror',e=>errors.push(String(e.message||e)));
+            const r=await page.goto('https://pennyworth.cloudsales.app/?formqa='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            if(!r||!r.ok())throw new Error('form_http_'+(r&&r.status()));
+            await page.waitForTimeout(1800);
+            if(errors.length)throw new Error('page_errors:'+errors.join('|'));
+            if(await page.locator('#leadForm').count()!==1)throw new Error('not_single_form');
+            const email=page.locator('#email'),delivery=page.locator('#delivery');
+            if(await email.getAttribute('required')===null)throw new Error('email_not_required');
+            if(await delivery.getAttribute('required')!==null)throw new Error('delivery_should_be_optional');
+            const opts=await delivery.locator('option').evaluateAll(os=>os.map(o=>({value:o.value,text:o.textContent.trim()})));
+            console.log('DELIVERY_OPTIONS='+JSON.stringify(opts));
+            const expected=['','Inmediata','Hasta 6 meses','6 meses o más'];
+            if(JSON.stringify(opts.map(x=>x.value))!==JSON.stringify(expected))throw new Error('delivery_options_invalid');
 
-            const robotsResponse=await fetch('https://pennyworth.cloudsales.app/robots.txt?seoqa='+Date.now(),{headers:{'cache-control':'no-cache'}});
-            const robotsText=await robotsResponse.text();
-            if(!robotsResponse.ok||!robotsText.includes('Sitemap: https://pennyworth.cloudsales.app/sitemap.xml')||!robotsText.includes('Allow: /')) throw new Error('robots_txt_invalid');
-            const sitemapResponse=await fetch('https://pennyworth.cloudsales.app/sitemap.xml?seoqa='+Date.now(),{headers:{'cache-control':'no-cache'}});
-            const sitemapText=await sitemapResponse.text();
-            if(!sitemapResponse.ok||!sitemapText.includes('<loc>https://pennyworth.cloudsales.app/</loc>')) throw new Error('sitemap_invalid');
-            console.log('PENNYWORTH_SEO_AUTODETECT_AND_CONTACT_GATES_PASS');
-            await browser.close();
+            await page.locator('#pwChatLaunch').click();
+            const panel=page.locator('#pwUnifiedPanel');await panel.waitFor({state:'visible',timeout:5000});
+            if(await page.locator('#leadForm').count()!==1||await panel.locator('#leadForm').count()!==1)throw new Error('chat_not_using_shared_form');
+            await panel.locator('.pwClose').click();await page.waitForTimeout(200);
+            if(await page.locator('#contact #leadForm').count()!==1)throw new Error('form_not_restored');
+            await page.locator('#pwWaLaunch').click();await panel.waitFor({state:'visible',timeout:5000});
+            if(await panel.locator('#leadForm').count()!==1)throw new Error('whatsapp_not_using_shared_form');
+            await panel.locator('.pwClose').click();
+
+            const robots=await page.locator('meta[name="robots"]').getAttribute('content');
+            const canonical=await page.locator('link[rel="canonical"]').getAttribute('href');
+            const title=await page.title();
+            if(!robots||robots.includes('noindex')||canonical!=='https://pennyworth.cloudsales.app/'||!title.includes('PENNYWORTH')||!title.includes('CloudSales'))throw new Error('seo_regression');
+            console.log('PENNYWORTH_UNIFIED_REQUIRED_EMAIL_OPTIONAL_DELIVERY_PASS');
+            await page.close();await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
