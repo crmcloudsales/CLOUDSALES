@@ -1,0 +1,1 @@
+Only official user-provided brand imagery may be placed in this directory. Do not synthesize replacement brand characters or logos.
