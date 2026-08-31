@@ -11,6 +11,17 @@
   let primary = null;
   let readyTimer = null;
 
+  function patchCanonicalPricing() {
+    const apply = () => {
+      document.querySelectorAll('.planpick[data-plan="basic"]').forEach(el => { el.innerHTML = 'STARTER<br><b>$47</b>'; el.setAttribute('aria-label', 'STARTER 47 USD al mes'); });
+      document.querySelectorAll('.planpick[data-plan="pro"]').forEach(el => { el.innerHTML = 'PRO<br><b>$97</b>'; el.setAttribute('aria-label', 'PRO 97 USD al mes'); });
+      document.querySelectorAll('.planpick[data-plan="premium"]').forEach(el => { el.innerHTML = 'PREMIUM<br><b>$147</b><div style="font-size:9px;color:#9695a7;margin-top:4px">2 usuarios · asiento extra $47</div>'; el.setAttribute('aria-label', 'PREMIUM 147 USD al mes, 2 usuarios incluidos, asiento extra 47 USD'); });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, { once: true });
+    else apply();
+  }
+  patchCanonicalPricing();
+
   const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const ios = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const android = () => /Android/i.test(navigator.userAgent);
