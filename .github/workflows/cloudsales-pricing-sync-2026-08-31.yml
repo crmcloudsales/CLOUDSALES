@@ -1,0 +1,37 @@
+name: CloudSales Pricing Sync 2026-08-31
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/cloudsales-pricing-sync-2026-08-31.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - name: Update public conversion offer
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('web/commercial/conversion-v1.js')
+          s=p.read_text()
+          s=s.replace('por US$49/mes','por US$47/mes')
+          s=s.replace('precio normal del plan Basic','precio normal del plan STARTER')
+          s=s.replace('QUIERO PRO POR US$49/MES','QUIERO PRO POR US$47/MES')
+          assert 'por US$49/mes' not in s
+          assert 'QUIERO PRO POR US$49/MES' not in s
+          assert 'por US$47/mes' in s
+          assert 'QUIERO PRO POR US$47/MES' in s
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'CloudSales Automation'
+          git config user.email 'info@cloudsales.app'
+          git add web/commercial/conversion-v1.js
+          git commit -m 'fix(pricing): Pro exit offer follows STARTER at US$47'
+          git push origin HEAD:main
