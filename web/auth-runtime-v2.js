@@ -1,17 +1,34 @@
 (() => {
   'use strict';
 
-  const VERSION = '2026.08.30.2';
+  const VERSION = '2026.08.30.3';
   const CLAIM_KEY = 'cs_pending_claim';
   let resendTimer = null;
+  let recoveryMode = false;
 
-  function node(id) { return document.getElementById(id); }
+  const node = id => document.getElementById(id);
   function message(text, ok = false, extra = '') {
-    const el = node('authMsg');
-    if (!el) return;
-    el.className = ok ? 'ok' : 'err';
-    el.innerHTML = `${text}${extra}`;
+    const el = node('authMsg'); if (!el) return;
+    el.className = ok ? 'ok' : 'err'; el.innerHTML = `${text}${extra}`;
   }
+  function friendly(error) {
+    const code = String(error?.message || error || '');
+    const map = {
+      invalid_email:'Escribe un correo válido.', weak_password:'Usa una contraseña de al menos 8 caracteres.',
+      signin_unavailable:'No pudimos iniciar sesión. Revisa tu email y contraseña.', rate_limited:'Demasiados intentos. Espera unos minutos y vuelve a intentar.',
+      recovery_wait:'Ya solicitaste un enlace recientemente. Revisa tu correo antes de pedir otro.', recovery_temporarily_unavailable:'No pudimos enviar el correo de recuperación. Intenta nuevamente en unos minutos.',
+      invalid_recovery_session:'El enlace de recuperación no es válido.', invalid_or_expired_recovery_link:'El enlace de recuperación expiró o ya no es válido. Solicita uno nuevo.', password_update_failed:'No pudimos cambiar la contraseña. Solicita un nuevo enlace e intenta otra vez.',
+      email_authorization_required:'CloudSales necesita tu autorización para enviar este único correo.', email_authorization_audit_failed:'No pudimos registrar de forma segura la autorización del correo.',
+      signup_temporarily_limited:'El servicio de confirmación está ocupado. Intenta nuevamente en unos minutos.', signup_unavailable:'No se pudo completar el registro.',
+      confirmation_wait:'El correo ya fue solicitado. Espera antes de reenviarlo.', resend_unavailable:'No se pudo reenviar el correo ahora.',
+      invalid_claim_token:'El enlace de acceso no es válido.', claim_invalid_or_expired:'Este acceso ya fue utilizado o expiró.', claim_not_email_bound:'Este enlace no cumple la política de acceso seguro.',
+      claim_email_mismatch:'Este enlace fue asignado a otro correo.', claim_signup_unavailable:'No pudimos activar esta cuenta con el enlace privado.',
+      claim_signup_signin_required:'La cuenta fue creada. Entra con el mismo correo y contraseña.', account_exists_use_signin:'Esta cuenta ya existe. Entra con tu correo y contraseña.',
+      organization_owner_already_assigned:'Este enlace de propietario ya no es válido.', organization_unavailable:'El workspace no está disponible.'
+    };
+    return map[code] || 'No se pudo completar la operación. Intenta nuevamente.';
+  }
+
   function captureClaim() {
     const token = new URL(location.href).searchParams.get('claim');
     if (token && token.length >= 32 && token.length <= 512) localStorage.setItem(CLAIM_KEY, token);
@@ -19,11 +36,8 @@
   }
   function clearClaim() {
     localStorage.removeItem(CLAIM_KEY);
-    const url = new URL(location.href);
-    if (url.searchParams.has('claim')) {
-      url.searchParams.delete('claim');
-      history.replaceState(null, '', url.pathname + (url.search ? url.search : '') + url.hash);
-    }
+    const url = new URL(location.href); url.searchParams.delete('claim');
+    history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
   }
   async function claimPending() {
     const token = captureClaim();
@@ -32,206 +46,110 @@
     try {
       const result = await direct('claim-organization', { token }, true);
       if (result?.organization?.id) localStorage.setItem('cs_org', result.organization.id);
-      clearClaim();
-      return result;
+      clearClaim(); return result;
     } catch (err) {
-      const code = String(err?.message || '');
-      if (['claim_invalid_or_expired', 'organization_owner_already_assigned'].includes(code)) clearClaim();
+      if (['claim_invalid_or_expired','organization_owner_already_assigned'].includes(String(err?.message || ''))) clearClaim();
       throw err;
     }
   }
 
-  function friendly(error) {
-    const code = String(error?.message || error || '');
-    const map = {
-      invalid_email: 'Escribe un correo válido.',
-      weak_password: 'Usa una contraseña de al menos 8 caracteres.',
-      rate_limited: 'Demasiados intentos. Espera unos minutos y vuelve a intentar.',
-      signup_temporarily_limited: 'El servicio de confirmación está ocupado. Espera unos minutos y vuelve a intentar.',
-      confirmation_wait: 'El correo ya fue solicitado. Espera unos segundos antes de reenviarlo.',
-      confirmation_delivery_failed: 'No pudimos enviar el correo de confirmación. Intenta nuevamente en unos minutos.',
-      signup_unavailable: 'No se pudo completar el registro. Intenta nuevamente.',
-      signin_unavailable: 'No pudimos iniciar sesión. Revisa tu email y contraseña.',
-      resend_unavailable: 'No se pudo reenviar el correo ahora. Intenta nuevamente en unos minutos.',
-      email_authorization_required: 'CloudSales necesita tu autorización explícita para enviar este único correo de confirmación.',
-      email_authorization_audit_failed: 'No pudimos registrar de forma segura tu autorización de correo. Intenta nuevamente.',
-      invalid_claim_token: 'El enlace de acceso no es válido.',
-      claim_invalid_or_expired: 'Este acceso ya fue utilizado o expiró. Solicita un nuevo enlace de acceso.',
-      claim_not_email_bound: 'Este enlace no cumple la política de acceso seguro de CloudSales.',
-      claim_email_mismatch: 'Este enlace fue asignado a otro correo. Usa exactamente el correo autorizado para este acceso.',
-      claim_signup_unavailable: 'No pudimos activar esta cuenta con el enlace privado. Intenta nuevamente.',
-      claim_signup_signin_required: 'La cuenta fue creada. Toca Entrar y usa la misma contraseña para terminar de activar el workspace.',
-      account_exists_use_signin: 'Esta cuenta ya existe. Entra con tu correo y contraseña para activar el acceso pendiente.',
-      organization_owner_already_assigned: 'Este enlace de propietario ya no es válido porque el workspace ya tiene propietario.',
-      organization_unavailable: 'El workspace no está disponible en este momento.'
-    };
-    return map[code] || 'No se pudo completar la operación. Intenta nuevamente.';
+  function ensureNotice() {
+    let el = node('signupEmailNotice'); if (el) return el;
+    const btn = node('authBtn'); if (!btn?.parentNode) return null;
+    el = document.createElement('div'); el.id='signupEmailNotice'; el.className='notice hidden'; el.style.cssText='margin:10px 0 12px;font-size:11px';
+    btn.parentNode.insertBefore(el, btn); return el;
   }
-
-  function ensureEmailNotice() {
-    let notice = node('signupEmailNotice');
-    if (notice) return notice;
-    const button = node('authBtn');
-    if (!button?.parentNode) return null;
-    notice = document.createElement('div');
-    notice.id = 'signupEmailNotice';
-    notice.className = 'notice hidden';
-    notice.style.margin = '10px 0 12px';
-    notice.style.fontSize = '11px';
-    button.parentNode.insertBefore(notice, button);
-    return notice;
+  function ensureForgot() {
+    let btn = node('forgotPassword'); if (btn) return btn;
+    const pass = node('password'); const field = pass?.closest('.field'); if (!field?.parentNode) return null;
+    btn = document.createElement('button'); btn.id='forgotPassword'; btn.type='button'; btn.textContent='¿Olvidaste tu contraseña?';
+    btn.style.cssText='display:block;margin:-4px 0 14px auto;border:0;background:transparent;color:#c78cff;font-size:12px;font-weight:800;padding:3px 0';
+    field.insertAdjacentElement('afterend', btn); return btn;
   }
-  function syncEmailNotice() {
-    const notice = ensureEmailNotice();
-    if (!notice) return;
+  function syncUi() {
+    const notice = ensureNotice(), forgot = ensureForgot();
     const currentMode = typeof mode !== 'undefined' ? mode : 'signin';
-    const invited = Boolean(captureClaim());
+    if (forgot) forgot.style.display = (!recoveryMode && currentMode === 'signin') ? 'block' : 'none';
+    if (!notice) return;
+    if (recoveryMode) { notice.classList.remove('hidden'); notice.innerHTML='<b>Elige una contraseña nueva.</b> Debe tener al menos 8 caracteres.'; return; }
     notice.classList.toggle('hidden', currentMode !== 'signup');
-    if (currentMode !== 'signup') return;
-    notice.innerHTML = invited
-      ? 'Este es un <b>acceso privado asignado a tu correo</b>. Elige tu contraseña y CloudSales activará tu workspace sin enviarte un correo de confirmación.'
-      : 'Al tocar <b>Crear cuenta</b> autorizas a CloudSales a enviarte <b>un único correo de confirmación</b> a la dirección que escribiste. Esto no autoriza campañas, promociones ni otros correos.';
+    if (currentMode === 'signup') notice.innerHTML = captureClaim()
+      ? 'Este es un <b>acceso privado asignado a tu correo</b>. Elige tu contraseña y CloudSales activará tu workspace sin enviar confirmación.'
+      : 'Al tocar <b>Crear cuenta</b> autorizas un único correo de confirmación. Esto no autoriza marketing.';
   }
 
-  function startCooldown(seconds = 40) {
-    clearTimeout(resendTimer);
-    let remaining = Math.max(1, Number(seconds || 40));
-    const update = () => {
-      const button = node('resendConfirmation');
-      if (!button) { resendTimer = null; return; }
-      button.disabled = remaining > 0;
-      button.textContent = remaining > 0 ? `Reenviar en ${remaining}s` : 'Reenviar correo';
-      if (remaining <= 0) { resendTimer = null; return; }
-      remaining -= 1;
-      resendTimer = setTimeout(update, 1000);
-    };
-    update();
-  }
-
-  async function resend() {
-    const email = node('email')?.value?.trim();
-    if (!email) return message('Escribe tu correo primero.');
-    const button = node('resendConfirmation');
-    if (button) { button.disabled = true; button.textContent = 'Enviando…'; }
+  async function forgotPassword() {
+    const email = node('email')?.value?.trim() || '';
+    if (!email) return message('Escribe tu correo y después toca “¿Olvidaste tu contraseña?”.');
+    const btn = node('forgotPassword'); if (btn) { btn.disabled=true; btn.textContent='Enviando…'; }
     try {
-      const result = await direct('auth-session', {
-        action: 'resend_confirmation',
-        email,
-        authorize_email: true,
-        email_purpose: 'signup_confirmation_resend'
-      }, false);
-      if (result?.message_code === 'account_already_confirmed') {
-        existingAccount('Esta cuenta ya está confirmada. Entra con tu correo y contraseña.');
-        return;
-      }
-      message('Correo de confirmación reenviado con tu autorización. Revisa también Spam o Promociones.', true, ` <button id="goSigninAfterResend" class="btn small" type="button" style="margin-left:8px">Ir a Entrar</button>`);
-      node('goSigninAfterResend')?.addEventListener('click', () => setMode('signin'));
-    } catch (err) {
-      if (String(err?.message || '') === 'confirmation_wait') confirmationActions('La cuenta ya está creada. El correo de confirmación se solicitó recientemente.', 40);
-      else message(friendly(err));
-    } finally {
-      if (button && !button.disabled) button.textContent = 'Reenviar correo';
+      await direct('auth-session',{action:'forgot_password',email,authorize_email:true,email_purpose:'password_recovery'},false);
+      message('Te enviamos un correo con el botón para cambiar tu contraseña. Revisa también Spam o Promociones.',true);
+    } catch (err) { message(friendly(err)); }
+    finally { if (btn) { btn.disabled=false; btn.textContent='¿Olvidaste tu contraseña?'; } }
+  }
+
+  function recoveryToken() {
+    const h = new URLSearchParams(location.hash.replace(/^#/,''));
+    return h.get('type') === 'recovery' ? (h.get('access_token') || '') : '';
+  }
+  function leaveRecovery() {
+    recoveryMode=false;
+    const url=new URL(location.href); url.searchParams.delete('reset');
+    history.replaceState(null,'',url.pathname+(url.search||''));
+    node('tabIn')?.parentElement?.classList.remove('hidden');
+    node('email')?.closest('.field')?.classList.remove('hidden');
+    node('nameField')?.classList.add('hidden');
+    const pass=node('password'); if(pass){pass.value='';pass.autocomplete='current-password';const label=pass.closest('.field')?.querySelector('label');if(label)label.textContent='Contraseña';}
+    node('resetConfirmField')?.remove(); if(typeof setMode==='function')setMode('signin'); syncUi(); message('Contraseña actualizada. Ahora entra con tu nueva contraseña.',true);
+  }
+  function enterRecovery() {
+    const token=recoveryToken(); if(!token) return false;
+    recoveryMode=true;
+    node('tabIn')?.parentElement?.classList.add('hidden'); node('email')?.closest('.field')?.classList.add('hidden'); node('nameField')?.classList.add('hidden');
+    const pass=node('password'); if(!pass) return false; pass.value=''; pass.autocomplete='new-password'; const label=pass.closest('.field')?.querySelector('label'); if(label)label.textContent='Nueva contraseña';
+    if(!node('resetConfirmField')){const f=document.createElement('div');f.id='resetConfirmField';f.className='field';f.innerHTML='<label>Confirmar nueva contraseña</label><input id="resetConfirm" type="password" autocomplete="new-password">';pass.closest('.field')?.insertAdjacentElement('afterend',f);}
+    const btn=node('authBtn'); if(btn){btn.disabled=false;btn.textContent='Cambiar contraseña';}
+    syncUi(); message('Abre el enlace únicamente desde tu propio dispositivo y define tu nueva contraseña.',true); return true;
+  }
+  async function doReset() {
+    const token=recoveryToken(),p=node('password')?.value||'',c=node('resetConfirm')?.value||'';
+    if(!token)return message('El enlace de recuperación no es válido.'); if(p.length<8)return message('Usa una contraseña de al menos 8 caracteres.'); if(p!==c)return message('Las contraseñas no coinciden.');
+    const btn=node('authBtn'); btn.disabled=true; btn.textContent='Guardando…';
+    try { await direct('auth-session',{action:'reset_password',access_token:token,password:p},false); clearSession?.(); leaveRecovery(); }
+    catch(err){message(friendly(err));btn.disabled=false;btn.textContent='Cambiar contraseña';}
+  }
+
+  function startCooldown(seconds=40){clearTimeout(resendTimer);let n=seconds;const tick=()=>{const b=node('resendConfirmation');if(!b)return;b.disabled=n>0;b.textContent=n>0?`Reenviar en ${n}s`:'Reenviar correo';if(n-- >0)resendTimer=setTimeout(tick,1000)};tick()}
+  async function resend(){const email=node('email')?.value?.trim();if(!email)return message('Escribe tu correo primero.');try{await direct('auth-session',{action:'resend_confirmation',email,authorize_email:true,email_purpose:'signup_confirmation_resend'},false);message('Correo de confirmación reenviado. Revisa Spam o Promociones.',true)}catch(err){message(friendly(err))}}
+  function confirmationActions(text){message(text,true,' <div style="margin-top:10px"><button id="resendConfirmation" class="btn small" type="button">Autorizar y reenviar correo</button></div>');node('resendConfirmation')?.addEventListener('click',resend);startCooldown(40)}
+  function existingAccount(text='Esta cuenta ya existe. Entra con tu correo y contraseña.'){message(text,true);if(typeof setMode==='function')setMode('signin')}
+  async function finishLogin(data){saveSession(data.session);const claimed=await claimPending();await boot();if(claimed?.organization?.name)message(`Acceso activado: ${claimed.organization.name}.`,true)}
+
+  function bind(){
+    const button=node('authBtn'); if(!button||typeof direct!=='function')return false;
+    captureClaim(); ensureNotice(); const forgot=ensureForgot(); if(forgot)forgot.onclick=forgotPassword;
+    if(enterRecovery()){
+      button.onclick=doReset; document.documentElement.dataset.authRuntime=VERSION; return true;
     }
-  }
-
-  function confirmationActions(text, cooldown = 0) {
-    message(text, true, ` <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button id="resendConfirmation" class="btn small" type="button">Autorizar y reenviar correo</button><button id="goSignin" class="btn small" type="button">Ya confirmé · Entrar</button></div><div style="margin-top:7px;font-size:10px;color:#aaa">Reenviar autoriza solamente ese correo de confirmación.</div>`);
-    node('resendConfirmation')?.addEventListener('click', resend);
-    node('goSignin')?.addEventListener('click', () => setMode('signin'));
-    if (cooldown > 0) startCooldown(cooldown);
-  }
-
-  function existingAccount(text = 'Esta cuenta ya existe. Entra con tu correo y contraseña.') {
-    message(text, true, ` <button id="goSigninExisting" class="btn small" type="button" style="margin-left:8px">Entrar</button>`);
-    node('goSigninExisting')?.addEventListener('click', () => setMode('signin'));
-    const btn = node('authBtn');
-    if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta'; }
-  }
-
-  async function finishLogin(data) {
-    saveSession(data.session);
-    const claimed = await claimPending();
-    await boot();
-    if (claimed?.organization?.name) message(`Acceso activado: ${claimed.organization.name}.`, true);
-  }
-
-  function bind() {
-    const button = node('authBtn');
-    if (!button || typeof direct !== 'function') return false;
-    captureClaim();
-    ensureEmailNotice();
-    syncEmailNotice();
-
-    button.onclick = async () => {
-      message('');
-      const currentMode = typeof mode !== 'undefined' ? mode : 'signin';
-      const email = node('email')?.value?.trim() || '';
-      const password = node('password')?.value || '';
-      const fullName = node('fullName')?.value?.trim() || '';
-      const claimToken = currentMode === 'signup' ? captureClaim() : '';
-      if (!email) return message('Escribe tu correo.');
-      if (!password) return message('Escribe tu contraseña.');
-      if (currentMode === 'signup' && password.length < 8) return message('Usa una contraseña de al menos 8 caracteres.');
-
-      button.disabled = true;
-      const original = button.textContent;
-      button.textContent = currentMode === 'signin' ? 'Entrando…' : 'Creando cuenta…';
-      try {
-        const payload = {
-          action: currentMode === 'signin' ? 'sign_in' : (claimToken ? 'claim_sign_up' : 'sign_up'),
-          email,
-          password,
-          full_name: fullName
-        };
-        if (currentMode === 'signup' && claimToken) payload.claim_token = claimToken;
-        if (currentMode === 'signup' && !claimToken) {
-          payload.authorize_email = true;
-          payload.email_purpose = 'signup_confirmation';
-        }
-        const data = await direct('auth-session', payload, false);
-        if (data.session) { await finishLogin(data); return; }
-        if (currentMode === 'signup' && data.message_code === 'account_exists') { existingAccount(); return; }
-        if (currentMode === 'signup' && data.confirmation_required) {
-          button.disabled = true;
-          button.textContent = 'Cuenta creada';
-          if (data.message_code === 'confirmation_pending_wait') confirmationActions('La cuenta ya está creada y el correo de confirmación ya fue enviado. Revisa tu bandeja, Spam o Promociones.', Number(data.retry_after_seconds || 40));
-          else if (data.message_code === 'confirmation_delivery_failed_pending') confirmationActions('La cuenta quedó creada, pero el correo no pudo enviarse. Espera un momento y toca Reenviar correo.', 40);
-          else if (data.message_code === 'account_exists_or_confirmation_pending') confirmationActions('La cuenta ya existe o está pendiente de confirmación. Revisa tu correo o autoriza un reenvío si lo necesitas.', 40);
-          else confirmationActions('Cuenta creada. Te enviamos el único correo de confirmación que autorizaste. Confirma tu email y después entra a CloudSales.', 40);
-          return;
-        }
-      } catch (err) {
-        const code = String(err?.message || '');
-        if (code === 'account_exists_use_signin') existingAccount('Esta cuenta ya existe. Entra con la misma cuenta para activar este acceso privado.');
-        else if (code === 'claim_signup_signin_required') existingAccount('La cuenta quedó creada. Entra con el mismo correo y contraseña para terminar de activar el workspace.');
-        else message(friendly(err));
-      } finally {
-        if (!button.disabled || currentMode === 'signin') { button.disabled = false; button.textContent = original; }
-      }
+    syncUi();
+    button.onclick=async()=>{
+      message(''); const currentMode=typeof mode!=='undefined'?mode:'signin',email=node('email')?.value?.trim()||'',password=node('password')?.value||'',fullName=node('fullName')?.value?.trim()||'',claimToken=currentMode==='signup'?captureClaim():'';
+      if(!email)return message('Escribe tu correo.'); if(!password)return message('Escribe tu contraseña.'); if(currentMode==='signup'&&password.length<8)return message('Usa una contraseña de al menos 8 caracteres.');
+      button.disabled=true;const original=button.textContent;button.textContent=currentMode==='signin'?'Entrando…':'Creando cuenta…';
+      try{
+        const payload={action:currentMode==='signin'?'sign_in':(claimToken?'claim_sign_up':'sign_up'),email,password,full_name:fullName};
+        if(currentMode==='signup'&&claimToken)payload.claim_token=claimToken;
+        if(currentMode==='signup'&&!claimToken){payload.authorize_email=true;payload.email_purpose='signup_confirmation';}
+        const data=await direct('auth-session',payload,false);
+        if(data.session){await finishLogin(data);return}
+        if(currentMode==='signup'&&data.confirmation_required){button.textContent='Cuenta creada';confirmationActions('Cuenta creada. Confirma tu email y después entra a CloudSales.');return}
+      }catch(err){const code=String(err?.message||'');if(code==='account_exists_use_signin'||code==='claim_signup_signin_required')existingAccount();else message(friendly(err))}
+      finally{if(currentMode==='signin'||!button.disabled){button.disabled=false;button.textContent=original}}
     };
-
-    [node('tabIn'), node('tabUp')].forEach(tab => tab?.addEventListener('click', () => {
-      clearTimeout(resendTimer); resendTimer = null;
-      const btn = node('authBtn'); if (btn) btn.disabled = false;
-      message('');
-      setTimeout(syncEmailNotice, 0);
-    }));
-
-    if (captureClaim() && typeof session !== 'undefined' && session?.access_token) {
-      setTimeout(async () => {
-        try { const result = await claimPending(); if (result) await boot(); }
-        catch (err) { message(friendly(err)); }
-      }, 0);
-    }
-    document.documentElement.dataset.authRuntime = VERSION;
-    return true;
+    [node('tabIn'),node('tabUp')].forEach(tab=>tab?.addEventListener('click',()=>{clearTimeout(resendTimer);resendTimer=null;const b=node('authBtn');if(b)b.disabled=false;message('');setTimeout(syncUi,0)}));
+    if(captureClaim()&&typeof session!=='undefined'&&session?.access_token)setTimeout(async()=>{try{const r=await claimPending();if(r)await boot()}catch(err){message(friendly(err))}},0);
+    document.documentElement.dataset.authRuntime=VERSION; return true;
   }
-
-  let tries = 0;
-  function attemptBind() {
-    tries += 1;
-    if (bind() || tries > 20) return;
-    setTimeout(attemptBind, 100);
-  }
-  attemptBind();
+  let tries=0;function attempt(){tries++;if(bind()||tries>20)return;setTimeout(attempt,100)}attempt();
 })();
