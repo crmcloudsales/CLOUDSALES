@@ -1,6 +1,31 @@
 (()=>{'use strict';
-const START=Date.parse('2026-08-31T05:00:00Z'),END=Date.parse('2026-12-01T00:00:00Z');if(Date.now()<START||Date.now()>=END)return;
-const path=location.pathname.replace(/\/$/,'')||'/';if(['/terms','/privacy','/domains'].includes(path))return;
+const START=Date.parse('2026-08-31T05:00:00Z'),END=Date.parse('2026-12-01T00:00:00Z');
+const path=location.pathname.replace(/\/$/,'')||'/';
+function patchCanonicalPricing(){
+ const cards=[...document.querySelectorAll('h3')];
+ for(const h of cards){
+   const label=(h.textContent||'').trim().toLowerCase(),box=h.closest('article,.card,.pricing-card,.price-card,div');
+   if(!box)continue;
+   if(label==='basic'||label==='starter'){
+     h.textContent='STARTER';
+     const w=document.createTreeWalker(box,NodeFilter.SHOW_TEXT);let n;
+     while((n=w.nextNode())){const s=n.nodeValue||'';if(/\$49\s*USD\s*\/\s*mes/i.test(s))n.nodeValue=s.replace(/\$49\s*USD\s*\/\s*mes/ig,'$47 USD / mes');if(/Elegir Basic/i.test(s))n.nodeValue=s.replace(/Elegir Basic/ig,'Elegir STARTER')}
+   }
+   if(label==='pro'){
+     const w=document.createTreeWalker(box,NodeFilter.SHOW_TEXT);let n;
+     while((n=w.nextNode())){const s=n.nodeValue||'';if(/Todo Basic/i.test(s))n.nodeValue=s.replace(/Todo Basic/ig,'Todo STARTER')}
+   }
+   if(label==='premium'){
+     const w=document.createTreeWalker(box,NodeFilter.SHOW_TEXT);let n;
+     while((n=w.nextNode())){const s=n.nodeValue||'';if(/\$197\s*USD\s*\/\s*mes/i.test(s))n.nodeValue=s.replace(/\$197\s*USD\s*\/\s*mes/ig,'$147 USD / mes')}
+     if(!box.querySelector('[data-cs-premium-seats]')){const d=document.createElement('div');d.dataset.csPremiumSeats='1';d.style.cssText='font-size:11px;color:#9695a7;margin:8px 0 2px';d.textContent='2 usuarios incluidos · asiento extra US$47/mes';h.insertAdjacentElement('afterend',d)}
+   }
+ }
+ document.documentElement.dataset.csCanonicalPricing='2026-08-31';
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',patchCanonicalPricing,{once:true});else patchCanonicalPricing();
+if(Date.now()<START||Date.now()>=END)return;
+if(['/terms','/privacy','/domains'].includes(path))return;
 const salesRoutes=new Set(['/','/cloudco','/academy','/services','/affiliate','/upsells']);if(!salesRoutes.has(path))return;
 const KEY='cs_public_visitor_v1';function visitor(){let v=localStorage.getItem(KEY);if(!v){v='v_'+crypto.randomUUID().replaceAll('-','')+Date.now().toString(36);localStorage.setItem(KEY,v)}return v}
 function attr(){const u=new URL(location.href);return{utm_source:u.searchParams.get('utm_source'),utm_medium:u.searchParams.get('utm_medium'),utm_campaign:u.searchParams.get('utm_campaign'),utm_content:u.searchParams.get('utm_content'),utm_term:u.searchParams.get('utm_term'),fbclid:u.searchParams.get('fbclid'),gclid:u.searchParams.get('gclid'),referrer:document.referrer}}
