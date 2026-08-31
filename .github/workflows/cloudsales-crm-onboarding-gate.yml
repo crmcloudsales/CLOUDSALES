@@ -1,0 +1,61 @@
+name: CloudSales CRM Onboarding Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/functions/highlevel-temp-bootstrap/**'
+      - 'supabase/migrations/20260831231500_included_crm_rollout.sql'
+      - '.github/workflows/cloudsales-crm-onboarding-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/highlevel-temp-bootstrap/**'
+      - 'supabase/migrations/20260831231500_included_crm_rollout.sql'
+      - '.github/workflows/cloudsales-crm-onboarding-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  included-crm:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Typecheck included CRM Edge Function
+        run: deno check supabase/functions/highlevel-temp-bootstrap/index.ts
+      - name: Enforce onboarding safety invariants
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const src=fs.readFileSync('supabase/functions/highlevel-temp-bootstrap/index.ts','utf8');
+          const migration=fs.readFileSync('supabase/migrations/20260831231500_included_crm_rollout.sql','utf8');
+          for(const x of [
+            'active_subscription_required',
+            'owner_or_admin_required',
+            'has_required_cloudsales_legal_acceptance',
+            'has_provider_authorization',
+            'included_crm_rollout_capacity_reached',
+            'service_store_secret',
+            'refresh_token_secret_id',
+            '/oauth/location-token',
+            'included_by_cloudsales:true',
+            'cs_general_sales_v1',
+            'CloudSales | Sales',
+            'crm.included.provisioned',
+            'configure_crm'
+          ]) if(!src.includes(x)) throw new Error('missing_invariant_'+x);
+          for(const x of ['Property / Project','Budget Min','Budget Max','Purchase Timeframe','Preferred Bedrooms'])
+            if(src.includes(x)) throw new Error('general_crm_must_not_be_real_estate_specific_'+x);
+          for(const x of ['password','card_number','cvc','cvv'])
+            if(new RegExp(`['\"]${x}['\"]\\s*:`,'i').test(src)) throw new Error('sensitive_field_not_allowed_'+x);
+          if(!migration.includes("public_label', 'CRM incluido con CloudSales'")) throw new Error('provider_neutral_label_missing');
+          if(!migration.includes("provider_internal', 'highlevel'")) throw new Error('internal_provider_mapping_missing');
+          console.log('Included CRM onboarding invariants OK');
+          NODE
