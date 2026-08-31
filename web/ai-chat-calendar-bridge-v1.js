@@ -1,86 +1,74 @@
-(() => {
+(()=>{
   'use strict';
+  const VERSION='2026.08.31.5';
   const BASE='https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/';
-  let installed=false,busy=false,observer=null,attachTries=0;
+  let busy=false,localObserver=null,attachTries=0;
 
-  async function universalSnapshot(){
+  async function conversations(){
     if(typeof session==='undefined'||!session?.access_token||typeof currentOrg==='undefined'||!currentOrg?.id)throw new Error('session_required');
     const r=await fetch(BASE+'icon-build-diagnose2',{method:'POST',headers:{'content-type':'application/json','authorization':'Bearer '+session.access_token},body:JSON.stringify({organization_id:currentOrg.id,action:'snapshot',input:{limit:300}})});
-    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||d.error||'conversation_lookup_failed');return d.conversations||[];
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.detail||d.error||'conversation_lookup_failed');
+    return d.conversations||[];
   }
 
   function activeConversationId(){return document.querySelector('#aiChatV2 .a2conv.active[data-id]')?.dataset.id||''}
 
   async function scheduleFromChat(){
-    if(busy)return;busy=true;
-    const btn=document.getElementById('a2schedule');if(btn)btn.disabled=true;
+    if(busy)return;
+    busy=true;
+    const btn=document.getElementById('a2schedule');
+    if(btn)btn.disabled=true;
     try{
-      const id=activeConversationId();if(!id)throw new Error('Selecciona una conversación primero.');
-      const list=await universalSnapshot();
-      const conv=list.find(x=>String(x.id)===String(id));
+      const id=activeConversationId();
+      if(!id)throw new Error('Selecciona una conversación primero.');
+      const conv=(await conversations()).find(x=>String(x.id)===String(id));
       if(!conv?.contact_id)throw new Error('Esta conversación todavía no está vinculada a un contacto de CloudSales.');
+      if(typeof go==='function')go('calendar');
+      await new Promise(r=>setTimeout(r,60));
       const calendarButton=document.getElementById('csNewAppointment');
       if(!calendarButton)throw new Error('Calendar todavía no está disponible.');
-      if(typeof go==='function')go('calendar');
       calendarButton.click();
-      setTimeout(()=>{const sel=document.getElementById('calContact');if(sel){sel.value=conv.contact_id;sel.dispatchEvent(new Event('change',{bubbles:true}))}},40);
-    }catch(err){alert(err?.message||'No pudimos abrir Calendar.')}finally{busy=false;if(btn)btn.disabled=false}
+      setTimeout(()=>{
+        const sel=document.getElementById('calContact');
+        if(sel){sel.value=conv.contact_id;sel.dispatchEvent(new Event('change',{bubbles:true}))}
+      },80);
+    }catch(err){alert(err?.message||'No pudimos abrir Calendar.')}finally{
+      busy=false;
+      if(btn)btn.disabled=false;
+    }
   }
 
-  function install(){
+  function installButton(){
     const actions=document.querySelector('#aiChatV2 .a2actions');
     if(!actions||document.getElementById('a2schedule'))return false;
-    const b=document.createElement('button');b.id='a2schedule';b.className='a2btn';b.textContent='◫ Agendar';b.title='Agendar cita con este contacto';b.onclick=scheduleFromChat;actions.prepend(b);installed=true;return true;
+    const b=document.createElement('button');
+    b.id='a2schedule';b.className='a2btn';b.textContent='◫ Agendar';b.title='Agendar cita con este contacto';b.onclick=scheduleFromChat;
+    actions.prepend(b);
+    return true;
   }
 
-  function attach(){
-    if(installed||install()){observer?.disconnect();observer=null;return;}
+  function attachLocal(){
+    if(installButton()){localObserver?.disconnect();localObserver=null;return}
     const root=document.getElementById('aiChatV2');
-    if(root){
-      observer?.disconnect();
-      observer=new MutationObserver(()=>{if(!installed&&install()){observer?.disconnect();observer=null}});
-      observer.observe(root,{childList:true,subtree:true});
+    if(root&&!localObserver){
+      localObserver=new MutationObserver(()=>{
+        if(installButton()){localObserver?.disconnect();localObserver=null}
+      });
+      localObserver.observe(root,{childList:true,subtree:true});
       return;
     }
-    if(attachTries++<20)setTimeout(attach,250);
+    if(!root&&attachTries++<20)setTimeout(attachLocal,250);
   }
 
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',attach,{once:true});
-  else attach();
-})();
+  function hooks(){
+    attachLocal();
+    document.querySelectorAll('[data-page="calendar"],[data-page="inbox"]').forEach(btn=>btn.addEventListener('click',()=>setTimeout(attachLocal,80)));
+    window.addEventListener('hashchange',()=>setTimeout(attachLocal,80));
+    document.getElementById('orgSelect')?.addEventListener('change',()=>{localObserver?.disconnect();localObserver=null;attachTries=0;setTimeout(attachLocal,180)});
+    document.documentElement.dataset.calendarBridge=VERSION;
+  }
 
-(()=>{'use strict';
-const VERSION='2026.08.31.4',BASE='https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/';
-const q=(s,r=document)=>r.querySelector(s),qa=(s,r=document)=>[...r.querySelectorAll(s)],e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const stageLabel=v=>{const s=String(v||''),k=s.toLowerCase();return k.includes('new lead')||k==='new'?'Nuevo lead':k.includes('contacted')?'Contactado':k.includes('qualified')?'Calificado':k.includes('appointment')?'Cita':k.includes('visited')||k.includes('presented')?'Visita / presentación':k.includes('offer')||k.includes('negotiation')?'Oferta / negociación':k.includes('reservation')||k.includes('deposit')?'Reserva / depósito':k==='won'||k.includes('closed won')?'Ganado':k.includes('lost')||k.includes('nurture')?'Perdido / seguimiento':s};
-const hl=()=>currentOrg?.connections?.find(x=>x.provider_key==='highlevel'&&x.status==='connected')||null,meta=()=>currentOrg?.connections?.find(x=>['meta','meta_ads'].includes(x.provider_key)&&x.status==='connected')||null;
-let stages=[],items=new Map(),rendering=false,drag=null,lastSync=0,providerCache=null;
-function name(c){return [c?.first_name,c?.last_name].filter(Boolean).join(' ')||c?.email||c?.phone_e164||'Lead sin nombre'}
-function contact(c){return [c?.phone_e164,c?.email].filter(Boolean).join(' · ')||'Sin datos de contacto'}
-function matchStage(v){const x=String(v||'').toLowerCase();return stages.find(s=>String(s.name).toLowerCase()===x||String(s.stage_key).toLowerCase()===x)||stages[0]}
-function signal(){const h=hl(),m=meta();return{highlevel:!!h,capi:!!m?.metadata?.capi_enabled,dataset:m?.metadata?.dataset_id||m?.metadata?.pixel_id||m?.external_account_id||''}}
-function css(){if(q('#moneyFlowCss'))return;const s=document.createElement('style');s.id='moneyFlowCss';s.textContent=`
-.bottomnav{grid-template-columns:repeat(6,1fr)!important;min-height:82px!important;padding:6px 3px calc(7px + env(safe-area-inset-bottom))!important;background:#0a0a11ee!important;backdrop-filter:blur(18px);border-top:1px solid #292936!important}.bottomnav button{min-width:0!important;min-height:64px!important;padding:4px 1px!important;font-size:9px!important;font-weight:750!important;gap:4px!important;color:#787686!important}.bottomnav button b{font-size:24px!important;line-height:24px!important}.bottomnav button svg{display:block;width:24px;height:24px;margin:0 auto;fill:currentColor}.bottomnav button.active{color:#fff!important}.bottomnav button.active svg{filter:drop-shadow(0 0 8px #ff4eab77)}
-#pipelineBoard.mfBoard{display:block!important;overflow:visible!important;padding:0!important}.mf2Shell{width:100%;max-width:920px;margin:0 auto}.mf2Hero{border:1px solid #30303e;border-radius:22px;background:radial-gradient(520px 200px at 100% 0,#5c205355,transparent 72%),linear-gradient(145deg,#13131c,#0d0d14);padding:17px;margin-bottom:12px}.mf2Eyebrow{font-size:9px;font-weight:900;letter-spacing:.11em;color:#ff8dcd}.mf2HeroRow{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:6px}.mf2Hero h2{margin:0;font-size:25px;line-height:1.08}.mf2Hero p{margin:6px 0 0;color:#9290a0;font-size:10px;line-height:1.45;max-width:580px}.mf2Badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.mf2Badge{border:1px solid #3a3948;border-radius:999px;padding:6px 8px;font-size:8px;font-weight:850;color:#9b99a8}.mf2Badge.on{border-color:#286043;color:#84e8af;background:#102218}.mf2Badge.meta.on{border-color:#603254;color:#ff9ad1;background:#23101f}.mf2Hint{text-align:center;font-size:9px;color:#898797;margin:10px 0 11px}.mf2Hint b{color:#dddbe4}.mf2Stages{display:grid;gap:6px}.mf2Stage{border:1px solid #2d2d3a;background:#0d0d14;border-radius:16px;padding:8px;transition:.14s ease}.mf2Stage.target{border-color:#ff4fad;background:#1c101a;box-shadow:0 0 0 2px #ff2b9b1e}.mf2Head{display:flex;align-items:center;gap:9px;min-height:37px}.mf2Step{width:27px;height:27px;border-radius:9px;background:#1a1a24;border:1px solid #343442;display:grid;place-items:center;font-size:9px;font-weight:900;color:#aaa7b7}.mf2Title{flex:1;min-width:0}.mf2Title b{font-size:12px}.mf2Title small{display:block;font-size:8px;color:#777586;margin-top:1px}.mf2Count{font-size:9px;font-weight:850;color:#aaa7b7;border:1px solid #333341;border-radius:999px;padding:4px 7px}.mf2Deals{display:grid;gap:6px;margin-top:5px}.mf2Empty{height:20px;border:1px dashed #292936;border-radius:8px;display:grid;place-items:center;color:#555463;font-size:8px}.mf2Card{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #353543;background:linear-gradient(145deg,#181821,#111119);border-radius:14px;padding:7px 8px;box-shadow:0 7px 22px #0004}.mf2Card.dragging{opacity:.24}.mf2Grip{width:31px;height:43px;border:1px solid #3a3948;border-radius:10px;background:#0d0d15;color:#b7b4c1;font-size:20px;cursor:grab;touch-action:none;user-select:none}.mf2Main{min-width:0}.mf2Name{font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mf2Contact{font-size:9px;color:#8d8a9a;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mf2Tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}.mf2Tag{font-size:7px;border:1px solid #30303d;border-radius:999px;padding:3px 5px;color:#9d9aaa}.mf2Tag.hot{color:#ff9bd2;border-color:#5e3254}.mf2Actions{display:flex;gap:4px}.mf2Action{width:36px;height:36px;border:1px solid #343443;background:#0f0f17;color:#dddbe5;border-radius:10px;display:grid;place-items:center;font-size:15px}.mf2Ghost{position:fixed;z-index:9999;pointer-events:none;opacity:.95;box-shadow:0 25px 75px #000e;transform:rotate(.8deg) scale(1.015)}body.mf2NoSelect{user-select:none}.mf2Toast{position:fixed;z-index:10000;left:50%;bottom:108px;transform:translateX(-50%);width:min(520px,calc(100% - 28px));border:1px solid #3a3a48;background:#12121bed;color:#fff;border-radius:15px;padding:11px 13px;font-size:10px;box-shadow:0 20px 60px #000c;backdrop-filter:blur(15px)}.mf2Attach{border:1px solid #3a3040;background:#17121a;border-radius:14px;padding:12px;margin:10px 0;color:#c9c5cf;font-size:11px;line-height:1.5}.mf2Confirm{display:flex;gap:8px;align-items:flex-start;margin-top:12px;color:#aaa7b6;font-size:10px;line-height:1.4}.mf2Confirm input{margin-top:2px}
-@media(max-width:620px){.bottomnav button{font-size:8.5px!important}.mf2HeroRow{align-items:flex-start;flex-direction:column}.mf2Badges{justify-content:flex-start}.mf2Hero h2{font-size:22px}.mf2Stage{padding:7px}.mf2Card{grid-template-columns:32px minmax(0,1fr) auto;padding:7px}.mf2Grip{width:29px;height:41px}.mf2Action{width:34px;height:34px}}
-`;document.head.appendChild(s)}
-function icon(path){return `<svg viewBox="0 0 24 24"><path d="${path}"/></svg>`}
-const icons={home:icon('M3 10.8 12 3l9 7.8v9.7a.5.5 0 0 1-.5.5H15v-6H9v6H3.5a.5.5 0 0 1-.5-.5z'),cloudy:icon('M12 2a8 8 0 0 0-8 8v4.5A3.5 3.5 0 0 0 7.5 18H9v-7H6v-1a6 6 0 0 1 12 0v1h-3v7h2.2A4.8 4.8 0 0 1 13 20.5V22a6.3 6.3 0 0 0 6.2-4.8A3.5 3.5 0 0 0 20 14.5V10a8 8 0 0 0-8-8z'),leads:icon('M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM1.5 21a6.5 6.5 0 0 1 13 0zm12.5-7.2A5.5 5.5 0 0 1 22.5 18v3h-5.9a8.4 8.4 0 0 0-2.6-7.2z'),pipeline:icon('M5 3h14v4H5zm2 7h10v4H7zm2 7h6v4H9z'),calendar:icon('M5 3h2v2h10V3h2v2h2v16H3V5h2zm14 7H5v9h14z'),settings:icon('M12 8.3A3.7 3.7 0 1 0 12 15.7 3.7 3.7 0 0 0 12 8.3zm9 4.7-2.1.8a7 7 0 0 1-.6 1.5l.9 2-2 2-2-.9a7 7 0 0 1-1.5.6L13 21h-2l-.8-2.1a7 7 0 0 1-1.5-.6l-2 .9-2-2 .9-2a7 7 0 0 1-.6-1.5L3 13v-2l2.1-.8a7 7 0 0 1 .6-1.5l-.9-2 2-2 2 .9a7 7 0 0 1 1.5-.6L11 3h2l.8 2.1a7 7 0 0 1 1.5.6l2-.9 2 2-.9 2a7 7 0 0 1 .6 1.5L21 11z')};
-const labels={home:'Inicio',cloudy:'Cloudy',leads:'Leads',pipeline:'Pipeline',calendar:'Calendario',settings:'Cuenta'};
-function nav(){const n=q('.bottomnav');if(!n)return;const connect=q('[data-page="connect"]',n);if(connect)connect.style.display='none';if(!q('[data-page="settings"]',n)){const b=document.createElement('button');b.dataset.page='settings';b.onclick=()=>typeof go==='function'&&go('settings');n.appendChild(b)}Object.entries(labels).forEach(([p,l])=>{const b=q(`[data-page="${p}"]`,n);if(b)b.innerHTML=`${icons[p]||''}<span>${l}</span>`})}
-function toast(t){let x=q('#mf2Toast');if(!x){x=document.createElement('div');x.id='mf2Toast';x.className='mf2Toast';document.body.appendChild(x)}x.textContent=t;x.hidden=false;clearTimeout(window.__mf2Timer);window.__mf2Timer=setTimeout(()=>x.hidden=true,3600)}
-async function syncSource(force=false){const h=hl();if(!h||(!force&&Date.now()-lastSync<45000))return;lastSync=Date.now();try{await direct('highlevel-command',{organization_id:currentOrg.id,connection_id:h.id,action:'crm.snapshot.sync',input:{}},true);if(typeof loadWorkspace==='function')await loadWorkspace()}catch(err){console.warn('Money Flow sync',err)}}
-function buildItems(){const cs=snapshot?.contacts||[],os=snapshot?.opportunities||[],used=new Set(),out=[];for(const c of cs){const rel=os.filter(o=>o.contact_id===c.id).sort((a,b)=>(String(a.status)==='open'?0:1)-(String(b.status)==='open'?0:1)||new Date(b.created_at||0)-new Date(a.created_at||0)),o=rel[0]||null;if(o)used.add(o.id);out.push({key:`c:${c.id}`,contact:c,opportunity:o,stage:o?matchStage(o.stage)?.stage_key:(stages[0]?.stage_key||'new_lead')})}for(const o of os){if(used.has(o.id)||o.contact_id)continue;out.push({key:`o:${o.id}`,contact:null,opportunity:o,stage:matchStage(o.stage)?.stage_key||stages[0]?.stage_key})}return out}
-function card(i){const c=i.contact,o=i.opportunity,n=c?name(c):(o?.name||'Oportunidad'),line=c?contact(c):'Sin contacto vinculado',tags=[];if(c?.quality_score!=null)tags.push(`<span class="mf2Tag ${Number(c.quality_score)>=70?'hot':''}">Quality ${Number(c.quality_score)}</span>`);if(c?.primary_source_provider)tags.push(`<span class="mf2Tag">${e(String(c.primary_source_provider).replace(/_/g,' '))}</span>`);if(o?.value!=null)tags.push(`<span class="mf2Tag">${e(o.currency||'USD')} ${Number(o.value).toLocaleString('es-MX')}</span>`);if(!o)tags.push('<span class="mf2Tag">Listo para avanzar</span>');return `<article class="mf2Card" data-key="${e(i.key)}" data-stage="${e(i.stage)}"><button type="button" class="mf2Grip" aria-label="Mantener y arrastrar">⠿</button><div class="mf2Main"><div class="mf2Name">${e(n)}</div><div class="mf2Contact">${e(line)}</div><div class="mf2Tags">${tags.join('')}</div></div><div class="mf2Actions"><button class="mf2Action mf2Note" title="Notas" aria-label="Notas">▤</button><button class="mf2Action mf2Doc" title="Documentos" aria-label="Documentos">📎</button></div></article>`}
-async function render(force=false){const board=q('#pipelineBoard');if(!board||!currentOrg?.id||rendering)return;if(!force&&q('.mf2Shell',board)&&board.dataset.mf2Org===currentOrg.id)return;rendering=true;try{await syncSource(false);const d=await direct('tenant-ops-api',{organization_id:currentOrg.id,action:'snapshot'},true);stages=d.stages||[];if(!stages.length)return;const arr=buildItems(),sig=signal();items=new Map(arr.map(x=>[x.key,x]));board.className='pipeline mfBoard';board.dataset.mf2Org=currentOrg.id;const active=arr.filter(x=>!['won','lost_nurture'].includes(x.stage)).length;board.innerHTML=`<div class="plShell mf2Shell"><div class="mf2Hero"><div class="mf2Eyebrow">FLUJO DE VENTAS</div><div class="mf2HeroRow"><div><h2>${arr.length} ${arr.length===1?'lead':'leads'} · ${active} por trabajar</h2><p>Contactos y oportunidades están unidos aquí. El cliente solo ve personas que avanzan hacia una venta.</p></div><div class="mf2Badges"><span class="mf2Badge ${sig.highlevel?'on':''}">HighLevel ${sig.highlevel?'conectado':'pendiente'}</span><span class="mf2Badge meta ${sig.capi?'on':''}">Meta CAPI ${sig.capi?'activo':'pendiente'}</span>${sig.dataset?`<span class="mf2Badge">Dataset ${e(String(sig.dataset).slice(-8))}</span>`:''}</div></div></div><div class="mf2Hint"><b>⠿ Mantén presionado</b> y arrastra cada lead hacia abajo conforme avanza.</div><div class="mf2Stages">${stages.map((s,idx)=>{const list=arr.filter(x=>x.stage===s.stage_key);return `<section class="mf2Stage" data-stage="${e(s.stage_key)}"><div class="mf2Head"><span class="mf2Step">${idx+1}</span><div class="mf2Title"><b>${e(stageLabel(s.name))}</b><small>${Number(s.probability||0)}% probabilidad</small></div><span class="mf2Count">${list.length}</span></div><div class="mf2Deals">${list.length?list.map(card).join(''):'<div class="mf2Empty">Arrastra aquí</div>'}</div></section>`}).join('')}</div></div>`;bind(board)}catch(err){console.warn('Money Flow render',err)}finally{rendering=false}}
-function bind(board){qa('.mf2Note',board).forEach(b=>b.onclick=()=>note(b.closest('.mf2Card').dataset.key));qa('.mf2Doc',board).forEach(b=>b.onclick=()=>doc(b.closest('.mf2Card').dataset.key));qa('.mf2Grip',board).forEach(g=>{g.onpointerdown=start;g.onpointermove=move;g.onpointerup=end;g.onpointercancel=cancel})}
-function start(ev){if(ev.button!=null&&ev.button!==0)return;const c=ev.currentTarget.closest('.mf2Card');if(!c)return;ev.preventDefault();ev.currentTarget.setPointerCapture?.(ev.pointerId);const r=c.getBoundingClientRect(),ghost=c.cloneNode(true);ghost.classList.add('mf2Ghost');ghost.style.width=r.width+'px';ghost.style.left=r.left+'px';ghost.style.top=r.top+'px';document.body.appendChild(ghost);c.classList.add('dragging');document.body.classList.add('mf2NoSelect');drag={pointerId:ev.pointerId,card:c,ghost,key:c.dataset.key,from:c.dataset.stage,target:null,dx:ev.clientX-r.left,dy:ev.clientY-r.top};move(ev)}
-function move(ev){if(!drag||drag.pointerId!==ev.pointerId)return;ev.preventDefault();if(ev.clientY<95)scrollBy(0,-18);else if(ev.clientY>innerHeight-115)scrollBy(0,18);drag.ghost.style.left=Math.max(5,Math.min(innerWidth-drag.ghost.offsetWidth-5,ev.clientX-drag.dx))+'px';drag.ghost.style.top=Math.max(5,Math.min(innerHeight-drag.ghost.offsetHeight-5,ev.clientY-drag.dy))+'px';qa('.mf2Stage.target').forEach(x=>x.classList.remove('target'));const el=document.elementFromPoint(ev.clientX,ev.clientY),s=el?.closest?.('.mf2Stage');if(s){s.classList.add('target');drag.target=s.dataset.stage}else drag.target=null}
-async function end(ev){if(!drag||drag.pointerId!==ev.pointerId)return;ev.preventDefault();const d=drag,target=d.target;cleanup();if(target&&target!==d.from)await advance(d.key,target)}function cancel(){cleanup()}function cleanup(){if(!drag)return;drag.card?.classList.remove('dragging');drag.ghost?.remove();qa('.mf2Stage.target').forEach(x=>x.classList.remove('target'));document.body.classList.remove('mf2NoSelect');drag=null}
-async function providerPipeline(){const h=hl();if(!h)return null;if(providerCache?.org===currentOrg.id&&Date.now()-providerCache.at<300000)return providerCache;const d=await direct('highlevel-command',{organization_id:currentOrg.id,connection_id:h.id,action:'crm.pipelines.list',input:{}},true),ps=d.result?.pipelines||[],pid=String(h.metadata?.pipeline_id||''),p=ps.find(x=>String(x.id)===pid)||ps.find(x=>/cloudsales/i.test(String(x.name||'')))||ps[0];if(!p)return null;const ext=p.stages||p.pipelineStages||[],map={};for(const s of stages){const hit=ext.find(x=>String(x.name||'').toLowerCase()===String(s.name||'').toLowerCase());if(hit?.id)map[s.stage_key]=hit.id}providerCache={org:currentOrg.id,at:Date.now(),id:p.id||pid,stages:map};return providerCache}
-async function advance(key,stageKey){const i=items.get(key),stage=stages.find(x=>x.stage_key===stageKey),board=q('#pipelineBoard');if(!i)return;if(board)board.style.opacity='.7';const leadName=i.contact?name(i.contact):(i.opportunity?.name||'Lead');try{if(i.opportunity){const r=await direct('tenant-ops-api',{organization_id:currentOrg.id,action:'opportunity.move',input:{opportunity_id:i.opportunity.id,stage_key:stageKey}},true);toast(`${leadName} → ${stageLabel(stage?.name||stageKey)}${r.sync?.status==='queued'?' · HighLevel sincronizando':''}${signal().capi?' · Meta recibe señal':''}`)}else if(i.contact){const created=await direct('workspace-api',{organization_id:currentOrg.id,action:'opportunity.create',input:{contact_id:i.contact.id,name:leadName,stage:stage?.name||stageKey,status:'open',currency:'USD'}},true),o=created.opportunity,h=hl();if(h&&o?.id){try{const p=await providerPipeline();await direct('highlevel-command',{organization_id:currentOrg.id,connection_id:h.id,action:'crm.opportunity.create',input:{opportunity_id:o.id,pipeline_id:p?.id||h.metadata?.pipeline_id,pipeline_stage_id:p?.stages?.[stageKey]}},true)}catch(err){console.warn('Opportunity provider create',err)}}toast(`${leadName} → ${stageLabel(stage?.name||stageKey)}${signal().capi?' · Meta recibe señal':''}`)}if(typeof loadWorkspace==='function')await loadWorkspace();if(board){delete board.dataset.mf2Org;await render(true)}if(typeof renderHome==='function')renderHome()}catch(err){toast('No se pudo avanzar el lead: '+(err?.message||err))}finally{if(board)board.style.opacity=''}}
-function note(key){const i=items.get(key),c=i?.contact,o=i?.opportunity;if(!c||typeof openModal!=='function')return;const n=name(c);openModal(`<h2>Nota · ${e(n)}</h2><div class="mf2Attach"><b>Lead:</b> ${e(n)}<br><b>Contacto:</b> ${e(contact(c))}</div><div class="field"><label>Nota</label><textarea id="mf2Note" placeholder="Escribe una nota sobre este lead…"></textarea></div><p class="muted" style="font-size:10px">La nota queda ligada a esta persona y se sincroniza con HighLevel.</p>`,async()=>{const body=q('#mf2Note')?.value?.trim();if(!body)throw Error('Escribe una nota.');await direct('tenant-ops-api',{organization_id:currentOrg.id,action:'note.create',input:{contact_id:c.id,body,note_type:'note',metadata:{opportunity_id:o?.id||null,source:'money_flow'}}},true);let synced=false,h=hl();if(h){try{await direct('highlevel-command',{organization_id:currentOrg.id,connection_id:h.id,action:'crm.note.create',input:{contact_id:c.id,body}},true);synced=true}catch{}}toast(synced?'Nota guardada en CloudSales y HighLevel.':'Nota guardada en CloudSales.')});setTimeout(()=>{const b=q('#modalOk');if(b)b.textContent='Guardar nota'},0)}
-function doc(key){const i=items.get(key),c=i?.contact,o=i?.opportunity;if(!c||typeof openModal!=='function')return;const n=name(c);openModal(`<h2>Adjuntar documento</h2><div class="mf2Attach">Este archivo se adjuntará <b>únicamente</b> a:<br><b>${e(n)}</b><br>${e(contact(c))}</div><div class="field"><label>Documento</label><input id="mf2Doc" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.xls,.xlsx"></div><label class="mf2Confirm"><input id="mf2Confirm" type="checkbox"> Confirmo que este documento pertenece a este lead.</label><p class="muted" style="font-size:10px">La selección es manual para evitar adjuntar archivos a la persona equivocada.</p>`,async()=>{const f=q('#mf2Doc')?.files?.[0];if(!f)throw Error('Selecciona un documento.');if(!q('#mf2Confirm')?.checked)throw Error('Confirma el lead antes de adjuntar.');if(f.size>26214400)throw Error('El archivo supera 25 MB.');const fd=new FormData();fd.append('action','upload');fd.append('organization_id',currentOrg.id);fd.append('contact_id',c.id);if(o?.id)fd.append('opportunity_id',o.id);fd.append('category','pipeline_document');fd.append('file',f);const r=await fetch(BASE+'workspace-files',{method:'POST',headers:{authorization:'Bearer '+session.access_token},body:fd}),d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.detail||d.error||'No se pudo subir el documento.');toast(d.provider_sync?.status==='synced'?'Documento guardado y sincronizado con HighLevel.':'Documento guardado en CloudSales.')});setTimeout(()=>{const b=q('#modalOk');if(b)b.textContent='Adjuntar'},0)}
-function hooks(){css();nav();qa('[data-page="pipeline"]').forEach(b=>b.addEventListener('click',()=>setTimeout(()=>render(true),260)));window.addEventListener('hashchange',()=>{nav();if(location.hash.startsWith('#pipeline'))setTimeout(()=>render(true),260)});q('#orgSelect')?.addEventListener('change',()=>{providerCache=null;setTimeout(()=>render(true),500)});window.addEventListener('focus',()=>{if(location.hash.startsWith('#pipeline'))render(true)});new MutationObserver(()=>nav()).observe(document.body,{childList:true,subtree:true});if(location.hash.startsWith('#pipeline'))setTimeout(()=>render(true),500);document.documentElement.dataset.moneyFlow=VERSION}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(hooks,900),{once:true});else setTimeout(hooks,900);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',hooks,{once:true});
+  else hooks();
 })();

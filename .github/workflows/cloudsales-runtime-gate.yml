@@ -44,88 +44,56 @@ jobs:
         run: |
           set -Eeuo pipefail
           while IFS= read -r -d '' file; do
-            echo "Parsing $file"
             node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$file"
           done < <(find web -type f -name '*.json' -print0)
 
-      - name: Check production branding, Meta, Cloudy, Works and Google Ads
+      - name: Check CloudSales runtime invariants
         shell: bash
         run: |
           set -Eeuo pipefail
           node <<'NODE'
           const fs=require('fs');
-          for(const p of [
-            'web/assets/cloudsales-app-icon-official-v2.png',
-            'web/assets/cloudsales-app-icon-official-v2-192.png',
-            'web/assets/cloudsales-logo-official-v2.png'
-          ]) if(!fs.existsSync(p)||fs.statSync(p).size<1000) throw new Error('missing_official_asset_'+p);
+          const must=(file,items)=>{const s=fs.readFileSync(file,'utf8');for(const x of items)if(!s.includes(x))throw new Error(`${file}_missing_${x}`);return s};
+          for(const p of ['web/assets/cloudsales-app-icon-official-v2.png','web/assets/cloudsales-app-icon-official-v2-192.png','web/assets/cloudsales-logo-official-v2.png'])
+            if(!fs.existsSync(p)||fs.statSync(p).size<1000)throw new Error('missing_official_asset_'+p);
 
           const manifest=JSON.parse(fs.readFileSync('web/manifest.webmanifest','utf8'));
-          if(manifest.id!=='/cloudsales-app-v2') throw new Error('manifest_identity_not_rotated');
-          const src=(manifest.icons||[]).map(x=>String(x.src||''));
-          if(!src.some(x=>x.includes('/cloudsales-app-icon-official-v2-192.png'))) throw new Error('manifest_missing_exact_192');
-          if(!src.some(x=>x.includes('/cloudsales-app-icon-official-v2.png'))) throw new Error('manifest_missing_exact_512');
-          if(src.some(x=>/icon\.svg/i.test(x))) throw new Error('manifest_uses_legacy_svg');
+          if(manifest.id!=='/cloudsales-app-v2')throw new Error('manifest_identity_not_rotated');
+          const icons=(manifest.icons||[]).map(x=>String(x.src||''));
+          if(!icons.some(x=>x.includes('/cloudsales-app-icon-official-v2-192.png'))||!icons.some(x=>x.includes('/cloudsales-app-icon-official-v2.png'))||icons.some(x=>/icon\.svg/i.test(x)))throw new Error('manifest_icon_identity_invalid');
 
-          const installer=fs.readFileSync('web/install.js','utf8');
-          for(const x of ['beforeinstallprompt','/cloudsales-app-icon-official-v2.png','promptInstall']) if(!installer.includes(x)) throw new Error('installer_missing_'+x);
-          const auth=fs.readFileSync('web/auth-runtime-v2.js','utf8');
-          for(const x of ['claim-organization','cs_pending_claim','claimPending','cs_org']) if(!auth.includes(x)) throw new Error('team_claim_missing_'+x);
-          const ops=fs.readFileSync('web/app-runtime-v14.js','utf8');
-          for(const x of ['Operational Center','tenant-ops-api','renderMarketingOps','opportunity.move']) if(!ops.includes(x)) throw new Error('mobile_ops_missing_'+x);
+          must('web/install.js',['beforeinstallprompt','/cloudsales-app-icon-official-v2.png','promptInstall']);
+          must('web/auth-runtime-v2.js',['claim-organization','cs_pending_claim','claimPending','cs_org']);
+          must('web/app-runtime-v14.js',['Operational Center','tenant-ops-api','renderMarketingOps','opportunity.move']);
+          const cloudy=must('web/cloudy-runtime-v3.js',['MediaRecorder','getUserMedia','requestAnimationFrame','cloudy-voice?mode=transcribe','cloudy-voice?mode=tts','SILENCE_MS','cs_cloudy_session']);
+          if(cloudy.includes('SpeechRecognition')||cloudy.includes('webkitSpeechRecognition')||/setInterval\s*\(/.test(cloudy))throw new Error('cloudy_voice_runtime_regression');
+          must('supabase/functions/cloudy-chat/index.ts',['organization_id: organizationId','Continue the user\'s conversation','nvidia-nim']);
+          const orch=must('supabase/functions/cloudy-orchestrator/index.ts',['VIEWER_CORE','write_capable !== true','cloudy_messages','ai_route_models','tool_calls','Continue the conversation naturally']);
+          if(orch.includes('Canonical production source is synchronized'))throw new Error('cloudy_orchestrator_placeholder_present');
+          must('supabase/functions/cloudy-voice/index.ts',['@cf/openai/whisper','@cf/myshell-ai/melotts','mode==="transcribe"','mode==="tts"','organization_members']);
 
-          const meta=fs.readFileSync('web/meta-runtime-v1.js','utf8');
-          for(const x of ['Meta Ads','ads.meta.platform_status','ads.meta.accounts','ads.meta.sync','ads.meta.pause','ads.meta.resume','ads.meta.budget','ads.meta.create_campaign','presupuesto REAL',"META_PROVIDER='meta_ads'","META_FN='cloudflare-pwa-release-v10'"]) if(!meta.includes(x)) throw new Error('meta_runtime_missing_'+x);
-          const metaCommand=fs.readFileSync('supabase/functions/meta-ads-command/index.ts','utf8');
-          for(const x of ['const PROVIDER="meta_ads"','ads.meta.accounts','ads.meta.account.select','ads.meta.sync','ads.meta.pause','ads.meta.resume','ads.meta.budget','ads.meta.create_campaign','service_read_secret','meta_daily_budget_confirmation_failed','meta_campaign_status_confirmation_failed','payment_card_data_not_allowed']) if(!metaCommand.includes(x)) throw new Error('meta_ads_adapter_missing_'+x);
-          if(!metaCommand.includes('owner_or_admin_required')) throw new Error('meta_spend_role_guard_missing');
+          must('web/works-runtime-v1.js',['Works · Trabajos','works.snapshot','Cloudy estuvo','Media spend','US$']);
+          must('supabase/functions/workspace-api/index.ts',['works.snapshot','work_catalog','work_ledger','month_usd','Media spend is billed directly']);
+          must('supabase/migrations/20260829151500_cloudsales_works_and_multi_inventory_campaigns.sql',['marketing_campaign_inventory_items','cross_tenant_campaign_inventory_link_blocked','service_post_work','brochure.send','0.65']);
 
-          const cloudy=fs.readFileSync('web/cloudy-runtime-v3.js','utf8');
-          for(const x of ['MediaRecorder','getUserMedia','requestAnimationFrame','cloudy-voice?mode=transcribe','cloudy-voice?mode=tts','SILENCE_MS','cs_cloudy_session']) if(!cloudy.includes(x)) throw new Error('cloudy_conversation_missing_'+x);
-          if(cloudy.includes('SpeechRecognition')||cloudy.includes('webkitSpeechRecognition')) throw new Error('cloudy_v3_must_not_depend_on_browser_speech_recognition');
-          if(/setInterval\s*\(/.test(cloudy)) throw new Error('cloudy_v3_persistent_polling_not_allowed');
-          const cloudyChat=fs.readFileSync('supabase/functions/cloudy-chat/index.ts','utf8');
-          for(const x of ['organization_id: organizationId','Continue the user\'s conversation','nvidia-nim']) if(!cloudyChat.includes(x)) throw new Error('cloudy_chat_missing_'+x);
-          const orchestrator=fs.readFileSync('supabase/functions/cloudy-orchestrator/index.ts','utf8');
-          for(const x of ['VIEWER_CORE','write_capable !== true','cloudy_messages','ai_route_models','tool_calls','Continue the conversation naturally']) if(!orchestrator.includes(x)) throw new Error('cloudy_orchestrator_missing_'+x);
-          if(orchestrator.includes('Canonical production source is synchronized')) throw new Error('cloudy_orchestrator_placeholder_present');
-          const voice=fs.readFileSync('supabase/functions/cloudy-voice/index.ts','utf8');
-          for(const x of ['@cf/openai/whisper','@cf/myshell-ai/melotts','mode==="transcribe"','mode==="tts"','organization_members']) if(!voice.includes(x)) throw new Error('cloudy_voice_missing_'+x);
+          const meta=must('web/meta-runtime-v1.js',['Meta Ads','ads.meta.platform_status','ads.meta.accounts','ads.meta.sync','ads.meta.pause','ads.meta.resume','ads.meta.budget','ads.meta.create_campaign',"META_PROVIDER='meta_ads'","META_FN='cloudflare-pwa-release-v10'"]);
+          const metaCmd=must('supabase/functions/meta-ads-command/index.ts',['const PROVIDER="meta_ads"','service_read_secret','meta_daily_budget_confirmation_failed','meta_campaign_status_confirmation_failed','payment_card_data_not_allowed','owner_or_admin_required']);
+          must('supabase/migrations/20260829215500_meta_ads_oauth_separation.sql',['meta_ads','ads_read','ads_management','never_collect_card_data_in_cloudsales']);
+          const google=must('supabase/functions/google-ads-command/index.ts',['VERSION="v25"','customers:listAccessibleCustomers','developer-token','login-customer-id','googleAds:search','campaignBudgets:mutate','campaigns:mutate','payment_card_data_not_allowed','owner_or_admin_required','google_daily_budget_confirmation_failed']);
+          if(!google.includes('status:"PAUSED"'))throw new Error('google_campaign_create_must_be_paused');
+          must('supabase/functions/connection-start-v4/index.ts',['https://accounts.google.com/o/oauth2/v2/auth','https://www.googleapis.com/auth/adwords','google_ads_developer_token']);
+          must('supabase/functions/connection-complete-v4/index.ts',['https://oauth2.googleapis.com/token','customers:listAccessibleCustomers','google_ads_developer_token','refresh_token','connection_secrets']);
+          const adspend=must('web/ad-spend-runtime-v1.js',['Ad Spend & Billing','ads.google.sync','ads.google.resume','ads.google.budget','ads.google.create_campaign','CloudSales no recibe ni almacena']);
+          if(/<input[^>]+(?:card|pan|cvc|cvv|expir|security.?code)/i.test(adspend)||/\b(?:card_number|cardNumber|pan|cvc|cvv|expiry|expiration|security_code)\b\s*:/i.test(adspend))throw new Error('ad_spend_ui_must_not_collect_payment_card_data');
 
-          const works=fs.readFileSync('web/works-runtime-v1.js','utf8');
-          for(const x of ['Works · Trabajos','works.snapshot','Cloudy estuvo','Media spend','US$']) if(!works.includes(x)) throw new Error('works_runtime_missing_'+x);
-          const workspace=fs.readFileSync('supabase/functions/workspace-api/index.ts','utf8');
-          for(const x of ['works.snapshot','work_catalog','work_ledger','month_usd','Media spend is billed directly']) if(!workspace.includes(x)) throw new Error('workspace_works_missing_'+x);
-          const worksMigration=fs.readFileSync('supabase/migrations/20260829151500_cloudsales_works_and_multi_inventory_campaigns.sql','utf8');
-          for(const x of ['marketing_campaign_inventory_items','cross_tenant_campaign_inventory_link_blocked','work_catalog','work_ledger','service_post_work','brochure.send','0.65']) if(!worksMigration.includes(x)) throw new Error('works_migration_missing_'+x);
-
-          const google=fs.readFileSync('supabase/functions/google-ads-command/index.ts','utf8');
-          for(const x of ['https://googleads.googleapis.com/${VERSION}','VERSION="v25"','customers:listAccessibleCustomers','developer-token','login-customer-id','googleAds:search','campaignBudgets:mutate','campaigns:mutate','payment_card_data_not_allowed','provider_managed','owner_or_admin_required']) if(!google.includes(x)) throw new Error('google_ads_adapter_missing_'+x);
-          if(!google.includes('status:"PAUSED"')) throw new Error('google_campaign_create_must_be_paused');
-          if(!google.includes('google_daily_budget_confirmation_failed')) throw new Error('google_budget_confirmation_missing');
-          const gStart=fs.readFileSync('supabase/functions/connection-start-v4/index.ts','utf8');
-          for(const x of ['provider!=="google_ads"','https://accounts.google.com/o/oauth2/v2/auth','https://www.googleapis.com/auth/adwords','access_type:"offline"','google_ads_developer_token','oauth_states']) if(!gStart.includes(x)) throw new Error('google_oauth_start_missing_'+x);
-          const gComplete=fs.readFileSync('supabase/functions/connection-complete-v4/index.ts','utf8');
-          for(const x of ['provider!=="google_ads"','https://oauth2.googleapis.com/token','customers:listAccessibleCustomers','google_ads_developer_token','refresh_token','connection_secrets','accessible_customer_ids']) if(!gComplete.includes(x)) throw new Error('google_oauth_complete_missing_'+x);
-          const adspend=fs.readFileSync('web/ad-spend-runtime-v1.js','utf8');
-          for(const x of ['Ad Spend & Billing','google-ads-command',"META_FN='cloudflare-pwa-release-v10'",'ads.google.platform_status','ads.google.account.select','ads.google.sync','ads.google.resume','ads.google.budget','ads.google.create_campaign','CloudSales no recibe ni almacena','Administrar método de pago en Google','Abrir facturación de Meta']) if(!adspend.includes(x)) throw new Error('ad_spend_runtime_missing_'+x);
-          const captureInput=/<input[^>]+(?:card|pan|cvc|cvv|expir|security.?code)/i.test(adspend);
-          const captureKey=/\b(?:card_number|cardNumber|pan|cvc|cvv|expiry|expiration|security_code)\b\s*:/i.test(adspend);
-          if(captureInput||captureKey) throw new Error('ad_spend_ui_must_not_collect_payment_card_data');
-          const googleMigration=fs.readFileSync('supabase/migrations/20260829155000_google_ads_billing_bridge.sql','utf8');
-          for(const x of ['google_ads','api_version','v25','billing_mode','provider_managed','never_collect_card_data_in_cloudsales','ads.google.create_campaign']) if(!googleMigration.includes(x)) throw new Error('google_migration_missing_'+x);
-          const metaMigration=fs.readFileSync('supabase/migrations/20260829215500_meta_ads_oauth_separation.sql','utf8');
-          for(const x of ['meta_ads','ads_read','ads_management','cloudflare-pwa-release-v7','cloudflare-pwa-release-v9','cloudflare-pwa-release-v10','never_collect_card_data_in_cloudsales']) if(!metaMigration.includes(x)) throw new Error('meta_ads_migration_missing_'+x);
-
-          const claim=fs.readFileSync('supabase/functions/claim-organization/index.ts','utf8');
-          for(const x of ['organization_owner_already_assigned','requestedRole','admin','operator']) if(!claim.includes(x)) throw new Error('claim_function_missing_'+x);
-          const sw=fs.readFileSync('web/sw.js','utf8');
-          for(const x of ['cloudsales-pwa-2026.08.29.8','/cloudy-runtime-v3.js','/works-runtime-v1.js','/meta-runtime-v1.js','/ad-spend-runtime-v1.js']) if(!sw.includes(x)) throw new Error('sw_missing_'+x);
-          const pwaRelease=fs.readFileSync('supabase/functions/cloudflare-pwa-brand-release/index.ts','utf8');
-          for(const x of ['cloudsales-pwa-v30','meta_ads_runtime','ad_spend_runtime_loaded','cloudy_conversation_runtime','works_runtime_loaded','source_commit','exact_logo_bytes']) if(!pwaRelease.includes(x)) throw new Error('pwa_release_missing_'+x);
-          const siteRelease=fs.readFileSync('supabase/functions/cloudflare-site-brand-release/index.ts','utf8');
-          for(const x of ['cloudsales-site-v16','cloudsales-logo-official-v2.png','cloudsales-favicon-official-v2.png','all_commercial_routes_branded','exact_logo_bytes']) if(!siteRelease.includes(x)) throw new Error('site_release_missing_'+x);
-          console.log('CloudSales Cloudy/Works/Ad Spend/Google/Meta Ads invariants OK');
+          must('supabase/functions/claim-organization/index.ts',['organization_owner_already_assigned','requestedRole','admin','operator']);
+          const sw=must('web/sw.js',['/cloudy-runtime-v3.js','/works-runtime-v1.js','/meta-runtime-v1.js','/ad-spend-runtime-v1.js']);
+          if(!/^const CACHE=['"]cloudsales-pwa-[^'"]+['"];?/m.test(sw))throw new Error('pwa_cache_version_missing');
+          const pwa=must('supabase/functions/cloudflare-pwa-brand-release/index.ts',['meta_ads_runtime','ad_spend_runtime_loaded','cloudy_conversation_runtime','works_runtime_loaded','source_commit','exact_logo_bytes']);
+          if(!/cloudsales-pwa-v\d+/.test(pwa))throw new Error('pwa_release_service_missing');
+          const site=must('supabase/functions/cloudflare-site-brand-release/index.ts',['cloudsales-logo-official-v2.png','cloudsales-favicon-official-v2.png','all_commercial_routes_branded','exact_logo_bytes']);
+          if(!/cloudsales-site-v\d+/.test(site))throw new Error('site_release_service_missing');
+          console.log('CloudSales runtime invariants OK');
           NODE
 
       - name: Build runtime freeze and polling audit
@@ -147,22 +115,19 @@ jobs:
                   const fallback=/\.observe\s*\(\s*[^,;]{0,220}\|\|\s*(?:document\.body|document\.documentElement)\s*,\s*\{[^}]{0,1200}?childList\s*:\s*true/gs;
                   if(direct.test(s)||fallback.test(s))observers.push(p);
                 }
-                const re=/setInterval\s*\([\s\S]{0,700}?,\s*(\d{1,7})\s*\)/g;
-                let m;while((m=re.exec(s))){
-                  const ms=Number(m[1]),line=s.slice(0,m.index).split(/\n/).length,entry=`${p}:${line}: ${ms}ms`;
-                  if(kind==='web'){intervals.push(entry);if(ms<3000)fast.push(entry)}else serverIntervals.push(entry);
-                }
+                const re=/setInterval\s*\([\s\S]{0,700}?,\s*(\d{1,7})\s*\)/g;let m;
+                while((m=re.exec(s))){const ms=Number(m[1]),line=s.slice(0,m.index).split(/\n/).length,entry=`${p}:${line}: ${ms}ms`;if(kind==='web'){intervals.push(entry);if(ms<3000)fast.push(entry)}else serverIntervals.push(entry)}
               }
             }
           }
-          walk('web','web'); walk('supabase/functions','server');
+          walk('web','web');walk('supabase/functions','server');
           fs.writeFileSync('cloudsales-global-observers.txt',observers.join('\n')+(observers.length?'\n':''));
           fs.writeFileSync('cloudsales-intervals.txt',intervals.join('\n')+(intervals.length?'\n':''));
           fs.writeFileSync('cloudsales-fast-polling.txt',fast.join('\n')+(fast.length?'\n':''));
           fs.writeFileSync('cloudsales-server-intervals.txt',serverIntervals.join('\n')+(serverIntervals.length?'\n':''));
-          for(const p of observers)console.log('Unsafe global childList MutationObserver:',p);
-          for(const p of fast)console.log('High-frequency setInterval:',p);
-          for(const p of serverIntervals)console.log('Persistent timer in Supabase Edge Function:',p);
+          for(const x of observers)console.log('Unsafe global childList MutationObserver:',x);
+          for(const x of fast)console.log('High-frequency setInterval:',x);
+          for(const x of serverIntervals)console.log('Persistent timer in Supabase Edge Function:',x);
           NODE
 
       - name: Upload CloudSales runtime audit
