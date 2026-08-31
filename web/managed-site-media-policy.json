@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "scope": "general_managed_site_template",
+  "video": {
+    "optional": true,
+    "max": 1
+  },
+  "exceptions": {
+    "pennyworth.cloudsales.app": {
+      "max": 2,
+      "youtube_ids": [
+        "Smfq94HMifQ",
+        "0-KB9Wj1mmk"
+      ]
+    }
+  }
+}
