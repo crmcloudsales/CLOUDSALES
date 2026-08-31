@@ -1,0 +1,1 @@
+Official marketing imagery optimized for CloudSales public commerce surfaces. Source provenance is documented in `web/commercial/asset-sources.md`.
