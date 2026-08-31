@@ -1,279 +1,39 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-
-const U = Deno.env.get("SUPABASE_URL")!;
-const A = Deno.env.get("SUPABASE_ANON_KEY")!;
-const S = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const VERSION = "2026.08.30.3";
-const POLICY = "CLOUDCO_EMAIL_EXPLICIT_SINGLE_SEND";
-const APP_URL = "https://app.cloudsales.app/";
-const ORIGINS = new Set([
-  "https://cloudsales.app",
-  "https://www.cloudsales.app",
-  "https://app.cloudsales.app",
-  "http://localhost:3000",
-  "http://localhost:5173",
-]);
-
-function cors(origin: string | null) {
-  const value = origin && ORIGINS.has(origin) ? origin : APP_URL.slice(0, -1);
-  return {
-    "Access-Control-Allow-Origin": value,
-    "Access-Control-Allow-Headers": "authorization,apikey,content-type,x-client-info",
-    "Access-Control-Allow-Methods": "POST,OPTIONS",
-    "Vary": "Origin",
-  };
-}
-function json(body: unknown, status = 200, origin: string | null = null) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      ...cors(origin),
-      "content-type": "application/json;charset=utf-8",
-      "cache-control": "no-store",
-      "x-content-type-options": "nosniff",
-      "referrer-policy": "no-referrer",
-    },
-  });
-}
-const normalizeEmail = (value: any) => String(value ?? "").trim().toLowerCase().slice(0, 320);
-const safeText = (value: any, max = 200) => String(value ?? "").trim().slice(0, max);
-const validEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-async function sha(value: string) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((x) => x.toString(16).padStart(2, "0")).join("");
-}
-async function rateLimited(svc: any, key: string, limit: number, seconds: number) {
-  const { data } = await svc.rpc("consume_rate_limit", {
-    p_bucket_key: key,
-    p_limit: limit,
-    p_window_seconds: seconds,
-  });
-  return data !== true;
-}
-function sessionPayload(data: any) {
-  return {
-    user: data.user ? { id: data.user.id, email: data.user.email } : null,
-    session: data.session ? {
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token,
-      expires_at: data.session.expires_at,
-    } : null,
-  };
-}
-
-Deno.serve(async (req) => {
-  const origin = req.headers.get("origin");
-  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
-  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405, origin);
-  if (origin && !ORIGINS.has(origin)) return json({ error: "origin_not_allowed" }, 403, origin);
-  if (Number(req.headers.get("content-length") || 0) > 16384) return json({ error: "payload_too_large" }, 413, origin);
-
-  let body: any = {};
-  try { body = await req.json(); }
-  catch { return json({ error: "invalid_json" }, 400, origin); }
-
-  const action = String(body.action || "");
-  if (!["sign_up", "claim_sign_up", "sign_in", "refresh", "resend_confirmation"].includes(action)) {
-    return json({ error: "unsupported_action" }, 400, origin);
-  }
-
-  const ip = String((req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "unknown").split(",")[0].trim()).slice(0, 80);
-  const ipHash = await sha(ip);
-  const svc = createClient(U, S, { auth: { persistSession: false, autoRefreshToken: false } });
-  if (await rateLimited(svc, `auth:${ipHash.slice(0, 24)}`, 40, 3600)) {
-    return json({ error: "rate_limited" }, 429, origin);
-  }
-  const client = createClient(U, A, { auth: { persistSession: false, autoRefreshToken: false } });
-
-  if (action === "sign_in") {
-    const email = normalizeEmail(body.email);
-    const password = String(body.password || "");
-    if (!email || !password) return json({ error: "signin_unavailable" }, 401, origin);
-    const emailHash = await sha(email);
-    if (await rateLimited(svc, `auth:signin:${ipHash.slice(0, 16)}:${emailHash.slice(0, 20)}`, 12, 900)) {
-      return json({ error: "rate_limited" }, 429, origin);
-    }
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
-    if (error || !data.session) return json({ error: "signin_unavailable" }, 401, origin);
-    return json(sessionPayload(data), 200, origin);
-  }
-
-  if (action === "refresh") {
-    const refreshToken = String(body.refresh_token || "");
-    if (!refreshToken) return json({ error: "refresh_token_required" }, 400, origin);
-    const refreshHash = await sha(refreshToken);
-    if (await rateLimited(svc, `auth:refresh:${ipHash.slice(0, 16)}:${refreshHash.slice(0, 24)}`, 60, 3600)) {
-      return json({ error: "rate_limited" }, 429, origin);
-    }
-    const { data, error } = await client.auth.refreshSession({ refresh_token: refreshToken });
-    if (error || !data.session) return json({ error: "refresh_failed" }, 401, origin);
-    return json(sessionPayload(data), 200, origin);
-  }
-
-  const email = normalizeEmail(body.email);
-  if (!validEmail(email)) return json({ error: "invalid_email" }, 400, origin);
-
-  if (action === "claim_sign_up") {
-    const password = String(body.password || "");
-    const fullName = safeText(body.full_name, 160);
-    const claimToken = String(body.claim_token || "").trim();
-    if (password.length < 8) return json({ error: "weak_password" }, 400, origin);
-    if (claimToken.length < 32 || claimToken.length > 512) return json({ error: "invalid_claim_token" }, 400, origin);
-    const emailHash = await sha(email);
-    if (await rateLimited(svc, `auth:claim-signup:${ipHash.slice(0, 16)}:${emailHash.slice(0, 20)}`, 5, 3600)) {
-      return json({ error: "rate_limited" }, 429, origin);
-    }
-    const tokenHash = await sha(claimToken);
-    const { data: claim } = await svc.from("organization_claim_tokens")
-      .select("id,organization_id,role,expected_email,expires_at,consumed_at")
-      .eq("token_hash", tokenHash)
-      .maybeSingle();
-    if (!claim || claim.consumed_at || new Date(claim.expires_at).getTime() <= Date.now()) {
-      return json({ error: "claim_invalid_or_expired" }, 410, origin);
-    }
-    const expectedEmail = normalizeEmail(claim.expected_email);
-    if (!expectedEmail) return json({ error: "claim_not_email_bound" }, 403, origin);
-    if (expectedEmail !== email) return json({ error: "claim_email_mismatch" }, 403, origin);
-
-    const { data: created, error: createError } = await svc.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: fullName ? { full_name: fullName, enrollment: "email_bound_claim" } : { enrollment: "email_bound_claim" },
-    });
-    if (createError || !created.user) {
-      const message = String(createError?.message || "").toLowerCase();
-      if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
-        return json({ error: "account_exists_use_signin" }, 409, origin);
-      }
-      return json({ error: "claim_signup_unavailable" }, 400, origin);
-    }
-
-    const { data: signedIn, error: signInError } = await client.auth.signInWithPassword({ email, password });
-    if (signInError || !signedIn.session) {
-      return json({ error: "claim_signup_signin_required", account_created: true }, 409, origin);
-    }
-    await svc.from("audit_log").insert({
-      organization_id: claim.organization_id,
-      actor_user_id: created.user.id,
-      actor_type: "user",
-      action: "auth.claim_signup_created",
-      entity_type: "organization",
-      entity_id: claim.organization_id,
-      success: true,
-      context: { role: claim.role, email_bound: true, email_sent: false, version: VERSION },
-    });
-    return json({ ...sessionPayload(signedIn), claim_ready: true, email_sent: false }, 200, origin);
-  }
-
-  if (action === "sign_up" && String(body.password || "").length < 8) {
-    return json({ error: "weak_password" }, 400, origin);
-  }
-
-  const expectedPurpose = action === "sign_up" ? "signup_confirmation" : "signup_confirmation_resend";
-  if (body.authorize_email !== true || String(body.email_purpose || "") !== expectedPurpose) {
-    return json({
-      error: "email_authorization_required",
-      email_blocked: true,
-      policy: POLICY,
-      required_purpose: expectedPurpose,
-    }, 423, origin);
-  }
-
-  const emailHash = await sha(email);
-  const perRecipientLimit = action === "sign_up" ? 5 : 4;
-  if (await rateLimited(svc, `auth:${action}:${ipHash.slice(0, 16)}:${emailHash.slice(0, 20)}`, perRecipientLimit, 3600)) {
-    return json({ error: "rate_limited" }, 429, origin);
-  }
-
-  const baseContext = {
-    policy: POLICY,
-    source: "auth-session",
-    action,
-    version: VERSION,
-    origin: origin || "direct",
-    ip_hash: ipHash,
-    explicit_user_action: true,
-  };
-  const { data: authorization, error: authorizationError } = await svc
-    .from("email_send_authorizations")
-    .insert({
-      organization_id: null,
-      user_id: null,
-      recipient: email,
-      purpose: expectedPurpose,
-      scope: "single_send",
-      expires_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-      context: baseContext,
-    })
-    .select("id")
-    .single();
-  if (authorizationError || !authorization?.id) {
-    return json({ error: "email_authorization_audit_failed" }, 503, origin);
-  }
-
-  if (action === "sign_up") {
-    const password = String(body.password || "");
-    const fullName = safeText(body.full_name, 160);
-    const { data, error } = await client.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: APP_URL,
-        data: fullName ? { full_name: fullName } : {},
-      },
-    });
-    if (error) {
-      await svc.from("email_send_authorizations").update({
-        context: { ...baseContext, provider_call_completed: false, provider_error: "signup_failed" },
-      }).eq("id", authorization.id);
-      const message = String(error.message || "").toLowerCase();
-      if (message.includes("rate") || error.status === 429) return json({ error: "signup_temporarily_limited" }, 429, origin);
-      return json({ error: "signup_unavailable" }, 400, origin);
-    }
-
-    await svc.from("email_send_authorizations").update({
-      user_id: data.user?.id || null,
-      consumed_at: new Date().toISOString(),
-      context: { ...baseContext, provider_call_completed: true },
-    }).eq("id", authorization.id);
-
-    if (data.session) return json(sessionPayload(data), 200, origin);
-
-    const identities = Array.isArray(data.user?.identities) ? data.user.identities : null;
-    return json({
-      confirmation_required: true,
-      message_code: identities && identities.length === 0
-        ? "account_exists_or_confirmation_pending"
-        : "confirmation_sent",
-      policy: POLICY,
-    }, 200, origin);
-  }
-
-  const { error } = await client.auth.resend({
-    type: "signup",
-    email,
-    options: { emailRedirectTo: APP_URL },
-  });
-  if (error) {
-    await svc.from("email_send_authorizations").update({
-      context: { ...baseContext, provider_call_completed: false, provider_error: "resend_failed" },
-    }).eq("id", authorization.id);
-    const message = String(error.message || "").toLowerCase();
-    if (message.includes("rate") || error.status === 429) return json({ error: "confirmation_wait" }, 429, origin);
-    return json({ error: "resend_unavailable" }, 400, origin);
-  }
-
-  await svc.from("email_send_authorizations").update({
-    consumed_at: new Date().toISOString(),
-    context: { ...baseContext, provider_call_completed: true },
-  }).eq("id", authorization.id);
-
-  return json({
-    ok: true,
-    confirmation_required: true,
-    message_code: "confirmation_resent",
-    policy: POLICY,
-  }, 200, origin);
+const U=Deno.env.get("SUPABASE_URL")!,A=Deno.env.get("SUPABASE_ANON_KEY")!,S=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const VERSION="2026.08.31.1",POLICY="CLOUDCO_EMAIL_EXPLICIT_SINGLE_SEND",APP_URL="https://app.cloudsales.app/";
+const ORIGINS=new Set(["https://cloudsales.app","https://www.cloudsales.app","https://app.cloudsales.app","http://localhost:3000","http://localhost:5173"]);
+function cors(origin:string|null){const value=origin&&ORIGINS.has(origin)?origin:APP_URL.slice(0,-1);return{"Access-Control-Allow-Origin":value,"Access-Control-Allow-Headers":"authorization,apikey,content-type,x-client-info","Access-Control-Allow-Methods":"POST,OPTIONS","Vary":"Origin"}}
+function json(body:unknown,status=200,origin:string|null=null){return new Response(JSON.stringify(body),{status,headers:{...cors(origin),"content-type":"application/json;charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff","referrer-policy":"no-referrer"}})}
+const norm=(v:any)=>String(v??"").trim().toLowerCase().slice(0,320),safe=(v:any,n=200)=>String(v??"").trim().slice(0,n),valid=(v:string)=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+async function sha(v:string){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return[...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+function randomToken(bytes=32){const b=new Uint8Array(bytes);crypto.getRandomValues(b);let s="";for(const x of b)s+=String.fromCharCode(x);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")}
+async function limited(svc:any,key:string,limit:number,seconds:number){const{data}=await svc.rpc("consume_rate_limit",{p_bucket_key:key,p_limit:limit,p_window_seconds:seconds});return data!==true}
+function sessionPayload(data:any){return{user:data.user?{id:data.user.id,email:data.user.email}:null,session:data.session?{access_token:data.session.access_token,refresh_token:data.session.refresh_token,expires_at:data.session.expires_at}:null}}
+async function emailAuthorization(svc:any,email:string,purpose:string,context:any,userId:string|null=null){return await svc.from("email_send_authorizations").insert({organization_id:null,user_id:userId,recipient:email,purpose,scope:"single_send",expires_at:new Date(Date.now()+5*60*1000).toISOString(),context}).select("id").single()}
+async function settingSecret(svc:any,key:string){const{data:s}=await svc.from("internal_settings").select("secret_id").eq("setting_key",key).maybeSingle();if(!s?.secret_id)return"";const{data}=await svc.rpc("service_read_secret",{p_secret_id:s.secret_id});return String(data||"")}
+async function sendRecovery(svc:any,email:string,token:string){const key=await settingSecret(svc,"resend_api_key_cloudco");if(!key)return{ok:false,status:503,error:"email_provider_not_configured"};const link=`${APP_URL}?reset_token=${encodeURIComponent(token)}`;const html=`<!doctype html><html><body style="margin:0;background:#08080f;color:#f8f7fb;font-family:Arial,sans-serif;padding:24px"><table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center"><table width="100%" style="max-width:560px;background:#111119;border:1px solid #30303e;border-radius:24px"><tr><td style="padding:30px"><div style="font-size:23px;font-weight:900;color:#ff4fad">CloudSales</div><h1 style="font-size:30px;line-height:1.08;margin:24px 0 10px;color:#fff">Cambia tu contraseña</h1><p style="color:#aaa7b5;line-height:1.6">Recibimos una solicitud para cambiar la contraseña de tu cuenta CloudSales. Este enlace es de un solo uso y expira en 30 minutos.</p><p style="margin:28px 0"><a href="${link}" style="display:inline-block;background:#ff2b9b;color:#fff;text-decoration:none;font-weight:800;padding:14px 22px;border-radius:999px">Cambiar contraseña</a></p><p style="font-size:12px;color:#777483;line-height:1.5">Si no solicitaste este cambio, puedes ignorar este correo. CloudSales nunca te pedirá tu contraseña por email.</p><p style="font-size:11px;color:#5f5c69;margin-top:28px">CloudSales · Secure Account Access</p></td></tr></table></td></tr></table></body></html>`;const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${key}`,"content-type":"application/json"},body:JSON.stringify({from:"CloudSales <info@cloudsales.app>",to:[email],reply_to:"info@cloudsales.app",subject:"Cambia tu contraseña de CloudSales",html})}),t=await r.text();let d:any={};try{d=JSON.parse(t)}catch{d={raw:t}}return{ok:r.ok,status:r.status,data:d,error:r.ok?null:"recovery_email_failed"}}
+Deno.serve(async req=>{
+ const origin=req.headers.get("origin");if(req.method==="OPTIONS")return new Response(null,{status:204,headers:cors(origin)});if(req.method!=="POST")return json({error:"method_not_allowed"},405,origin);if(origin&&!ORIGINS.has(origin))return json({error:"origin_not_allowed"},403,origin);if(Number(req.headers.get("content-length")||0)>16384)return json({error:"payload_too_large"},413,origin);
+ let body:any={};try{body=await req.json()}catch{return json({error:"invalid_json"},400,origin)}const action=String(body.action||"");if(!["sign_up","claim_sign_up","sign_in","refresh","resend_confirmation","forgot_password","reset_password"].includes(action))return json({error:"unsupported_action"},400,origin);
+ const ip=String((req.headers.get("cf-connecting-ip")||req.headers.get("x-forwarded-for")||"unknown").split(",")[0].trim()).slice(0,80),ipHash=await sha(ip);const svc=createClient(U,S,{auth:{persistSession:false,autoRefreshToken:false}}),client=createClient(U,A,{auth:{persistSession:false,autoRefreshToken:false}});if(await limited(svc,`auth:${ipHash.slice(0,24)}`,40,3600))return json({error:"rate_limited"},429,origin);
+ if(action==="sign_in"){const email=norm(body.email),password=String(body.password||"");if(!email||!password)return json({error:"signin_unavailable"},401,origin);const eh=await sha(email);if(await limited(svc,`auth:signin:${ipHash.slice(0,16)}:${eh.slice(0,20)}`,12,900))return json({error:"rate_limited"},429,origin);const{data,error}=await client.auth.signInWithPassword({email,password});if(error||!data.session)return json({error:"signin_unavailable"},401,origin);return json(sessionPayload(data),200,origin)}
+ if(action==="refresh"){const rt=String(body.refresh_token||"");if(!rt)return json({error:"refresh_token_required"},400,origin);const rh=await sha(rt);if(await limited(svc,`auth:refresh:${ipHash.slice(0,16)}:${rh.slice(0,24)}`,60,3600))return json({error:"rate_limited"},429,origin);const{data,error}=await client.auth.refreshSession({refresh_token:rt});if(error||!data.session)return json({error:"refresh_failed"},401,origin);return json(sessionPayload(data),200,origin)}
+ if(action==="reset_password"){
+  const password=String(body.password||"");if(password.length<8)return json({error:"weak_password"},400,origin);const custom=String(body.recovery_token||"").trim();
+  if(custom){if(custom.length<32||custom.length>256)return json({error:"invalid_recovery_session"},401,origin);const th=await sha(custom);if(await limited(svc,`auth:reset-token:${th.slice(0,24)}`,8,3600))return json({error:"rate_limited"},429,origin);const{data:row}=await svc.from("password_recovery_tokens").select("id,user_id,expires_at,consumed_at").eq("token_hash",th).maybeSingle();if(!row||row.consumed_at||new Date(row.expires_at).getTime()<=Date.now())return json({error:"invalid_or_expired_recovery_link"},401,origin);const{error}=await svc.auth.admin.updateUserById(row.user_id,{password});if(error)return json({error:"password_update_failed"},503,origin);await svc.from("password_recovery_tokens").update({consumed_at:new Date().toISOString()}).eq("id",row.id);await svc.from("audit_log").insert({organization_id:null,actor_user_id:row.user_id,actor_type:"user",action:"auth.password_reset_completed",entity_type:"user",entity_id:row.user_id,success:true,context:{version:VERSION,flow:"cloudsales_branded_recovery"}});return json({ok:true,password_updated:true},200,origin)}
+  const access=String(body.access_token||"").trim();if(access.length<40)return json({error:"invalid_recovery_session"},401,origin);const{data:ud,error:ue}=await svc.auth.getUser(access);if(ue||!ud.user)return json({error:"invalid_or_expired_recovery_link"},401,origin);const th=await sha(access);if(await limited(svc,`auth:reset:${ud.user.id}:${th.slice(0,16)}`,5,3600))return json({error:"rate_limited"},429,origin);const{error}=await svc.auth.admin.updateUserById(ud.user.id,{password});if(error)return json({error:"password_update_failed"},503,origin);await svc.from("audit_log").insert({organization_id:null,actor_user_id:ud.user.id,actor_type:"user",action:"auth.password_reset_completed",entity_type:"user",entity_id:ud.user.id,success:true,context:{version:VERSION,flow:"authenticated"}});return json({ok:true,password_updated:true},200,origin)
+ }
+ const email=norm(body.email);if(!valid(email))return json({error:"invalid_email"},400,origin);
+ if(action==="forgot_password"){
+  if(body.authorize_email!==true||String(body.email_purpose||"")!=="password_recovery")return json({error:"email_authorization_required",email_blocked:true,policy:POLICY,required_purpose:"password_recovery"},423,origin);const eh=await sha(email);if(await limited(svc,`auth:forgot:${ipHash.slice(0,16)}:${eh.slice(0,20)}`,4,3600))return json({error:"recovery_wait"},429,origin);
+  const{data:uid}=await svc.rpc("resolve_auth_user_for_recovery",{p_email:email});if(!uid)return json({ok:true,message_code:"password_recovery_sent",policy:POLICY},200,origin);
+  const context={policy:POLICY,source:"auth-session",action,version:VERSION,origin:origin||"direct",ip_hash:ipHash,explicit_user_action:true,delivery:"resend",from:"info@cloudsales.app"};const{data:authorization,error:ae}=await emailAuthorization(svc,email,"password_recovery",context,String(uid));if(ae||!authorization?.id)return json({error:"email_authorization_audit_failed"},503,origin);
+  const token=randomToken(),tokenHash=await sha(token);await svc.from("password_recovery_tokens").update({consumed_at:new Date().toISOString()}).eq("user_id",uid).is("consumed_at",null);const{data:recovery,error:re}=await svc.from("password_recovery_tokens").insert({user_id:uid,token_hash:tokenHash,expires_at:new Date(Date.now()+30*60*1000).toISOString(),context:{ip_hash:ipHash,version:VERSION}}).select("id").single();if(re||!recovery){await svc.from("email_send_authorizations").update({context:{...context,provider_call_completed:false,provider_error:"token_create_failed"}}).eq("id",authorization.id);return json({error:"recovery_temporarily_unavailable"},503,origin)}
+  const sent=await sendRecovery(svc,email,token);if(!sent.ok){await svc.from("password_recovery_tokens").update({consumed_at:new Date().toISOString()}).eq("id",recovery.id);await svc.from("email_send_authorizations").update({context:{...context,provider_call_completed:false,provider_error:sent.error,provider_status:sent.status}}).eq("id",authorization.id);return json({error:"recovery_temporarily_unavailable"},503,origin)}await svc.from("email_send_authorizations").update({consumed_at:new Date().toISOString(),context:{...context,provider_call_completed:true,provider_status:sent.status}}).eq("id",authorization.id);return json({ok:true,message_code:"password_recovery_sent",policy:POLICY},200,origin)
+ }
+ if(action==="claim_sign_up"){const password=String(body.password||""),fullName=safe(body.full_name,160),claimToken=String(body.claim_token||"").trim();if(password.length<8)return json({error:"weak_password"},400,origin);if(claimToken.length<32||claimToken.length>512)return json({error:"invalid_claim_token"},400,origin);const eh=await sha(email);if(await limited(svc,`auth:claim-signup:${ipHash.slice(0,16)}:${eh.slice(0,20)}`,5,3600))return json({error:"rate_limited"},429,origin);const tokenHash=await sha(claimToken);const{data:claim}=await svc.from("organization_claim_tokens").select("id,organization_id,role,expected_email,expires_at,consumed_at").eq("token_hash",tokenHash).maybeSingle();if(!claim||claim.consumed_at||new Date(claim.expires_at).getTime()<=Date.now())return json({error:"claim_invalid_or_expired"},410,origin);const expected=norm(claim.expected_email);if(!expected)return json({error:"claim_not_email_bound"},403,origin);if(expected!==email)return json({error:"claim_email_mismatch"},403,origin);const{data:created,error:ce}=await svc.auth.admin.createUser({email,password,email_confirm:true,user_metadata:fullName?{full_name:fullName,enrollment:"email_bound_claim"}:{enrollment:"email_bound_claim"}});if(ce||!created.user){const m=String(ce?.message||"").toLowerCase();if(m.includes("already")||m.includes("registered")||m.includes("exists"))return json({error:"account_exists_use_signin"},409,origin);return json({error:"claim_signup_unavailable"},400,origin)}const{data:signed,error:se}=await client.auth.signInWithPassword({email,password});if(se||!signed.session)return json({error:"claim_signup_signin_required",account_created:true},409,origin);await svc.from("audit_log").insert({organization_id:claim.organization_id,actor_user_id:created.user.id,actor_type:"user",action:"auth.claim_signup_created",entity_type:"organization",entity_id:claim.organization_id,success:true,context:{role:claim.role,email_bound:true,email_sent:false,version:VERSION}});return json({...sessionPayload(signed),claim_ready:true,email_sent:false},200,origin)}
+ if(action==="sign_up"&&String(body.password||"").length<8)return json({error:"weak_password"},400,origin);const expectedPurpose=action==="sign_up"?"signup_confirmation":"signup_confirmation_resend";if(body.authorize_email!==true||String(body.email_purpose||"")!==expectedPurpose)return json({error:"email_authorization_required",email_blocked:true,policy:POLICY,required_purpose:expectedPurpose},423,origin);const eh=await sha(email),limit=action==="sign_up"?5:4;if(await limited(svc,`auth:${action}:${ipHash.slice(0,16)}:${eh.slice(0,20)}`,limit,3600))return json({error:"rate_limited"},429,origin);const ctx={policy:POLICY,source:"auth-session",action,version:VERSION,origin:origin||"direct",ip_hash:ipHash,explicit_user_action:true};const{data:authorization,error:ae}=await emailAuthorization(svc,email,expectedPurpose,ctx);if(ae||!authorization?.id)return json({error:"email_authorization_audit_failed"},503,origin);
+ if(action==="sign_up"){const password=String(body.password||""),fullName=safe(body.full_name,160);const{data,error}=await client.auth.signUp({email,password,options:{emailRedirectTo:APP_URL,data:fullName?{full_name:fullName}:{}}});if(error){await svc.from("email_send_authorizations").update({context:{...ctx,provider_call_completed:false,provider_error:"signup_failed"}}).eq("id",authorization.id);const m=String(error.message||"").toLowerCase();if(m.includes("rate")||error.status===429)return json({error:"signup_temporarily_limited"},429,origin);return json({error:"signup_unavailable"},400,origin)}await svc.from("email_send_authorizations").update({user_id:data.user?.id||null,consumed_at:new Date().toISOString(),context:{...ctx,provider_call_completed:true}}).eq("id",authorization.id);if(data.session)return json(sessionPayload(data),200,origin);const ids=Array.isArray(data.user?.identities)?data.user.identities:null;return json({confirmation_required:true,message_code:ids&&ids.length===0?"account_exists_or_confirmation_pending":"confirmation_sent",policy:POLICY},200,origin)}
+ const{error}=await client.auth.resend({type:"signup",email,options:{emailRedirectTo:APP_URL}});if(error){await svc.from("email_send_authorizations").update({context:{...ctx,provider_call_completed:false,provider_error:"resend_failed"}}).eq("id",authorization.id);const m=String(error.message||"").toLowerCase();if(m.includes("rate")||error.status===429)return json({error:"confirmation_wait"},429,origin);return json({error:"resend_unavailable"},400,origin)}await svc.from("email_send_authorizations").update({consumed_at:new Date().toISOString(),context:{...ctx,provider_call_completed:true}}).eq("id",authorization.id);return json({ok:true,confirmation_required:true,message_code:"confirmation_resent",policy:POLICY},200,origin)
 });
