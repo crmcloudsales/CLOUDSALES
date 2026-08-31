@@ -1,0 +1,1 @@
+Marketing pages reference /marketing/*.webp. Binary assets must exist before promotion to production.
