@@ -1,0 +1,1 @@
+Binary WebP assets are committed via Git data API.
