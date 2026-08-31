@@ -1,0 +1,1 @@
+Binary assets are official optimized WebP derivatives used only on public CloudSales commerce pages.
