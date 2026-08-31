@@ -1,0 +1,64 @@
+name: CloudSales Live Revenue Surface
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/commercial/**'
+      - 'web/install.js'
+      - '.github/workflows/cloudsales-live-revenue-surface.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  revenue-surface:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Verify live commercial and PWA pricing
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { chromium }=require('playwright');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const page=await browser.newPage({viewport:{width:390,height:844}});
+            const errors=[];page.on('pageerror',e=>errors.push(String(e.message||e)));
+            let r=await page.goto('https://cloudsales.app/?qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+            if(!r||!r.ok())throw new Error('commercial_http_'+(r&&r.status()));
+            await page.waitForTimeout(1800);
+            const body=await page.locator('body').innerText();
+            const htmlMarker=await page.locator('html').getAttribute('data-cs-canonical-pricing');
+            console.log('COMMERCIAL_PRICING_MARKER='+htmlMarker);
+            for(const required of ['STARTER','$47 USD / mes','Pro','$97 USD / mes','Premium','$147 USD / mes','2 usuarios incluidos','asiento extra US$47/mes'])if(!body.includes(required))throw new Error('commercial_missing_'+required);
+            for(const stale of ['$49 USD / mes','$197 USD / mes','Elegir Basic'])if(body.includes(stale))throw new Error('commercial_stale_'+stale);
+            if(htmlMarker!=='2026-08-31')throw new Error('commercial_pricing_marker_missing');
+            if(errors.length)throw new Error('commercial_page_errors:'+errors.join('|'));
+
+            const pwa=await browser.newPage({viewport:{width:390,height:844}});
+            const pwaErrors=[];pwa.on('pageerror',e=>pwaErrors.push(String(e.message||e)));
+            r=await pwa.goto('https://app.cloudsales.app/?qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+            if(!r||!r.ok())throw new Error('pwa_http_'+(r&&r.status()));
+            await pwa.waitForTimeout(1200);
+            const starter=(await pwa.locator('.planpick[data-plan="basic"]').innerText()).trim();
+            const pro=(await pwa.locator('.planpick[data-plan="pro"]').innerText()).trim();
+            const premium=(await pwa.locator('.planpick[data-plan="premium"]').innerText()).trim();
+            console.log('PWA_PLANS='+JSON.stringify({starter,pro,premium,pwaErrors}));
+            if(!starter.includes('STARTER')||!starter.includes('$47'))throw new Error('pwa_starter_stale');
+            if(!pro.includes('PRO')||!pro.includes('$97'))throw new Error('pwa_pro_stale');
+            if(!premium.includes('PREMIUM')||!premium.includes('$147')||!premium.includes('2 usuarios')||!premium.includes('asiento extra $47'))throw new Error('pwa_premium_stale');
+            if(pwaErrors.length)throw new Error('pwa_page_errors:'+pwaErrors.join('|'));
+            console.log('CLOUDSALES_LIVE_REVENUE_SURFACE_PASS');
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
