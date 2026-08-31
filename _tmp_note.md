@@ -1,0 +1,1 @@
+Inspecting repository structure for Distrito Zen implementation.
