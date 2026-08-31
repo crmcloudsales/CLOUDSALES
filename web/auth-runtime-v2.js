@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '2026.08.30.3';
+  const VERSION = '2026.08.31.1';
   const CLAIM_KEY = 'cs_pending_claim';
   let resendTimer = null;
   let recoveryMode = false;
@@ -16,8 +16,8 @@
     const map = {
       invalid_email:'Escribe un correo válido.', weak_password:'Usa una contraseña de al menos 8 caracteres.',
       signin_unavailable:'No pudimos iniciar sesión. Revisa tu email y contraseña.', rate_limited:'Demasiados intentos. Espera unos minutos y vuelve a intentar.',
-      recovery_wait:'Ya solicitaste un enlace recientemente. Revisa tu correo antes de pedir otro.', recovery_temporarily_unavailable:'No pudimos enviar el correo de recuperación. Intenta nuevamente en unos minutos.',
-      invalid_recovery_session:'El enlace de recuperación no es válido.', invalid_or_expired_recovery_link:'El enlace de recuperación expiró o ya no es válido. Solicita uno nuevo.', password_update_failed:'No pudimos cambiar la contraseña. Solicita un nuevo enlace e intenta otra vez.',
+      recovery_wait:'Ya solicitaste un enlace recientemente. Revisa tu correo antes de pedir otro.', recovery_temporarily_unavailable:'El correo de recuperación todavía no está disponible. Intenta nuevamente en unos minutos.',
+      invalid_recovery_session:'El enlace de recuperación no es válido.', invalid_or_expired_recovery_link:'El enlace de recuperación expiró o ya fue utilizado. Solicita uno nuevo.', password_update_failed:'No pudimos cambiar la contraseña. Solicita un nuevo enlace e intenta otra vez.',
       email_authorization_required:'CloudSales necesita tu autorización para enviar este único correo.', email_authorization_audit_failed:'No pudimos registrar de forma segura la autorización del correo.',
       signup_temporarily_limited:'El servicio de confirmación está ocupado. Intenta nuevamente en unos minutos.', signup_unavailable:'No se pudo completar el registro.',
       confirmation_wait:'El correo ya fue solicitado. Espera antes de reenviarlo.', resend_unavailable:'No se pudo reenviar el correo ahora.',
@@ -84,18 +84,22 @@
     const btn = node('forgotPassword'); if (btn) { btn.disabled=true; btn.textContent='Enviando…'; }
     try {
       await direct('auth-session',{action:'forgot_password',email,authorize_email:true,email_purpose:'password_recovery'},false);
-      message('Te enviamos un correo con el botón para cambiar tu contraseña. Revisa también Spam o Promociones.',true);
+      message('Si la cuenta existe, recibirás un correo de CloudSales con un botón seguro para cambiar tu contraseña. Revisa también Spam o Promociones.',true);
     } catch (err) { message(friendly(err)); }
     finally { if (btn) { btn.disabled=false; btn.textContent='¿Olvidaste tu contraseña?'; } }
   }
 
-  function recoveryToken() {
+  function recoveryInfo() {
+    const url = new URL(location.href);
+    const branded = url.searchParams.get('reset_token') || '';
+    if (branded) return { token: branded, kind: 'branded' };
     const h = new URLSearchParams(location.hash.replace(/^#/,''));
-    return h.get('type') === 'recovery' ? (h.get('access_token') || '') : '';
+    const legacy = h.get('type') === 'recovery' ? (h.get('access_token') || '') : '';
+    return legacy ? { token: legacy, kind: 'legacy' } : { token:'', kind:'' };
   }
   function leaveRecovery() {
     recoveryMode=false;
-    const url=new URL(location.href); url.searchParams.delete('reset');
+    const url=new URL(location.href); url.searchParams.delete('reset_token'); url.searchParams.delete('reset');
     history.replaceState(null,'',url.pathname+(url.search||''));
     node('tabIn')?.parentElement?.classList.remove('hidden');
     node('email')?.closest('.field')?.classList.remove('hidden');
@@ -104,20 +108,23 @@
     node('resetConfirmField')?.remove(); if(typeof setMode==='function')setMode('signin'); syncUi(); message('Contraseña actualizada. Ahora entra con tu nueva contraseña.',true);
   }
   function enterRecovery() {
-    const token=recoveryToken(); if(!token) return false;
+    const info=recoveryInfo(); if(!info.token) return false;
     recoveryMode=true;
     node('tabIn')?.parentElement?.classList.add('hidden'); node('email')?.closest('.field')?.classList.add('hidden'); node('nameField')?.classList.add('hidden');
     const pass=node('password'); if(!pass) return false; pass.value=''; pass.autocomplete='new-password'; const label=pass.closest('.field')?.querySelector('label'); if(label)label.textContent='Nueva contraseña';
     if(!node('resetConfirmField')){const f=document.createElement('div');f.id='resetConfirmField';f.className='field';f.innerHTML='<label>Confirmar nueva contraseña</label><input id="resetConfirm" type="password" autocomplete="new-password">';pass.closest('.field')?.insertAdjacentElement('afterend',f);}
     const btn=node('authBtn'); if(btn){btn.disabled=false;btn.textContent='Cambiar contraseña';}
-    syncUi(); message('Abre el enlace únicamente desde tu propio dispositivo y define tu nueva contraseña.',true); return true;
+    syncUi(); message('Define tu nueva contraseña. Este enlace es de un solo uso.',true); return true;
   }
   async function doReset() {
-    const token=recoveryToken(),p=node('password')?.value||'',c=node('resetConfirm')?.value||'';
-    if(!token)return message('El enlace de recuperación no es válido.'); if(p.length<8)return message('Usa una contraseña de al menos 8 caracteres.'); if(p!==c)return message('Las contraseñas no coinciden.');
+    const info=recoveryInfo(),p=node('password')?.value||'',c=node('resetConfirm')?.value||'';
+    if(!info.token)return message('El enlace de recuperación no es válido.'); if(p.length<8)return message('Usa una contraseña de al menos 8 caracteres.'); if(p!==c)return message('Las contraseñas no coinciden.');
     const btn=node('authBtn'); btn.disabled=true; btn.textContent='Guardando…';
-    try { await direct('auth-session',{action:'reset_password',access_token:token,password:p},false); clearSession?.(); leaveRecovery(); }
-    catch(err){message(friendly(err));btn.disabled=false;btn.textContent='Cambiar contraseña';}
+    try {
+      const payload={action:'reset_password',password:p};
+      if(info.kind==='branded') payload.recovery_token=info.token; else payload.access_token=info.token;
+      await direct('auth-session',payload,false); clearSession?.(); leaveRecovery();
+    } catch(err){message(friendly(err));btn.disabled=false;btn.textContent='Cambiar contraseña';}
   }
 
   function startCooldown(seconds=40){clearTimeout(resendTimer);let n=seconds;const tick=()=>{const b=node('resendConfirmation');if(!b)return;b.disabled=n>0;b.textContent=n>0?`Reenviar en ${n}s`:'Reenviar correo';if(n-- >0)resendTimer=setTimeout(tick,1000)};tick()}
