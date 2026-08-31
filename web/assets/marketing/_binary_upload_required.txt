@@ -1,0 +1,1 @@
+This marker can be removed after Cloudy, AgentCloud and LISTIA optimized WebP binaries are committed.
