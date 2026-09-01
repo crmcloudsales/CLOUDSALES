@@ -1,32 +1,43 @@
-name: CloudSales Trial14 Run
+name: CloudSales Trial14 Finalize
 on:
   push:
     paths:
       - '.github/workflows/cloudsales-trial14-run.yml'
 permissions:
   contents: write
-# trigger 2026-09-01 trial canonicalization v2
 jobs:
-  run:
+  finalize:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          mkdir -p supabase/functions/cloudflare-pwa-release-v12
-          printf '2026.09.01.5\n' > supabase/functions/cloudflare-pwa-release-v12/index.ts
-          python .github/scripts/apply_cloudsales_trial14.py
-          rm -rf supabase/functions/cloudflare-pwa-release-v12
-      - run: node --check web/cloudsales-i18n-v1.js && node --check web/auth-runtime-v2.js && node --check web/sw.js
-      - run: |
+      - name: Remove legacy no-trial regression rule
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
+          s=p.read_text()
+          legacy=".replace(/<li>\\s*14 días de prueba\\s*<\\/li>/gi,'').replace(/\\b14 días de prueba\\b/gi,'')"
+          s=s.replace(legacy,'')
+          if "replace(/\\b14 días de prueba\\b/gi,'')" in s:
+              raise SystemExit('legacy trial stripping rule remains')
+          p.write_text(s)
+          PY
           grep -q '14 días de prueba gratis' web/commercial.html
           grep -q 'TRIAL_COPY' web/cloudsales-i18n-v1.js
           grep -q 'trialOnboardNotice' web/pwa.html
           grep -q 'TRIAL_UI_COPY' web/auth-runtime-v2.js
-          grep -q 'cloudsales-pwa-2026.09.01.4' web/sw.js
-      - run: |
-          if git diff --quiet; then exit 0; fi
+          node --check web/cloudsales-i18n-v1.js
+          node --check web/auth-runtime-v2.js
+      - name: Remove one-time trial tooling
+        run: |
+          rm -f .github/workflows/cloudsales-trial-14-sync-once.yml
+          rm -f .github/scripts/apply_cloudsales_trial14.py
+          rm -f .github/workflows/cloudsales-trial14-run.yml
+      - name: Commit final canonical state
+        run: |
           git config user.name "crmcloudsales"
           git config user.email "crmcloudsales@gmail.com"
-          git add web/commercial.html web/cloudsales-i18n-v1.js web/pwa.html web/auth-runtime-v2.js web/sw.js
-          git commit -m "feat(trial): make 14-day free trial canonical across CloudSales"
+          git add -A
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "fix(trial): preserve 14-day free trial across future CloudSales releases"
           git push origin HEAD:main
