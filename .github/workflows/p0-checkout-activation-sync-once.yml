@@ -13,14 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply patch
-        run: python .github/scripts/p0_checkout_activation_patch.py
+      - name: Apply P0 patches
+        run: |
+          python .github/scripts/p0_checkout_activation_patch.py
+          python .github/scripts/p0_hosted_checkout_patch.py
       - name: Validate JavaScript and release markers
         run: |
           node --check web/cloudsales-i18n-v1.js
           node --check web/auth-runtime-v2.js
           node --check web/sw.js
           grep -q checkoutReturnBridge web/cloudsales-i18n-v1.js
+          grep -q patchHostedCheckout web/cloudsales-i18n-v1.js
+          grep -q checkout_url web/cloudsales-i18n-v1.js
           grep -q cs_pending_checkout web/auth-runtime-v2.js
           grep -q claim-checkout web/auth-runtime-v2.js
           grep -q checkout-status web/auth-runtime-v2.js
@@ -32,5 +36,5 @@ jobs:
           git config user.name crmcloudsales
           git config user.email crmcloudsales@gmail.com
           git add web/cloudsales-i18n-v1.js web/auth-runtime-v2.js web/sw.js supabase/functions/cloudflare-pwa-brand-release/index.ts
-          git commit -m 'fix(p0): connect checkout return to automatic workspace activation'
+          git commit -m 'fix(p0): support hosted Stripe checkout fallback'
           git push origin HEAD:main
