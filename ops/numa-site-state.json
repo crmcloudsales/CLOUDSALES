@@ -1,0 +1,69 @@
+{
+  "updated_at": "2026-09-01T04:24:00Z",
+  "site": {
+    "name": "NUMA Hotel Boutique",
+    "hostname": "numa.cloudsales.app",
+    "organization_id": "13b81dd8-1966-4b46-ad5c-b5694b5f8581",
+    "gate_config_id": "72d0c381-dcc6-4054-8394-fc10d305fcde",
+    "gate_public_key": "bdcf2a97-f5d2-4ec2-863c-13954dd6bb71",
+    "status": "active",
+    "official_website_claim": false
+  },
+  "cloudflare": {
+    "account_id": "bd94cb0580e86e7f40b4271a03052426",
+    "zone_id": "44753df079f42f8995124c358b135597",
+    "worker": "numa-hotel-gateway",
+    "domain_id": "926a91a8f8a761ef0e78415baab41800bf1c454d",
+    "cert_id": "9c444af0-cf04-44bd-ac66-4f2f2f6a4500",
+    "domain_enabled": true,
+    "public_dns_verified": true,
+    "turnstile": "managed_active",
+    "worker_secrets": ["EDGE_TOKEN", "CHALLENGE_SECRET", "TURNSTILE_SECRET"],
+    "workers_dev_enabled": false
+  },
+  "security": {
+    "pow_hmac": true,
+    "turnstile": true,
+    "honeypot": true,
+    "server_side_validation": true,
+    "origin_validation": true,
+    "lead_intake_uses_edge_secret": true,
+    "secure_headers": true,
+    "single_physical_form": true
+  },
+  "seo": {
+    "indexable": true,
+    "canonical": "https://numa.cloudsales.app/",
+    "robots": "https://numa.cloudsales.app/robots.txt",
+    "sitemap": "https://numa.cloudsales.app/sitemap.xml"
+  },
+  "verification": {
+    "worker_runtime_direct": "passed_via_temporary_workers_dev",
+    "page_status": 200,
+    "health_status": 200,
+    "challenge_signed": true,
+    "page_marker": "numa-hotel-cloudsales-v1",
+    "turnstile_sitekey_present": true,
+    "public_dns_a": ["172.67.132.84", "104.21.4.180"],
+    "public_dns_aaaa": ["2606:4700:3032::6815:4b4", "2606:4700:3032::ac43:8454"],
+    "custom_domain_mapping": "enabled",
+    "note": "The Supabase runtime resolver cached the initial NXDOMAIN during first smoke. Cloudflare public DoH subsequently returned A/AAAA answers and Cloudflare Workers Domains reports the hostname enabled with certificate id."
+  },
+  "source": {
+    "landing_commit": "9339243718576d6ab18a80f66fb655796be18e67",
+    "worker_commit": "b49f47e6f80fb7cf7a86ef51c4c93f36f5572b74",
+    "research_commit": "99e50be18a2a2d42fefe42ff8f9751b41814b898",
+    "landing": "web/clients/numa/landing-edge.html",
+    "worker_template": "web/clients/numa/worker-edge-template.mjs",
+    "research": "web/clients/numa/research-sources.md",
+    "provisioner_source": "supabase/functions/numa-provision/index.ts",
+    "provisioner_runtime": "not_deployed_function_limit_reached",
+    "actual_deployment_path": "controlled PostgreSQL http extension -> Cloudflare API"
+  },
+  "public_facts": {
+    "phone": "+52 984 125 5032",
+    "address": "Calle 70 Norte, 10 Avenida Nte. 5, Esquina, Luis Donaldo Colosio, Playa del Carmen, Quintana Roo, México",
+    "verified_standalone_official_site_found": false,
+    "primary_research_sources": ["Google Hotels", "Booking.com", "public Airbnb NUMA listings"]
+  }
+}
