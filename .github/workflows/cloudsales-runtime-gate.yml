@@ -62,6 +62,9 @@ jobs:
           const icons=(manifest.icons||[]).map(x=>String(x.src||''));
           if(!icons.some(x=>x.includes('/cloudsales-app-icon-official-v2-192.png'))||!icons.some(x=>x.includes('/cloudsales-app-icon-official-v2.png'))||icons.some(x=>/icon\.svg/i.test(x)))throw new Error('manifest_icon_identity_invalid');
 
+          const pwaHtml=must('web/pwa.html',['Basic<br><b>$47</b>','Pro<br><b>$97</b>','Premium<br><b>$147</b>']);
+          if(pwaHtml.includes('Basic<br><b>$49</b>')||pwaHtml.includes('Premium<br><b>$197</b>'))throw new Error('pwa_legacy_pricing_regression');
+
           must('web/install.js',['beforeinstallprompt','/cloudsales-app-icon-official-v2.png','promptInstall']);
           must('web/auth-runtime-v2.js',['claim-organization','cs_pending_claim','claimPending','cs_org']);
           must('web/app-runtime-v14.js',['Operational Center','tenant-ops-api','renderMarketingOps','opportunity.move']);
@@ -87,9 +90,10 @@ jobs:
           if(/<input[^>]+(?:card|pan|cvc|cvv|expir|security.?code)/i.test(adspend)||/\b(?:card_number|cardNumber|pan|cvc|cvv|expiry|expiration|security_code)\b\s*:/i.test(adspend))throw new Error('ad_spend_ui_must_not_collect_payment_card_data');
 
           must('supabase/functions/claim-organization/index.ts',['organization_owner_already_assigned','requestedRole','admin','operator']);
-          const sw=must('web/sw.js',['/cloudy-runtime-v3.js','/works-runtime-v1.js','/meta-runtime-v1.js','/ad-spend-runtime-v1.js']);
+          const currentRuntimes=['/dashboard-runtime-v3.js','/sales-analytics-runtime-v1.js','/native-shell-runtime-v1.js','/workspace-polish-runtime-v1.js'];
+          const sw=must('web/sw.js',['/cloudy-runtime-v3.js','/works-runtime-v1.js','/meta-runtime-v1.js','/ad-spend-runtime-v1.js',...currentRuntimes]);
           if(!/^const CACHE=['"]cloudsales-pwa-[^'"]+['"];?/m.test(sw))throw new Error('pwa_cache_version_missing');
-          const pwa=must('supabase/functions/cloudflare-pwa-brand-release/index.ts',['meta_ads_runtime','ad_spend_runtime_loaded','cloudy_conversation_runtime','works_runtime_loaded','source_commit','exact_logo_bytes']);
+          const pwa=must('supabase/functions/cloudflare-pwa-brand-release/index.ts',['meta_ads_runtime','ad_spend_runtime_loaded','cloudy_conversation_runtime','works_runtime_loaded','source_commit','exact_logo_bytes',...currentRuntimes]);
           if(!/cloudsales-pwa-v\d+/.test(pwa))throw new Error('pwa_release_service_missing');
           const site=must('supabase/functions/cloudflare-site-brand-release/index.ts',['cloudsales-logo-official-v2.png','cloudsales-favicon-official-v2.png','all_commercial_routes_branded','exact_logo_bytes']);
           if(!/cloudsales-site-v\d+/.test(site))throw new Error('site_release_service_missing');
