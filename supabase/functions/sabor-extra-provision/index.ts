@@ -1,0 +1,48 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const CF="https://api.cloudflare.com/client/v4";
+const ACCOUNT="bd94cb0580e86e7f40b4271a03052426";
+const ZONE="44753df079f42f8995124c358b135597";
+const HOST="saborextra.cloudsales.app";
+const WORKER="sabor-extra-gateway";
+const GATE_ID="1f4443c6-96bf-4fab-8e73-65652d304ea7";
+const ORG_ID="6b926f08-4f76-4bc0-9f51-d90d9fab6a68";
+const RAW="https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/clients/sabor-extra";
+const SB=Deno.env.get("SUPABASE_URL")!;
+const SR=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const svc=createClient(SB,SR,{auth:{persistSession:false,autoRefreshToken:false}});
+const out=(b:unknown,s=200)=>new Response(JSON.stringify(b),{status:s,headers:{"content-type":"application/json;charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff","referrer-policy":"no-referrer"}});
+async function cf(token:string,path:string,method="GET",body?:unknown){const r=await fetch(CF+path,{method,headers:{Authorization:`Bearer ${token}`,Accept:"application/json",...(body!==undefined?{"content-type":"application/json"}:{})},body:body===undefined?undefined:JSON.stringify(body)});const text=await r.text();let data:any={};try{data=JSON.parse(text)}catch{data={raw:text}}return{ok:r.ok&&data?.success!==false,status:r.status,data}}
+async function command(id:string){return(await svc.from("internal_command_queue").select("*").eq("id",id).maybeSingle()).data}
+async function finish(id:string,status:string,result:unknown,error:string|null=null){await svc.from("internal_command_queue").update({status,result,error,finished_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id)}
+async function readSecret(key:string){const{data:s}=await svc.from("internal_settings").select("secret_id").eq("setting_key",key).maybeSingle();if(!s?.secret_id)return null;const{data,error}=await svc.rpc("service_read_secret",{p_secret_id:s.secret_id});if(error||!data)return null;return String(data)}
+async function storeSecret(key:string,value:string,name:string,description:string){const{data:old}=await svc.from("internal_settings").select("secret_id").eq("setting_key",key).maybeSingle();let sid=old?.secret_id;if(sid){const{error}=await svc.rpc("service_update_secret",{p_secret_id:sid,p_secret:value,p_name:name,p_description:description});if(error)throw error}else{const{data,error}=await svc.rpc("service_store_secret",{p_secret:value,p_name:name,p_description:description});if(error||!data)throw error||new Error("secret_storage_failed");sid=data}await svc.from("internal_settings").upsert({setting_key:key,secret_id:sid,value:{configured:true,updated_at:new Date().toISOString()}},{onConflict:"setting_key"});return sid}
+async function token(){return Deno.env.get("CLOUDFLARE_API_TOKEN_CLOUDSALES")||await readSecret("cloudflare_api_token_cloudsales")||""}
+async function txt(url:string){const r=await fetch(`${url}?v=${Date.now()}`,{headers:{"cache-control":"no-cache"}});if(!r.ok)throw new Error(`source_fetch_${r.status}`);return await r.text()}
+async function domains(t:string){const r=await cf(t,`/accounts/${ACCOUNT}/workers/domains`);return Array.isArray(r.data?.result)?r.data.result:[]}
+async function attach(t:string){const list=await domains(t),old=list.find((x:any)=>x.hostname===HOST&&x.zone_id===ZONE)||null;if(old?.service===WORKER)return{ok:true,reused:true,current:old};if(old){const d=await cf(t,`/accounts/${ACCOUNT}/workers/domains/${old.id}`,"DELETE");if(!d.ok)throw new Error(`domain_delete_${d.status}`)}const a=await cf(t,`/accounts/${ACCOUNT}/workers/domains`,"PUT",{hostname:HOST,service:WORKER,zone_id:ZONE,zone_name:"cloudsales.app"});if(!a.ok)throw new Error(`domain_attach_${a.status}`);return{ok:true,reused:false,current:a.data?.result||null}}
+async function upload(t:string,code:string,edgeToken:string,challengeSecret:string,turnstileSecret:string){const metadata={main_module:"main.mjs",compatibility_date:"2026-09-01",bindings:[{type:"secret_text",name:"EDGE_TOKEN",text:edgeToken},{type:"secret_text",name:"CHALLENGE_SECRET",text:challengeSecret},{type:"secret_text",name:"TURNSTILE_SECRET",text:turnstileSecret}]};const f=new FormData();f.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));f.append("main.mjs",new Blob([code],{type:"application/javascript+module"}),"main.mjs");const r=await fetch(`${CF}/accounts/${ACCOUNT}/workers/scripts/${WORKER}`,{method:"PUT",headers:{Authorization:`Bearer ${t}`},body:f});const data=await r.json().catch(()=>({}));if(!r.ok||data?.success===false)throw new Error(`worker_upload_${r.status}`);return data}
+async function ensureTurnstile(t:string){const{data:g}=await svc.from("gate_configs").select("config").eq("id",GATE_ID).maybeSingle();const site=String(g?.config?.turnstile_sitekey||"");const sec=await readSecret("sabor_extra_turnstile_secret");if(site&&sec)return{sitekey:site,secret:sec,reused:true};const c=await cf(t,`/accounts/${ACCOUNT}/challenges/widgets`,"POST",{name:`Sabor Extra ${crypto.randomUUID().slice(0,8)}`,domains:[HOST],mode:"managed"});if(!c.ok)throw new Error(`turnstile_${c.status}`);const sitekey=String(c.data?.result?.sitekey||""),secret=String(c.data?.result?.secret||"");if(!sitekey||!secret)throw new Error("turnstile_credentials_missing");await storeSecret("sabor_extra_turnstile_secret",secret,"cloudsales/sabor-extra/turnstile-secret","Sabor Extra Cloudflare Turnstile secret");await svc.from("gate_configs").update({config:{...(g?.config||{}),turnstile:"active",turnstile_sitekey:sitekey}}).eq("id",GATE_ID);return{sitekey,secret,reused:false}}
+async function smoke(url:string,marker:string){try{const r=await fetch(`${url}?qa=${Date.now()}`,{redirect:"follow",headers:{"cache-control":"no-cache"}});const text=await r.text();return{ok:r.ok&&text.includes(marker),status:r.status,marker:text.includes(marker),length:text.length}}catch(e){return{ok:false,status:0,error:String(e)}}}
+Deno.serve(async req=>{
+ if(req.method!=="POST")return out({error:"method_not_allowed"},405);
+ const body=await req.json().catch(()=>({})),id=String(body.command_id||""),cmd=await command(id);
+ if(!cmd||cmd.command_type!=="sabor_extra_provision"||cmd.status!=="queued"||new Date(cmd.expires_at).getTime()<=Date.now())return out({error:"invalid_command"},403);
+ await svc.from("internal_command_queue").update({status:"running",started_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq("id",id);
+ const result:any={host:HOST,worker:WORKER,organization_id:ORG_ID,gate_id:GATE_ID,steps:{}};
+ try{
+  const t=await token();if(!t)throw new Error("cloudflare_token_missing");
+  const edgeToken=await readSecret("cloudsales_edge_token");if(!edgeToken)throw new Error("edge_token_missing");
+  const turn=await ensureTurnstile(t);result.steps.turnstile={sitekey:turn.sitekey,reused:turn.reused};
+  const[htmlRaw,tmplRaw]=await Promise.all([txt(`${RAW}/landing-edge.html`),txt(`${RAW}/worker-edge-template.mjs`)]);
+  if(!htmlRaw.includes("sabor-extra-cloudsales-v1")||!htmlRaw.includes("__TURNSTILE_SITEKEY__"))throw new Error("landing_contract_failed");
+  if(!tmplRaw.includes("__HTML_JSON__")||!tmplRaw.includes("__TURNSTILE_SITEKEY__"))throw new Error("worker_contract_failed");
+  const html=htmlRaw.split("__TURNSTILE_SITEKEY__").join(turn.sitekey),template=tmplRaw.split("__TURNSTILE_SITEKEY__").join(turn.sitekey),code=template.replace("__HTML_JSON__",JSON.stringify(html));
+  const challengeSecret=crypto.randomUUID()+crypto.randomUUID();await upload(t,code,edgeToken,challengeSecret,turn.secret);result.steps.worker={uploaded:true};
+  const attached=await attach(t);result.steps.domain=attached;
+  await new Promise(r=>setTimeout(r,2500));const sm=await smoke(`https://${HOST}/`,`sabor-extra-cloudsales-v1`);result.steps.smoke=sm;if(!sm.ok)throw new Error(`smoke_failed_${sm.status}`);
+  const{data:g}=await svc.from("gate_configs").select("config").eq("id",GATE_ID).maybeSingle();await svc.from("gate_configs").update({status:"active",config:{...(g?.config||{}),provisioning:{seo:"active",landing:"active",turnstile:"active",custom_domain:"enabled",edge_challenge:"active",cloudflare_worker:WORKER,dns_public_verified:true,worker_runtime_verified:true,updated_at:new Date().toISOString()}}}).eq("id",GATE_ID);
+  await finish(id,"completed",result);return out(result);
+ }catch(e){const msg=e instanceof Error?e.message:String(e);await finish(id,"failed",result,msg);return out({error:msg,result},500)}
+});
