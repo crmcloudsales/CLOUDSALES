@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.09.01.1';
+const CACHE='cloudsales-pwa-2026.09.01.2';
 const CORE=[
   '/',
   '/manifest.webmanifest',
@@ -19,6 +19,8 @@ const CORE=[
   '/sales-analytics-runtime-v1.js',
   '/native-shell-runtime-v1.js',
   '/workspace-polish-runtime-v1.js',
+  '/pwa-i18n-runtime-v1.js',
+  '/cloudy-executive-runtime-v1.js',
   '/icon-192.png',
   '/icon-512.png',
   '/apple-touch-icon.png',
