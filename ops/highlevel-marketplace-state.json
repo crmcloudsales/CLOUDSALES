@@ -82,31 +82,52 @@
   },
   "billing": {
     "plans": {
-      "basic": {"monthly_usd": 47, "annual_usd": 470, "included_users": 1, "usage_multiplier": 1.5},
-      "pro": {"monthly_usd": 97, "annual_usd": 970, "included_users": 1, "usage_multiplier": 1.25},
-      "premium": {"monthly_usd": 147, "annual_usd": 1470, "included_users": 2, "extra_seat_monthly_usd": 47, "usage_multiplier": 1.125}
+      "basic": {"monthly_usd": 47, "annual_usd": 470, "included_users": 1, "usage_markup_percent": 50, "usage_multiplier": 1.5},
+      "pro": {"monthly_usd": 97, "annual_usd": 970, "included_users": 1, "usage_markup_percent": 35, "usage_multiplier": 1.35},
+      "premium": {"monthly_usd": 147, "annual_usd": 1470, "included_users": 2, "extra_seat_monthly_usd": 47, "usage_markup_percent": 25, "usage_multiplier": 1.25}
     },
     "trial_days": 14,
+    "usage_pricing_basis": "landed_provider_cost",
+    "unknown_cost_behavior": "reconcile_no_charge",
+    "domain_markup_percent": 100,
     "domain_multiplier": 2,
     "billing_meters": [
-      {"name": "CloudSales AI Calls", "unit": "call", "module_type": "Custom Event (API)", "price_type": "Dynamic", "max_usage_per_day": 500},
-      {"name": "CloudSales Call Minutes", "unit": "minute", "module_type": "Custom Event (API)", "price_type": "Dynamic", "max_usage_per_day": 5000},
-      {"name": "CloudSales Conversations", "unit": "conversation", "module_type": "Custom Event (API)", "price_type": "Dynamic", "max_usage_per_day": 5000},
-      {"name": "CloudSales AI Works", "unit": "ai_work", "module_type": "Custom Event (API)", "price_type": "Dynamic", "max_usage_per_day": 1000},
-      {"name": "CloudSales Domains", "unit": "domain", "module_type": "Custom Event (API)", "price_type": "Dynamic", "max_usage_per_day": 20}
+      {
+        "name": "CloudSales AI Chat",
+        "module_type": "Custom Event (API)",
+        "module_name": "AI Chats",
+        "usage_unit": "AI Response",
+        "max_usage_per_day": 10000,
+        "price_type": "Dynamic",
+        "minimum_price_per_unit_usd": 0.001,
+        "maximum_price_per_unit_usd": 5.0,
+        "default_price_per_unit_usd": 0.02,
+        "pricing_page_url": "https://cloudsales.app/usage-pricing",
+        "status": "current meter being configured in HighLevel"
+      },
+      {"name": "CloudSales AI Voice", "status": "pending final provider-cost validation before Marketplace entry"},
+      {"name": "AgentCloud AI Work", "status": "pending final provider-cost validation before Marketplace entry"},
+      {"name": "CloudSales AI Content", "status": "pending final provider-cost validation before Marketplace entry"},
+      {"name": "CloudSales Communications", "status": "pending final provider-cost validation before Marketplace entry"},
+      {"name": "CloudSales Phone Minutes", "status": "pending final provider-cost validation before Marketplace entry"},
+      {"name": "CloudSales Email", "status": "pending final provider-cost validation before Marketplace entry"},
+      {"name": "CloudSales Automations", "status": "pending final provider-cost validation before Marketplace entry"},
+      {"name": "CloudSales Data & Verification", "status": "pending final provider-cost validation before Marketplace entry"},
+      {"name": "CloudSales Domains", "status": "provider/landed cost x2"}
     ],
-    "pricing_page_url": "https://cloudsales.app/pricing",
-    "dynamic_pricing_rule": "CloudSales backend sends actual price per event using provider cost multiplied by the customer's plan markup; domain usage is provider cost x2. Defaults in HighLevel are fallback values only."
+    "pricing_page_url": "https://cloudsales.app/usage-pricing",
+    "dynamic_pricing_rule": "CloudSales charges from actual landed provider cost whenever available. Basic = landed cost x1.50, Pro = landed cost x1.35, Premium = landed cost x1.25. Domains = landed cost x2. Dynamic country, carrier, model, TTS and provider fees are incorporated when applicable. HighLevel default meter values are fallback values only; unknown provider cost is reconciled rather than guessed."
   },
   "marketplace_urls": {
     "getting_started": "https://cloudsales.app/getting-started.html",
     "privacy": "https://cloudsales.app/privacy",
     "terms": "https://cloudsales.app/terms",
-    "pricing": "https://cloudsales.app/pricing"
+    "pricing": "https://cloudsales.app/pricing",
+    "usage_pricing": "https://cloudsales.app/usage-pricing"
   },
   "next_actions": [
     "Finish creation of the new Public + Sub-Account + White-label CloudSales app in HighLevel Developer Portal.",
-    "Create the five Dynamic Custom Event API billing meters.",
+    "Configure each Dynamic Custom Event API billing meter using validated current provider costs and the canonical landed-cost markup policy.",
     "Register https://cloudsales.app/oauth/callback on the new Sub-Account app.",
     "Select the broad operational Sub-Account scopes required by Cloudy and AgentCloud.",
     "Align the backend provider credential redirect URI and implement/verify the callback route with state validation.",
