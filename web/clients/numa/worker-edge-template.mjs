@@ -1,5 +1,5 @@
 const HTML=__HTML_JSON__;
-const GATE_KEY="72d0c381-dcc6-4054-8394-fc10d305fcde";
+const GATE_KEY="bdcf2a97-f5d2-4ec2-863c-13954dd6bb71";
 const ORIGIN="https://numa.cloudsales.app/";
 const INTAKE="https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/lead-intake";
 const SITEKEY="__TURNSTILE_SITEKEY__";
@@ -14,7 +14,7 @@ export default{async fetch(req,env){
  const u=new URL(req.url),path=u.pathname.replace(/\/+$/,'')||'/';
  if(req.method==='GET'&&path==='/health')return json({ok:true,service:'numa-hotel-gateway',version:'edge-1',challenge:'pow-hmac+turnstile',turnstile:'cloudflare-managed',seo:'indexable'});
  if(req.method==='GET'&&path==='/robots.txt')return new Response('User-agent: *\nAllow: /\nSitemap: https://numa.cloudsales.app/sitemap.xml\n',{headers:{'content-type':'text/plain;charset=utf-8','cache-control':'public,max-age=3600','x-content-type-options':'nosniff'}});
- if(req.method==='GET'&&path==='/sitemap.xml')return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://numa.cloudsales.app/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url></urlset>',{headers:{'content-type':'application/xml;charset=utf-8','cache-control':'public,max-age=3600','x-content-type-options':'nosniff'}});
+ if(req.method==='GET'&&path==='/sitemap.xml')return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/sitemap/0.9"><url><loc>https://numa.cloudsales.app/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url></urlset>',{headers:{'content-type':'application/xml;charset=utf-8','cache-control':'public,max-age=3600','x-content-type-options':'nosniff'}});
  if(req.method==='GET'&&path==='/challenge'){
   const id=clean(u.searchParams.get('id'),180);if(!id)return json({error:'id_required'},400);
   const nonce=crypto.randomUUID(),ts=Date.now(),sig=await hmac(env.CHALLENGE_SECRET,`${id}.${nonce}.${ts}`);return json({nonce,ts,sig,prefix:'000'});
