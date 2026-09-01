@@ -1,0 +1,22 @@
+name: Check CloudSales Sales Analytics
+
+on:
+  push:
+    paths:
+      - "web/sales-analytics-runtime-v1.js"
+      - ".github/workflows/check-sales-analytics.yml"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check
+        run: node --check web/sales-analytics-runtime-v1.js
+      - name: Required analytics guards
+        run: |
+          grep -q "Lead Intelligence" web/sales-analytics-runtime-v1.js
+          grep -q "Pipeline Intelligence" web/sales-analytics-runtime-v1.js
+          grep -q "Marketing Intelligence" web/sales-analytics-runtime-v1.js
+          grep -q "Cost / qualified" web/sales-analytics-runtime-v1.js
