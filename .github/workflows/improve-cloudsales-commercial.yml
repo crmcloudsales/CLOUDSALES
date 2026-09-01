@@ -1,0 +1,55 @@
+name: Improve CloudSales Commercial Site
+
+on:
+  push:
+    paths:
+      - "scripts/improve_cloudsales_commercial.py"
+      - ".github/workflows/improve-cloudsales-commercial.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-commercial:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply UX patch
+        run: python scripts/improve_cloudsales_commercial.py
+
+      - name: Validate commercial source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('web/commercial.html').read_text()
+          checks={
+            'basic47':'$47 <small>USD / mes</small>' in s,
+            'pro97':'$97 <small>USD / mes</small>' in s,
+            'premium147':'$147 <small>USD / mes</small>' in s,
+            'outcomes':'More Qualified Leads' in s and 'More Appointments' in s and 'More Sales' in s,
+            'chart':'class="mockchart"' in s,
+            'premium2':'2 usuarios incluidos' in s,
+          }
+          print(checks)
+          assert all(checks.values()), checks
+          PY
+
+      - name: Commit commercial update
+        run: |
+          if git diff --quiet -- web/commercial.html; then
+            echo "Commercial site already up to date"
+            exit 0
+          fi
+          git config user.name "cloudsales-build-bot"
+          git config user.email "cloudsales-build-bot@users.noreply.github.com"
+          git add web/commercial.html
+          git commit -m "feat(site): sharpen CloudSales outcomes and commercial preview"
+          git push
