@@ -1,0 +1,55 @@
+name: Domains Terms AI Usage v1
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/domains-terms-ai-usage-v1.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - name: Update terms and domains legal copy
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import re
+
+          terms=Path('web/terms.html')
+          s=terms.read_text()
+          clause='''\n<h2>9A. AI website creation, included generation, and fair use</h2><p>CloudSales may include an AI-assisted website creation benefit with an eligible domain purchase, promotion, subscription, or other offer. When described as free or included, this means that CloudSales does not charge a separate website-development fee for the included generation opportunity; it does not mean unlimited AI computation, unlimited redesigns, unlimited regenerations, or unlimited third-party usage. AI website creation consumes metered resources such as model tokens, inference, storage, processing, bandwidth, and related provider services that may create a real cost each time the service is used.</p><p>The included website-creation benefit is therefore subject to reasonable-use limits, technical limits, anti-abuse controls, and any restrictions disclosed at purchase or in the applicable offer. CloudSales may limit the number of included generations, revisions, regeneration attempts, uploaded materials, processing time, or other resource-intensive actions. Additional AI-assisted edits, redesigns, regenerations, or continued use after the included benefit has been consumed may require an additional payment, usage charge, or separate service purchase. Applicable pricing will be shown before a new paid charge is created.</p><p>The purpose of the included AI website benefit is to help customers substantially reduce the cost and time normally associated with obtaining a professionally created website through an agency or developer. In return, customers agree not to abuse, automate excessive requests against, deliberately exhaust, resell, or otherwise exploit the included generation benefit in a way that creates unreasonable infrastructure or AI-provider costs for CloudSales or other customers.</p><p>Materials uploaded specifically for AI website creation may be held temporarily while the website is generated, reviewed, delivered, or approved. CloudSales may delete those temporary source materials after approval, completion, expiration of the creation session, or another reasonable retention period. Assets that must remain available for the published website to function, such as final images, logos, or generated site files, may be retained as part of the live website unless the customer removes the website or applicable law requires otherwise.</p>\n'''
+          if '<h2>9A. AI website creation, included generation, and fair use</h2>' not in s:
+              marker='<h2>10. Cancellation and refunds</h2>'
+              s=s.replace(marker,clause+marker)
+          s=s.replace('Effective date: August 29, 2026 · Global digital service','Effective date: September 1, 2026 · Global digital service')
+          terms.write_text(s)
+
+          dom=Path('web/commercial/domains-v2.html')
+          d=dom.read_text()
+          d=d.replace('Esta creación gratuita se usa una sola vez y requiere tu aprobación final.','La creación de tu sitio web con IA está incluida con tu compra de dominio. Revisa el resultado antes de aprobarlo.')
+          d=d.replace('Los archivos originales son temporales y se eliminan después de aprobar el diseño.','Los archivos originales se usan temporalmente para preparar tu sitio.')
+          d=re.sub(r'<div class="registrarwait"><b>Una sola creación gratuita\.</b>.*?</div>','<div class="registrarwait"><b>Revisa antes de publicar.</b> Cuando tu diseño esté listo podrás revisarlo y aprobarlo para publicación.</div>',d,count=1)
+          d=d.replace('La creación gratuita terminó y los materiales originales temporales fueron eliminados.','Tu sitio fue aprobado y publicado correctamente.')
+          d=d.replace('La creación gratuita ya fue utilizada. Si quieres nuevos cambios, se cotizan con markup 3× sobre el costo real.','Tu sitio ya fue aprobado y publicado.')
+          d=d.replace('Si deseas volver a editarlo, los cambios adicionales se procesan como servicio de pago con markup 3× sobre el costo real de generación.','')
+          old='CloudSales · Business Management Platform. Los precios de dominios y renovaciones dependen de la tarifa vigente del registry y se muestran antes de cobrar. El sitio web promocional no incluye cambios ilimitados ni servicios de terceros de pago.'
+          new='CloudSales · Business Management Platform. Los precios de dominios y renovaciones dependen de la tarifa vigente del registry y se muestran antes de cobrar. *Aplican restricciones en la creación de sitios web con IA debido al consumo de tokens y otros recursos de IA. El sitio web incluido te permite ahorrar significativamente frente al costo tradicional de una agencia o desarrollador; te pedimos hacer un uso razonable de la herramienta. Consulta <a href="/terms" style="color:#aaa8b5;text-decoration:underline">Términos y Condiciones</a>.'
+          d=d.replace(old,new)
+          dom.write_text(d)
+          PY
+      - name: Verify
+        run: |
+          grep -q 'AI website creation, included generation, and fair use' web/terms.html
+          grep -q 'Aplican restricciones en la creación de sitios web con IA' web/commercial/domains-v2.html
+          ! grep -q 'markup 3× sobre el costo real' web/commercial/domains-v2.html
+      - name: Commit
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'CloudSales Automation'
+          git config user.email 'info@cloudsales.app'
+          git add web/terms.html web/commercial/domains-v2.html
+          git commit -m 'feat(domains): put AI generation restrictions in terms'
+          git push origin HEAD:main
