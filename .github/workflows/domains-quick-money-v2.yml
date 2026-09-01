@@ -19,6 +19,15 @@ jobs:
           import re
           p=Path('web/commercial/domains-v2.html')
           s=p.read_text()
+
+          # Normalize previous runs so this workflow is idempotent.
+          approve_html='<button id="approveSite" class="btn" type="button" style="display:none;width:100%;margin-top:10px;background:linear-gradient(90deg,#63e6a6,#4d94ff);color:#07110b">APROBAR Y PUBLICAR</button><div id="approvedMsg" class="registrarwait" style="display:none"></div>'
+          s=re.sub(r'(?:'+re.escape(approve_html)+r'){2,}', approve_html, s)
+          s=s.replace("$('price').textContent=fmt(quote.exit_offer.registration,quote.currency)+' · 50% OFF';$('price').textContent=fmt(quote.exit_offer.registration,quote.currency)+' · 50% OFF';", "$('price').textContent=fmt(quote.exit_offer.registration,quote.currency)+' · 50% OFF';")
+          handler=""";$('approveSite').onclick=async()=>{const sid=window.__domainSession;if(!sid)return;const btn=$('approveSite');btn.disabled=true;btn.textContent='PUBLICANDO…';const {r,j}=await api('/api/domain-site-approve',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:sid})});if(r.ok){$('sendIntake').style.display='none';btn.style.display='none';const a=$('approvedMsg');a.style.display='block';a.innerHTML='<b>🎉 ¡Felicidades! Tu sitio quedó aprobado.</b><br>La creación gratuita terminó y los materiales originales temporales fueron eliminados. '+(j.generated_url?'<a href=\"'+j.generated_url+'\" target=\"_blank\" rel=\"noopener\" style=\"color:#fff;font-weight:950\">ABRIR SITIO →</a><br>':'')+'Si deseas volver a editarlo, los cambios adicionales se procesan como servicio de pago con markup 3× sobre el costo real de generación.'}else{msg($('intakeMsg'),'No pudimos aprobar/publicar todavía. '+(j.error||''),true);btn.disabled=false;btn.textContent='APROBAR Y PUBLICAR'}}"""
+          if ";$('approveSite').onclick=async()=>" in s:
+              s=re.sub(r";\$\('approveSite'\)\.onclick=async\(\)=>\{.*?;const supportStarted=Date\.now\(\);", handler+";const supportStarted=Date.now();", s, count=1)
+
           s=s.replace('.sitebrief,.videobox{', '.sitebrief{')
           s=re.sub(r'\.videoinputs\{[^}]*\}', '', s)
           s=s.replace('@media(max-width:760px){.videoinputs{grid-template-columns:1fr}.briefhead{', '@media(max-width:760px){.briefhead{')
@@ -26,9 +35,9 @@ jobs:
           s=s.replace('Fotos, logos, videos, PDF, Word, Excel, PowerPoint o archivos de texto. Hasta 20 archivos · máximo 50 MB por archivo.', 'Fotos, logos, PDF, Word, Excel, PowerPoint o archivos de texto. No se aceptan videos. Los archivos originales son temporales y se eliminan después de aprobar el diseño.')
           s=s.replace('accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,application/pdf,text/plain,.doc,.docx,.xls,.xlsx,.ppt,.pptx"', 'accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,text/plain,.doc,.docx,.xls,.xlsx,.ppt,.pptx"')
           s=re.sub(r'<div class="videobox">.*?</div></div><button id="sendIntake"', '<button id="sendIntake"', s, count=1)
-          s=s.replace('<div id="intakeMsg" class="msg"></div>', '<div id="intakeMsg" class="msg"></div><button id="approveSite" class="btn" type="button" style="display:none;width:100%;margin-top:10px;background:linear-gradient(90deg,#63e6a6,#4d94ff);color:#07110b">APROBAR Y PUBLICAR</button><div id="approvedMsg" class="registrarwait" style="display:none"></div>', 1)
+          if 'id="approveSite"' not in s:
+              s=s.replace('<div id="intakeMsg" class="msg"></div>', '<div id="intakeMsg" class="msg"></div>'+approve_html, 1)
           s=s.replace('<b>¿Qué sucede después?</b> CloudSales guarda tu brief y materiales, genera el sitio con IA, lo optimiza para móvil y lo publica en el dominio que acabas de comprar.', '<b>Una sola creación gratuita.</b> CloudSales genera un diseño para revisión. Cuando pulses APROBAR Y PUBLICAR, se eliminan los materiales originales temporales y se cierra este constructor. Cambios posteriores pueden tener costo adicional.')
-          s=s.replace("$('price').textContent=fmt(j.normal.registration,j.currency);", "$('price').textContent=fmt(j.normal.registration,j.currency);")
           s=s.replace("$('offerNormal').textContent='Precio normal '+fmt(quote.normal.registration,quote.currency)+' → Oferta '+fmt(quote.exit_offer.registration,quote.currency);", "$('offerNormal').textContent='Precio normal '+fmt(quote.normal.registration,quote.currency)+' → Oferta '+fmt(quote.exit_offer.registration,quote.currency);$('price').textContent=fmt(quote.exit_offer.registration,quote.currency)+' · 50% OFF';")
           s=s.replace("body:JSON.stringify({visitor_id:visitor(),offer_type:'domain_50_off',path:'/domains',referrer:document.referrer})", "body:JSON.stringify({visitor_id:visitor(),domain_name:domain,offer_type:'domain_50_off',path:'/domains',referrer:document.referrer})")
           s=s.replace("purchase.classList.add('show')}search.disabled=false;search.textContent='BUSCAR'", "purchase.classList.add('show');claimDomainOffer()}search.disabled=false;search.textContent='BUSCAR'")
@@ -36,12 +45,13 @@ jobs:
           old="if(r.ok){const m=$('intakeMsg');m.className='msg show';m.innerHTML=j.generated_url?('¡Tu sitio fue creado! <a href=\"'+j.generated_url+'\" target=\"_blank\" rel=\"noopener\" style=\"color:#fff;font-weight:950;text-decoration:underline\">ABRIR MI SITIO WEB →</a>'+(j.published?'':'<br><span style=\"opacity:.8\">El dominio todavía se está terminando de conectar; esta es la vista previa segura.</span>')):'¡Listo! Tu solicitud quedó guardada y el sitio se está preparando.'}"
           new="if(r.ok){const m=$('intakeMsg');m.className='msg show';m.innerHTML=j.generated_url?('Tu diseño está listo para revisar: <a href=\"'+j.generated_url+'\" target=\"_blank\" rel=\"noopener\" style=\"color:#fff;font-weight:950;text-decoration:underline\">VER DISEÑO →</a><br><span style=\"opacity:.8\">Revísalo y después pulsa APROBAR Y PUBLICAR.</span>'):'Tu diseño se está preparando.';$('approveSite').style.display='block'}"
           s=s.replace(old,new)
-          insert=""";$('approveSite').onclick=async()=>{const sid=window.__domainSession;if(!sid)return;const btn=$('approveSite');btn.disabled=true;btn.textContent='PUBLICANDO…';const {r,j}=await api('/api/domain-site-approve',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({session_id:sid})});if(r.ok){$('sendIntake').style.display='none';btn.style.display='none';const a=$('approvedMsg');a.style.display='block';a.innerHTML='<b>🎉 ¡Felicidades! Tu sitio quedó aprobado.</b><br>La creación gratuita terminó y los materiales originales temporales fueron eliminados. '+(j.generated_url?'<a href=\"'+j.generated_url+'\" target=\"_blank\" rel=\"noopener\" style=\"color:#fff;font-weight:950\">ABRIR SITIO →</a><br>':'')+'Si deseas volver a editarlo, los cambios adicionales se procesan como servicio de pago con markup 3× sobre el costo real de generación.'}else{msg($('intakeMsg'),'No pudimos aprobar/publicar todavía. '+(j.error||''),true);btn.disabled=false;btn.textContent='APROBAR Y PUBLICAR'}}"""
-          s=s.replace(";const supportStarted=Date.now();", insert+";const supportStarted=Date.now();")
+          if ";$('approveSite').onclick=async()=>" not in s:
+              s=s.replace(";const supportStarted=Date.now();", handler+";const supportStarted=Date.now();")
           s=s.replace("if(r.ok&&j.paid){after.classList.add('show');$('buy').scrollIntoView({behavior:'smooth'});window.__domainSession=sid;return}", "if(r.ok&&j.paid){after.classList.add('show');$('buy').scrollIntoView({behavior:'smooth'});window.__domainSession=sid;if(j.builder_locked){$('sendIntake').style.display='none';$('approveSite').style.display='none';const a=$('approvedMsg');a.style.display='block';a.innerHTML='<b>🎉 Tu sitio ya fue aprobado y publicado.</b><br>La creación gratuita ya fue utilizada. Si quieres nuevos cambios, se cotizan con markup 3× sobre el costo real.'}else if(j.can_approve_site&&j.site_request?.generated_url){$('sendIntake').style.display='none';$('approveSite').style.display='block';const m=$('intakeMsg');m.className='msg show';m.innerHTML='Tu diseño está listo: <a href=\"'+j.site_request.generated_url+'\" target=\"_blank\" style=\"color:#fff;font-weight:950\">VER DISEÑO →</a>'}return}")
+
           assert 'video/mp4' not in s
-          assert 'id="approveSite"' in s
-          assert 'APROBAR Y PUBLICAR' in s
+          assert s.count('id="approveSite"') == 1
+          assert s.count("$('approveSite').onclick") == 1
           assert 'domain_name:domain' in s
           assert 'claimDomainOffer()' in s
           p.write_text(s)
@@ -52,5 +62,5 @@ jobs:
           git config user.name 'CloudSales Automation'
           git config user.email 'info@cloudsales.app'
           git add web/commercial/domains-v2.html
-          git commit -m 'feat(domains): one-time site approval and immediate 15m offer'
+          git commit -m 'fix(domains): keep quick money flow idempotent'
           git push origin HEAD:main
