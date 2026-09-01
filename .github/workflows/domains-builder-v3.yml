@@ -1,0 +1,46 @@
+name: Domains AI Site Builder v3
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/domains-builder-v3.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - name: Upgrade domains website builder intake
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('web/commercial/domains-v2.html')
+          s=p.read_text()
+          old='''<div id="afterpay" class="afterpay"><div class="successpill">PAGO RECIBIDO</div><h2>Ahora dinos cómo quieres tu sitio.</h2><p class="note">No necesitas abrir otra página. Sube tus materiales y escribe cómo quieres que se vea. Tu información queda ligada a la compra del dominio.</p><div class="upload"><b>SUBE AQUÍ TUS ARCHIVOS</b><p class="note">Logo, fotos, PDF, presentación o texto. Máximo 8 archivos.</p><input id="files" type="file" multiple accept="image/jpeg,image/png,image/webp,application/pdf,text/plain,.docx,.pptx"></div><textarea id="instructions" class="textarea" style="margin-top:10px" placeholder="Escribe aquí cómo quieres que sea tu sitio web: colores, estilo, servicios, productos, secciones, información de contacto, etc."></textarea><button id="sendIntake" class="btn" style="width:100%;margin-top:10px">ENVIAR PARA CREAR MI SITIO</button><div id="intakeMsg" class="msg"></div><div class="registrarwait">Correo profesional: podrás usar direcciones como hola@tunegocio.com sin contratar STARTER, PRO o PREMIUM. Recibe en tu Gmail/Outlook actual y administra el envío manual desde CloudSales Domains. Google Workspace o Microsoft 365 serán opciones adicionales de pago si quieres un buzón completo en esas plataformas.</div></div>'''
+          new='''<div id="afterpay" class="afterpay"><div class="successpill">PAGO RECIBIDO · DOMINIO VERIFICADO</div><h2>Describe tu sitio. CloudSales lo crea.</h2><p class="note" style="font-size:14px">Escribe o usa el micrófono para describir cómo quieres tu sitio web. Después sube tu material y, si quieres, agrega hasta 3 enlaces de video.</p><div class="sitebrief"><div class="briefhead"><b>1. ESCRIBE O DESCRIBE POR MICRÓFONO</b><button id="voiceSite" class="micbtn" type="button" aria-label="Describir sitio por micrófono">🎙️ <span>MICRÓFONO</span></button></div><textarea id="instructions" class="textarea" placeholder="Ejemplo: Quiero un sitio elegante y moderno, fondo oscuro, una sección para mis servicios, galería de proyectos, WhatsApp, formulario de contacto y estos colores de mi marca..."></textarea><div id="voiceStatus" class="note">Puedes hablar normalmente. CloudSales convertirá tu voz a texto para que puedas revisarlo antes de crear el sitio.</div></div><div class="upload"><b>2. SUBE TU MATERIAL</b><p class="note">Fotos, logos, videos, PDF, Word, Excel, PowerPoint o archivos de texto. Hasta 20 archivos · máximo 50 MB por archivo.</p><input id="files" type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,application/pdf,text/plain,.doc,.docx,.xls,.xlsx,.ppt,.pptx"></div><div class="videobox"><b>3. ENLACES DE VIDEO <span class="optional">OPCIONAL</span></b><p class="note">Pega hasta 3 enlaces. Uno está bien; tres son suficientes. No recomendamos agregar más de 3.</p><div class="videoinputs"><input id="video1" class="input" type="url" placeholder="Video 1 · https://..."><input id="video2" class="input" type="url" placeholder="Video 2 · https://..."><input id="video3" class="input" type="url" placeholder="Video 3 · https://..."></div></div><button id="sendIntake" class="btn create-site" type="button">CREAR MI SITIO WEB</button><div id="intakeMsg" class="msg"></div><div class="registrarwait"><b>¿Qué sucede después?</b> CloudSales guarda tu brief y materiales, genera el sitio con IA, lo optimiza para móvil y lo publica en el dominio que acabas de comprar.</div><div class="registrarwait">Correo profesional: podrás usar direcciones como hola@tunegocio.com sin contratar STARTER, PRO o PREMIUM. Recibe en tu Gmail/Outlook actual y administra el envío manual desde CloudSales Domains. Google Workspace o Microsoft 365 serán opciones adicionales de pago si quieres un buzón completo en esas plataformas.</div></div>'''
+          if old not in s:
+              raise SystemExit('afterpay block not found')
+          s=s.replace(old,new,1)
+          css='''<style id="cs-domain-builder-v3-css">.sitebrief,.videobox{margin-top:12px;border:1px solid #343442;border-radius:18px;padding:17px;background:#0a0a10}.briefhead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px;font-size:12px}.micbtn{border:1px solid #5a3b68;background:#1a101e;color:#fff;border-radius:999px;padding:10px 14px;font-weight:950;cursor:pointer}.micbtn.listening{background:#4d1538;border-color:#ff2b9b;box-shadow:0 0 0 4px #ff2b9b22}.optional{font-size:9px;color:#9895a3;margin-left:5px}.videoinputs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.create-site{width:100%;margin-top:14px;min-height:58px;font-size:16px;box-shadow:0 12px 34px #8c5cff25}@media(max-width:760px){.videoinputs{grid-template-columns:1fr}.briefhead{align-items:flex-start;flex-direction:column}.micbtn{width:100%}}</style>'''
+          if 'cs-domain-builder-v3-css' not in s:
+              s=s.replace('</head>',css+'</head>',1)
+          s=s.replace("fd.append('instructions',text);for(const f of $('files').files)fd.append('files',f);", "fd.append('instructions',text);fd.append('video_url_1',$('video1')?.value.trim()||'');fd.append('video_url_2',$('video2')?.value.trim()||'');fd.append('video_url_3',$('video3')?.value.trim()||'');for(const f of $('files').files)fd.append('files',f);",1)
+          s=s.replace("btn.textContent='SUBIENDO…';", "btn.textContent='CREANDO TU SITIO…';",1)
+          s=s.replace("btn.textContent='ENVIAR PARA CREAR MI SITIO'", "btn.textContent='CREAR MI SITIO WEB'",1)
+          voice=r'''<script id="cs-domain-builder-v3">(()=>{'use strict';const b=document.getElementById('voiceSite'),t=document.getElementById('instructions'),st=document.getElementById('voiceStatus');if(!b||!t)return;const SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){b.disabled=true;b.title='El reconocimiento de voz no está disponible en este navegador';st.textContent='Tu navegador no permite dictado directo aquí. Puedes usar el micrófono del teclado o escribir tu descripción.';return}let r=null,active=false;b.addEventListener('click',()=>{if(active&&r){r.stop();return}r=new SR();r.lang=(navigator.language||'es-MX');r.continuous=true;r.interimResults=true;let base=t.value.trim();r.onstart=()=>{active=true;b.classList.add('listening');b.querySelector('span').textContent='ESCUCHANDO…';st.textContent='Habla ahora. Verás tu descripción aparecer como texto.'};r.onresult=e=>{let final='',interim='';for(let i=e.resultIndex;i<e.results.length;i++){const x=e.results[i][0].transcript;if(e.results[i].isFinal)final+=x+' ';else interim+=x}if(final){base=(base?base+' ':'')+final.trim();t.value=base}st.textContent=interim?('Escuchando: '+interim):'Sigue hablando o toca el micrófono para terminar.'};r.onerror=e=>{st.textContent=e.error==='not-allowed'?'Necesitamos permiso del micrófono. Autorízalo en el navegador para dictar tu sitio.':'No pudimos escuchar con claridad. Intenta de nuevo o escribe tu descripción.'};r.onend=()=>{active=false;b.classList.remove('listening');b.querySelector('span').textContent='MICRÓFONO';if(t.value.trim())st.textContent='Descripción guardada en texto. Puedes editarla antes de crear el sitio.'};r.start()})})();</script>'''
+          if 'id="cs-domain-builder-v3"' not in s:
+              s=s.replace('</body>',voice+'</body>',1)
+          s=s.replace('src="/cloudsales-logo-official-v2.png"','src="https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/assets/cloudsales-logo-official-v2.png"')
+          assert 'CREAR MI SITIO WEB' in s and 'video_url_3' in s and 'voiceSite' in s and '50 MB' in s
+          p.write_text(s)
+          PY
+      - name: Commit storefront upgrade
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'CloudSales Automation'
+          git config user.email 'info@cloudsales.app'
+          git add web/commercial/domains-v2.html
+          git commit -m 'feat(domains): voice brief, materials and video links'
+          git push origin HEAD:main
