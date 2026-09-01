@@ -1,8 +1,9 @@
 (() => {
   'use strict';
 
-  const VERSION = '2026.08.31.1';
+  const VERSION = '2026.09.01.5';
   const CLAIM_KEY = 'cs_pending_claim';
+  const CHECKOUT_KEY = 'cs_pending_checkout';
   let resendTimer = null;
   let recoveryMode = false;
 
@@ -24,9 +25,87 @@
       invalid_claim_token:'El enlace de acceso no es válido.', claim_invalid_or_expired:'Este acceso ya fue utilizado o expiró.', claim_not_email_bound:'Este enlace no cumple la política de acceso seguro.',
       claim_email_mismatch:'Este enlace fue asignado a otro correo.', claim_signup_unavailable:'No pudimos activar esta cuenta con el enlace privado.',
       claim_signup_signin_required:'La cuenta fue creada. Entra con el mismo correo y contraseña.', account_exists_use_signin:'Esta cuenta ya existe. Entra con tu correo y contraseña.',
-      organization_owner_already_assigned:'Este enlace de propietario ya no es válido.', organization_unavailable:'El workspace no está disponible.'
+      organization_owner_already_assigned:'Este enlace de propietario ya no es válido.', organization_unavailable:'El workspace no está disponible.', checkout_email_mismatch:'El pago fue realizado con otro correo.'
     };
     return map[code] || 'No se pudo completar la operación. Intenta nuevamente.';
+  }
+
+  function captureCheckout() {
+    const u = new URL(location.href), sid = u.searchParams.get('session_id') || '';
+    if (u.searchParams.get('checkout') === 'return' && /^cs_(?:test|live)_/.test(sid)) localStorage.setItem(CHECKOUT_KEY, sid);
+    return (/^cs_(?:test|live)_/.test(sid) ? sid : '') || localStorage.getItem(CHECKOUT_KEY) || '';
+  }
+  function clearCheckout() {
+    localStorage.removeItem(CHECKOUT_KEY);
+    const u = new URL(location.href); u.searchParams.delete('checkout'); u.searchParams.delete('session_id');
+    history.replaceState(null, '', u.pathname + (u.search || '') + u.hash);
+  }
+  async function checkoutStatus(sid) {
+    const r = await fetch(`https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/checkout-status?session_id=${encodeURIComponent(sid)}`, {cache:'no-store'});
+    const d = await r.json().catch(()=>({}));
+    if (!r.ok && r.status !== 202) throw Error(d.error || 'checkout_status_failed');
+    return d;
+  }
+  function checkoutPlan(itemKey) {
+    return ({plan_basic:'basic',plan_pro:'pro',plan_premium:'premium'})[String(itemKey||'')] || '';
+  }
+  async function prepareCheckoutUi() {
+    const sid = captureCheckout(); if (!sid) return null;
+    try {
+      const st = await checkoutStatus(sid), plan = checkoutPlan(st.item_key);
+      if (plan && typeof selectedPlan !== 'undefined') {
+        selectedPlan = plan;
+        document.querySelectorAll('.planpick').forEach(x=>{
+          const on=x.dataset.plan===plan; x.classList.toggle('active',on); x.disabled=true; x.style.opacity=on?'1':'.45';
+        });
+        const box=node('onboard')?.querySelector('.onbox');
+        if (box && !node('checkoutPaidNotice')) {
+          const n=document.createElement('div'); n.id='checkoutPaidNotice'; n.className='notice'; n.style.margin='12px 0';
+          n.innerHTML=`<b>Plan ${plan.toUpperCase()} seleccionado por tu compra.</b><br>Completa los datos del negocio para activar CloudSales.`;
+          box.insertBefore(n,box.querySelector('.plans'));
+        }
+      }
+      return st;
+    } catch { return null; }
+  }
+  async function claimCheckoutIfReady(wait=false) {
+    const sid=captureCheckout();
+    if (!sid || typeof session==='undefined' || !session?.access_token || typeof currentOrg==='undefined' || !currentOrg?.id) return null;
+    let st=null, attempts=wait?6:1;
+    for (let i=0;i<attempts;i++) {
+      st=await checkoutStatus(sid).catch(()=>null);
+      if (st && ['complete','claimed'].includes(String(st.status))) break;
+      if (i<attempts-1) await new Promise(r=>setTimeout(r,1200));
+    }
+    if (!st || !['complete','claimed'].includes(String(st.status))) return null;
+    try {
+      const r=await direct('claim-checkout',{organization_id:currentOrg.id,session_id:sid},true);
+      clearCheckout();
+      if (typeof loadState==='function') await loadState();
+      message('Pago confirmado. CloudSales quedó activado con tu plan.',true);
+      return r;
+    } catch(err) {
+      const code=String(err?.message||'');
+      if (code==='checkout_email_mismatch') message('El pago fue realizado con otro correo. Entra con el mismo email utilizado en Stripe.');
+      else if (code!=='checkout_not_complete') message(friendly(err));
+      return null;
+    }
+  }
+  function bindCheckoutOnboarding() {
+    const btn=node('createBiz'); if(!btn || btn.dataset.checkoutWrapped==='1') return;
+    const original=btn.onclick; btn.dataset.checkoutWrapped='1';
+    btn.onclick=async function(...args){
+      const r=original?await original.apply(this,args):null;
+      try {
+        const c=await claimCheckoutIfReady(true);
+        if(c && typeof renderAll==='function') {
+          if(typeof loadState==='function') await loadState();
+          if(typeof showApp==='function') showApp();
+          renderAll();
+        }
+      } catch {}
+      return r;
+    };
   }
 
   function captureClaim() {
@@ -131,11 +210,11 @@
   async function resend(){const email=node('email')?.value?.trim();if(!email)return message('Escribe tu correo primero.');try{await direct('auth-session',{action:'resend_confirmation',email,authorize_email:true,email_purpose:'signup_confirmation_resend'},false);message('Correo de confirmación reenviado. Revisa Spam o Promociones.',true)}catch(err){message(friendly(err))}}
   function confirmationActions(text){message(text,true,' <div style="margin-top:10px"><button id="resendConfirmation" class="btn small" type="button">Autorizar y reenviar correo</button></div>');node('resendConfirmation')?.addEventListener('click',resend);startCooldown(40)}
   function existingAccount(text='Esta cuenta ya existe. Entra con tu correo y contraseña.'){message(text,true);if(typeof setMode==='function')setMode('signin')}
-  async function finishLogin(data){saveSession(data.session);const claimed=await claimPending();await boot();if(claimed?.organization?.name)message(`Acceso activado: ${claimed.organization.name}.`,true)}
+  async function finishLogin(data){saveSession(data.session);const claimed=await claimPending();await boot();await claimCheckoutIfReady(true);if(claimed?.organization?.name)message(`Acceso activado: ${claimed.organization.name}.`,true)}
 
   function bind(){
     const button=node('authBtn'); if(!button||typeof direct!=='function')return false;
-    captureClaim(); ensureNotice(); const forgot=ensureForgot(); if(forgot)forgot.onclick=forgotPassword;
+    captureClaim(); captureCheckout(); prepareCheckoutUi(); bindCheckoutOnboarding(); ensureNotice(); const forgot=ensureForgot(); if(forgot)forgot.onclick=forgotPassword;
     if(enterRecovery()){
       button.onclick=doReset; document.documentElement.dataset.authRuntime=VERSION; return true;
     }
@@ -156,6 +235,7 @@
     };
     [node('tabIn'),node('tabUp')].forEach(tab=>tab?.addEventListener('click',()=>{clearTimeout(resendTimer);resendTimer=null;const b=node('authBtn');if(b)b.disabled=false;message('');setTimeout(syncUi,0)}));
     if(captureClaim()&&typeof session!=='undefined'&&session?.access_token)setTimeout(async()=>{try{const r=await claimPending();if(r)await boot()}catch(err){message(friendly(err))}},0);
+    if(captureCheckout()&&typeof session!=='undefined'&&session?.access_token)setTimeout(async()=>{try{await prepareCheckoutUi();await claimCheckoutIfReady(true)}catch{}},0);
     document.documentElement.dataset.authRuntime=VERSION; return true;
   }
   let tries=0;function attempt(){tries++;if(bind()||tries>20)return;setTimeout(attempt,100)}attempt();

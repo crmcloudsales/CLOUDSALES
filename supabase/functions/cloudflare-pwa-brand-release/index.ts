@@ -6,7 +6,7 @@ const ACCOUNT="bd94cb0580e86e7f40b4271a03052426";
 const ZONE="44753df079f42f8995124c358b135597";
 const HOST="app.cloudsales.app";
 const SERVICE="cloudsales-pwa-v30";
-const VERSION="2026.09.01.4";
+const VERSION="2026.09.01.5";
 const COMMAND="cloudsales_pwa_meta_ads_oauth_v30";
 const U=Deno.env.get("SUPABASE_URL")!,K=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const db=createClient(U,K,{auth:{persistSession:false,autoRefreshToken:false}});
