@@ -1,12 +1,28 @@
 {
-  "updated_at": "2026-08-31",
+  "updated_at": "2026-09-01",
   "product": "CloudSales",
   "workstream": "HighLevel Marketplace",
-  "previous_marketplace_name": "Real Estate",
-  "new_marketplace_name": "CloudSales",
   "provider": "highlevel",
-  "client_id": "6734c126bc2c868734d66238-mtafs4vt",
-  "redirect_uri": "https://app.cloudsales.app/?oauth=highlevel",
+  "architecture": {
+    "agency_app": {
+      "marketplace_name": "CloudSales Agency",
+      "app_type": "Public",
+      "target_user": "Agency",
+      "listing_type": "White-label",
+      "purpose": "Agency-level control for CloudSales, including agency resources exposed by HighLevel such as snapshots and future Agency Pro capabilities.",
+      "status": "existing app renamed/configured in Developer Portal"
+    },
+    "location_app": {
+      "marketplace_name": "CloudSales",
+      "app_type": "Public",
+      "target_user": "Sub-Account",
+      "listing_type": "White-label",
+      "purpose": "Primary CloudSales integration used by Cloudy and AgentCloud to operate each customer Location/Sub-Account.",
+      "status": "being created/configured in Developer Portal"
+    },
+    "control_model": "CloudSales is the user-facing product. HighLevel remains a connected provider behind CloudSales. Cloudy and AgentCloud select the correct Agency or Location authorization according to the requested action."
+  },
+  "redirect_uri": "https://cloudsales.app/oauth/callback",
   "marketplace_webhook_url": "https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/highlevel-private-connect",
   "supabase_project_id": "fkahaqprzgcimgyathqx",
   "backend": {
@@ -19,71 +35,83 @@
     "install_webhook_supported": true,
     "update_webhook_supported": true,
     "uninstall_webhook_supported": true,
-    "automatic_workspace_claim_after_auth": true
+    "automatic_workspace_claim_after_auth": true,
+    "required_follow_up": "Align the deployed OAuth callback/credential redirect URI with https://cloudsales.app/oauth/callback and validate state before production Marketplace install testing."
   },
-  "pwa_production": {
-    "status": "deployed_and_verified",
-    "source_commit": "b402470ddb954dffec7c90cf2e75c3fba4a0be30",
-    "runtime_gate": "success",
-    "cloudflare_command_id": "4d41182f-472a-4012-95f2-f29548383f5e",
-    "cloudflare_command_status": "succeeded",
-    "cloudflare_service": "cloudsales-pwa-v30",
-    "release_version": "2026.08.30.1",
-    "smoke_tests": "all_passed"
+  "location_scope_strategy": {
+    "principle": "Request read and write access for operational modules Cloudy/AgentCloud are expected to manage; avoid unrelated destructive or agency-administrative permissions.",
+    "priority_modules": [
+      "contacts",
+      "opportunities",
+      "pipelines",
+      "conversations",
+      "messages",
+      "calendars",
+      "appointments",
+      "tasks",
+      "notes",
+      "tags",
+      "custom fields",
+      "custom objects",
+      "businesses",
+      "forms",
+      "surveys",
+      "workflows",
+      "payments where applicable",
+      "users",
+      "locations",
+      "phone system",
+      "Twilio-related resources exposed by HighLevel",
+      "ad publishing",
+      "documents/contracts",
+      "associations",
+      "social/media resources exposed by HighLevel"
+    ],
+    "note": "Exact scope identifiers must be selected from the Sub-Account scope list in the HighLevel Developer Portal; do not invent identifiers."
   },
-  "requested_scopes": [
-    "contacts.readonly",
-    "contacts.write",
-    "opportunities.readonly",
-    "opportunities.write",
-    "calendars.readonly",
-    "calendars/events.readonly",
-    "calendars/events.write",
-    "conversations.readonly",
-    "conversations.write",
-    "conversations/message.readonly",
-    "conversations/message.write",
-    "locations.readonly",
-    "users.readonly",
-    "workflows.readonly",
-    "oauth.write"
-  ],
-  "desired_distribution_if_existing_target_allows": {
-    "target_user": "Sub-account",
-    "who_can_install": "Both Agency and Sub-account",
-    "bulk_install": true,
-    "note": "Preserve immutable target user of the already-approved app. Confirm current Developer Portal setting before publishing."
-  },
-  "current_cloudsales_plans": {
-    "starter_usd_month": 47,
-    "pro_usd_month": 97,
-    "premium_usd_month": 147,
-    "premium_included_users": 2,
-    "premium_extra_seat_usd_month": 47
-  },
-  "listing_package": "docs/highlevel-marketplace/CLOUDSALES_MARKETPLACE_LISTING.md",
-  "repository_commits": {
-    "marketplace_backend_source": "14a2a5f5fc5d0d397bb9fd9e2ac24d9b218abc42",
-    "pwa_marketplace_oauth": "fa7409049d368abd6ee8b9d081fd1b0648805f94",
-    "polling_regression_fix": "b402470ddb954dffec7c90cf2e75c3fba4a0be30",
-    "listing_package": "20a31afed50dc6e41f7f4e1accfb36fa2ce7f439"
-  },
-  "known_external_blocker": {
-    "description": "The connected HighLevel tool can read CRM resources but does not expose Developer Marketplace app editing/version publishing. Developer Portal UI access is required to rename the approved app, create/configure the draft version and submit it.",
-    "connector_error_observed": "OAuth scope companies.readonly required for legacy CRM search; no Developer Marketplace write action is exposed.",
-    "developer_api_for_listing_edit_found": false
+  "agency_scope_strategy": {
+    "priority_modules": [
+      "ad publishing read/write where available",
+      "snapshots read/write",
+      "companies readonly",
+      "locations readonly",
+      "marketplace installer details readonly",
+      "users readonly",
+      "phone system/Twilio resources where available and justified"
+    ]
   },
   "billing": {
-    "status": "not_enabled_in_highlevel_marketplace",
-    "reason": "Do not mark Paid + External Billing until HighLevel billing authorization webhook is connected to CloudSales Stripe subscription lifecycle.",
-    "cloudsales_subscription_billing": "Stripe LIVE"
+    "plans": {
+      "basic": {"monthly_usd": 47, "annual_usd": 470, "included_users": 1, "usage_multiplier": 1.5},
+      "pro": {"monthly_usd": 97, "annual_usd": 970, "included_users": 1, "usage_multiplier": 1.25},
+      "premium": {"monthly_usd": 147, "annual_usd": 1470, "included_users": 2, "extra_seat_monthly_usd": 47, "usage_multiplier": 1.125}
+    },
+    "trial_days": 14,
+    "domain_multiplier": 2,
+    "billing_meters": [
+      {"name": "CloudSales AI Calls", "unit": "call", "module_type": "Custom Event (API)", "price_type": "Dynamic", "max_usage_per_day": 500},
+      {"name": "CloudSales Call Minutes", "unit": "minute", "module_type": "Custom Event (API)", "price_type": "Dynamic", "max_usage_per_day": 5000},
+      {"name": "CloudSales Conversations", "unit": "conversation", "module_type": "Custom Event (API)", "price_type": "Dynamic", "max_usage_per_day": 5000},
+      {"name": "CloudSales AI Works", "unit": "ai_work", "module_type": "Custom Event (API)", "price_type": "Dynamic", "max_usage_per_day": 1000},
+      {"name": "CloudSales Domains", "unit": "domain", "module_type": "Custom Event (API)", "price_type": "Dynamic", "max_usage_per_day": 20}
+    ],
+    "pricing_page_url": "https://cloudsales.app/pricing",
+    "dynamic_pricing_rule": "CloudSales backend sends actual price per event using provider cost multiplied by the customer's plan markup; domain usage is provider cost x2. Defaults in HighLevel are fallback values only."
+  },
+  "marketplace_urls": {
+    "getting_started": "https://cloudsales.app/getting-started.html",
+    "privacy": "https://cloudsales.app/privacy",
+    "terms": "https://cloudsales.app/terms",
+    "pricing": "https://cloudsales.app/pricing"
   },
   "next_actions": [
-    "Open the approved Real Estate app in HighLevel Developer Portal",
-    "Create or edit its next version and rename the public listing to CloudSales",
-    "Apply OAuth scopes, redirect URL and webhook URL from the listing package",
-    "Use official CloudSales app icon and listing assets",
-    "Test install on a real HighLevel test location",
-    "Submit the new CloudSales version for HighLevel review"
+    "Finish creation of the new Public + Sub-Account + White-label CloudSales app in HighLevel Developer Portal.",
+    "Create the five Dynamic Custom Event API billing meters.",
+    "Register https://cloudsales.app/oauth/callback on the new Sub-Account app.",
+    "Select the broad operational Sub-Account scopes required by Cloudy and AgentCloud.",
+    "Align the backend provider credential redirect URI and implement/verify the callback route with state validation.",
+    "Configure webhooks for installation lifecycle and operational events used by Cloudy.",
+    "Verify the Getting Started page renders inside the HighLevel iframe.",
+    "Run a real test installation on a HighLevel test Location and verify read/write operations before publishing either app."
   ]
 }
