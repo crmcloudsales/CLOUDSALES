@@ -95,6 +95,7 @@
     const btn=node('createBiz'); if(!btn || btn.dataset.checkoutWrapped==='1') return;
     const original=btn.onclick; btn.dataset.checkoutWrapped='1';
     btn.onclick=async function(...args){
+      try{await prepareCheckoutUi()}catch{}
       const r=original?await original.apply(this,args):null;
       try {
         const c=await claimCheckoutIfReady(true);
