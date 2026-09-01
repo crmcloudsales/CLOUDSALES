@@ -5,6 +5,7 @@ on:
       - '.github/workflows/cloudsales-trial14-run.yml'
 permissions:
   contents: write
+# trigger 2026-09-01 trial canonicalization
 jobs:
   run:
     runs-on: ubuntu-latest
