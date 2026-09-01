@@ -1,9 +1,10 @@
-name: Check CloudSales Sales Analytics
+name: Check CloudSales PWA UX
 
 on:
   push:
     paths:
       - "web/sales-analytics-runtime-v1.js"
+      - "web/native-shell-runtime-v1.js"
       - ".github/workflows/check-sales-analytics.yml"
   workflow_dispatch:
 
@@ -12,11 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Syntax check
-        run: node --check web/sales-analytics-runtime-v1.js
+      - name: Syntax checks
+        run: |
+          node --check web/sales-analytics-runtime-v1.js
+          node --check web/native-shell-runtime-v1.js
       - name: Required analytics guards
         run: |
           grep -q "Lead Intelligence" web/sales-analytics-runtime-v1.js
           grep -q "Pipeline Intelligence" web/sales-analytics-runtime-v1.js
           grep -q "Marketing Intelligence" web/sales-analytics-runtime-v1.js
           grep -q "Cost / qualified" web/sales-analytics-runtime-v1.js
+      - name: Native shell guards
+        run: |
+          grep -q "csCloudyNav" web/native-shell-runtime-v1.js
+          grep -q "csMoreSheet" web/native-shell-runtime-v1.js
+          grep -q "safe-area-inset-bottom" web/native-shell-runtime-v1.js
