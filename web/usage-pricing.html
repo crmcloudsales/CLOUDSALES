@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08080f">
+<meta name="description" content="CloudSales usage pricing: transparent dynamic billing based on actual landed provider cost, with plan-specific markups.">
+<link rel="canonical" href="https://cloudsales.app/usage-pricing">
+<title>CloudSales Usage Pricing</title>
+<style>
+:root{--bg:#07070b;--panel:#111119;--line:#292936;--text:#f8f7fb;--muted:#aaaabc;--pink:#ff2b9b;--violet:#8c5cff;--green:#5de6a2;--blue:#4d8dff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(900px 500px at 50% -200px,#351437 0,transparent 72%),var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.55}.wrap{width:min(980px,calc(100% - 30px));margin:auto}.top{padding:22px 0;border-bottom:1px solid #1d1d27}.brand{font-size:22px;font-weight:950;letter-spacing:-.04em;color:#fff;text-decoration:none}.brand b{color:var(--pink)}main{padding:58px 0 86px}h1{font-size:clamp(42px,8vw,72px);line-height:.96;letter-spacing:-.055em;margin:0 0 18px}.lead{font-size:19px;color:#b9b8c5;max-width:800px}.badge{display:inline-flex;padding:7px 11px;border:1px solid #493044;background:#1c111d;border-radius:999px;color:#ff9dcc;font-size:12px;font-weight:850;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:36px 0}.card{border:1px solid var(--line);border-radius:24px;background:linear-gradient(180deg,#13131d,#0e0e15);padding:24px}.card h2{margin:0 0 8px;font-size:25px}.mult{font-size:45px;font-weight:950;letter-spacing:-.05em}.mult small{font-size:13px;color:var(--muted);font-weight:600}.card p{color:var(--muted);margin:9px 0 0}.featured{border-color:#743866;box-shadow:0 20px 70px #ff2b9b14}.domain{border:1px solid #40374f;border-radius:22px;background:linear-gradient(135deg,#17121d,#101018);padding:22px;margin:16px 0 30px}.domain strong{font-size:27px}.section{border-top:1px solid #1d1d27;padding-top:34px;margin-top:34px}.section h2{font-size:30px;letter-spacing:-.035em}.section p,.section li{color:#c2c1cc}.formula{font-size:20px;font-weight:900;padding:18px;border-radius:17px;background:#111119;border:1px solid #2d2d3a;margin:18px 0}.note{padding:18px;border-radius:17px;background:#101720;border:1px solid #27384e;color:#c7d9ee}.meters{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.meter{border:1px solid #292936;border-radius:15px;padding:14px;background:#0e0e15}.meter b{display:block}.meter span{font-size:12px;color:#8f8fa1}.foot{border-top:1px solid #1d1d27;padding:28px 0 50px;color:#858596;font-size:13px}.links{display:flex;gap:15px;flex-wrap:wrap}.links a{color:#c7a3ff}@media(max-width:720px){.grid{grid-template-columns:1fr}.meters{grid-template-columns:1fr}main{padding-top:42px}.mult{font-size:40px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="/">Cloud<b>Sales</b></a></div></header>
+<main class="wrap">
+<div class="badge">Effective September 1, 2026</div>
+<h1>Usage pricing without the mystery.</h1>
+<p class="lead">CloudSales uses dynamic usage billing based on the actual landed cost of the provider resources used for your account. This keeps pricing competitive across countries, carriers, AI models and providers while protecting service reliability at high volume.</p>
+<div class="grid">
+  <article class="card"><h2>Basic</h2><div class="mult">×1.50 <small>landed cost</small></div><p>50% CloudSales markup on standard metered usage.</p></article>
+  <article class="card featured"><h2>Pro</h2><div class="mult">×1.35 <small>landed cost</small></div><p>35% CloudSales markup on standard metered usage.</p></article>
+  <article class="card"><h2>Premium</h2><div class="mult">×1.25 <small>landed cost</small></div><p>25% CloudSales markup on standard metered usage.</p></article>
+</div>
+<div class="domain"><strong>Domains: ×2.00 landed cost</strong><p>Domain registration and renewal use a standard 100% markup unless a different promotional or quoted price is clearly displayed before purchase.</p></div>
+<section class="section">
+<h2>How dynamic billing works</h2>
+<div class="formula">Customer usage price = actual landed provider cost × your plan multiplier</div>
+<p>“Landed provider cost” means the real event-specific cost CloudSales incurs to deliver the usage. Depending on the service, this can include provider charges, carrier or pass-through fees, AI inference, TTS/voice-engine costs, telephony legs, verification charges or other unavoidable provider costs tied to that event.</p>
+<p>Because these inputs can vary by country, carrier, AI model, channel and provider, two otherwise similar events may have different underlying costs. CloudSales therefore uses dynamic pricing rather than an artificial one-price-fits-all rate.</p>
+<div class="note"><strong>No guessed usage charges.</strong> When the underlying provider cost required for dynamic billing cannot be reliably determined, CloudSales may delay or reconcile the charge rather than invent a price. CloudSales does not intentionally bill known metered usage below its landed provider cost.</div>
+</section>
+<section class="section">
+<h2>Metered categories</h2>
+<div class="meters">
+  <div class="meter"><b>CloudSales AI Chat</b><span>AI responses from Cloudy and supported AI agents.</span></div>
+  <div class="meter"><b>CloudSales AI Voice</b><span>AI voice engine, model, TTS and applicable telephony usage.</span></div>
+  <div class="meter"><b>AgentCloud AI Work</b><span>Agent runs, tools and billable AI work.</span></div>
+  <div class="meter"><b>AI Content</b><span>Billable text, image and supported generation workloads.</span></div>
+  <div class="meter"><b>Communications</b><span>Billable messaging such as SMS, MMS and supported WhatsApp usage.</span></div>
+  <div class="meter"><b>Phone</b><span>Billable telephony minutes and event-specific phone charges.</span></div>
+  <div class="meter"><b>Email</b><span>Billable email delivery and related provider usage.</span></div>
+  <div class="meter"><b>Automations</b><span>Billable premium workflow or automation executions.</span></div>
+  <div class="meter"><b>Data & Verification</b><span>Billable validation, verification and enrichment work.</span></div>
+  <div class="meter"><b>Domains</b><span>Registration and renewal at the domain rule shown above.</span></div>
+</div>
+</section>
+<section class="section">
+<h2>Subscriptions are separate</h2>
+<p>CloudSales subscription fees pay for access to the platform and the features included in your plan. Metered provider usage is billed separately when applicable. Current subscription pricing is Basic US$47/month, Pro US$97/month and Premium US$147/month. Premium includes 2 users; additional Premium users are US$47/month each. Annual pricing and trial terms are displayed at checkout.</p>
+<p>CloudSales may route work among supported providers to improve cost, availability or quality. Future pricing changes apply prospectively and will be disclosed through the applicable pricing, checkout or account experience.</p>
+</section>
+</main>
+<footer class="foot"><div class="wrap"><div class="links"><a href="/">CloudSales</a><a href="/pricing">Plans</a><a href="/terms">Terms &amp; Conditions</a><a href="/privacy">Privacy Policy</a></div><p>CloudSales · CloudCo</p></div></footer>
+</body></html>
