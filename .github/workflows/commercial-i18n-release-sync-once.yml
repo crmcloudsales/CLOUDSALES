@@ -8,44 +8,33 @@ on:
 permissions:
   contents: write
 
-# trigger 2026-09-01
+# cleanup trigger 2026-09-01
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Integrate i18n into canonical commercial release
+      - name: Dedupe canonical i18n route
         run: |
           python - <<'PY'
           from pathlib import Path
           p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
           s=p.read_text()
-          s=s.replace('VERSION="2026.08.29.3"','VERSION="2026.09.01.4"')
-          old="if(isRoot){if(!/id=[\"']download[\"']/i.test(h))"
-          new="if(isRoot){if(!h.includes('/cloudsales-i18n-v1.js'))h=h.replace('</body>',`<script src=\"/cloudsales-i18n-v1.js?v=${VERSION}\"></script></body>`);if(!/id=[\"']download[\"']/i.test(h))"
-          if old in s: s=s.replace(old,new,1)
-          s=s.replace('function worker(P:Record<string,string>,CSP:Record<string,string>,icon:string,logo:string,widget:string,cl:string)', 'function worker(P:Record<string,string>,CSP:Record<string,string>,icon:string,logo:string,widget:string,i18n:string,cl:string)')
-          s=s.replace('WIDGET=${JSON.stringify(widget)},CL=${JSON.stringify(cl)},V=', 'WIDGET=${JSON.stringify(widget)},I18N=${JSON.stringify(i18n)},CL=${JSON.stringify(cl)},V=')
-          s=s.replace("if(p==='/webchat.js')return r(WIDGET,'application/javascript','public,max-age=300',{'access-control-allow-origin':'*'});", "if(p==='/webchat.js')return r(WIDGET,'application/javascript','public,max-age=300',{'access-control-allow-origin':'*'});if(p==='/cloudsales-i18n-v1.js')return r(I18N,'application/javascript','public,max-age=300');")
-          s=s.replace("widget=await txt(`${RAW}/webchat.js`),cl=await bytes('https://cloudsales.app/cloudco-assets/cloudco-logo-official.webp')", "widget=await txt(`${RAW}/webchat.js`),i18n=await txt(`${RAW}/cloudsales-i18n-v1.js`),cl=await bytes('https://cloudsales.app/cloudco-assets/cloudco-logo-official.webp')")
-          s=s.replace('worker(pages,csps,b64(icon),b64(logo),widget,b64(cl))', 'worker(pages,csps,b64(icon),b64(logo),widget,i18n,b64(cl))')
-          guards=['VERSION="2026.09.01.4"','/cloudsales-i18n-v1.js?v=${VERSION}','I18N=${JSON.stringify(i18n)}',"p==='/cloudsales-i18n-v1.js'",'i18n=await txt(`${RAW}/cloudsales-i18n-v1.js`)','widget,i18n,b64(cl)']
-          for g in guards:
-              if g not in s: raise SystemExit('missing guard '+g)
+          route="if(p==='/cloudsales-i18n-v1.js')return r(I18N,'application/javascript','public,max-age=300');"
+          while s.count(route)>1:
+              s=s.replace(route+route,route,1)
+          if s.count(route)!=1:
+              raise SystemExit(f'i18n route count {s.count(route)}')
+          for g in ['VERSION="2026.09.01.4"','/cloudsales-i18n-v1.js?v=${VERSION}','I18N=${JSON.stringify(i18n)}','i18n=await txt(`${RAW}/cloudsales-i18n-v1.js`)']:
+              if g not in s: raise SystemExit('missing '+g)
           p.write_text(s)
           PY
-      - name: Validate i18n runtime and release markers
-        run: |
           node --check web/cloudsales-i18n-v1.js
-          grep -q "'ar-AE'" web/cloudsales-i18n-v1.js
-          grep -q "'zh-CN'" web/cloudsales-i18n-v1.js
-          grep -q "cloudsales-i18n-v1.js" supabase/functions/cloudflare-site-brand-release/index.ts
-          grep -q 'VERSION="2026.09.01.4"' supabase/functions/cloudflare-site-brand-release/index.ts
-      - name: Commit integration
+      - name: Commit cleanup
         run: |
           if git diff --quiet; then exit 0; fi
           git config user.name "crmcloudsales"
           git config user.email "crmcloudsales@gmail.com"
           git add supabase/functions/cloudflare-site-brand-release/index.ts
-          git commit -m "feat(i18n): integrate multilingual runtime into commercial release"
+          git commit -m "fix(i18n): dedupe commercial runtime route"
           git push origin HEAD:main
