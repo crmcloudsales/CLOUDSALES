@@ -1,0 +1,81 @@
+{
+  "updated_at": "2026-08-31",
+  "product": "CloudSales",
+  "workstream": "HighLevel Marketplace",
+  "previous_marketplace_name": "Real Estate",
+  "new_marketplace_name": "CloudSales",
+  "provider": "highlevel",
+  "client_id": "6734c126bc2c868734d66238-mtafs4vt",
+  "redirect_uri": "https://app.cloudsales.app/?oauth=highlevel",
+  "marketplace_webhook_url": "https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/highlevel-private-connect",
+  "supabase_project_id": "fkahaqprzgcimgyathqx",
+  "backend": {
+    "lifecycle_table": "public.highlevel_marketplace_installations",
+    "oauth_lifecycle_function": "highlevel-private-connect",
+    "oauth_lifecycle_function_version": 4,
+    "crm_command_function": "highlevel-command",
+    "tokens_stored_in_vault": true,
+    "marketplace_first_oauth": true,
+    "install_webhook_supported": true,
+    "update_webhook_supported": true,
+    "uninstall_webhook_supported": true,
+    "automatic_workspace_claim_after_auth": true
+  },
+  "requested_scopes": [
+    "contacts.readonly",
+    "contacts.write",
+    "opportunities.readonly",
+    "opportunities.write",
+    "calendars.readonly",
+    "calendars/events.readonly",
+    "calendars/events.write",
+    "conversations.readonly",
+    "conversations.write",
+    "conversations/message.readonly",
+    "conversations/message.write",
+    "locations.readonly",
+    "users.readonly",
+    "workflows.readonly",
+    "oauth.write"
+  ],
+  "desired_distribution_if_existing_target_allows": {
+    "target_user": "Sub-account",
+    "who_can_install": "Both Agency and Sub-account",
+    "bulk_install": true,
+    "note": "Preserve immutable target user of the already-approved app. Confirm current Developer Portal setting before publishing."
+  },
+  "current_cloudsales_plans": {
+    "starter_usd_month": 47,
+    "pro_usd_month": 97,
+    "premium_usd_month": 147,
+    "premium_included_users": 2,
+    "premium_extra_seat_usd_month": 47
+  },
+  "listing_package": "docs/highlevel-marketplace/CLOUDSALES_MARKETPLACE_LISTING.md",
+  "repository_commits": {
+    "marketplace_backend_source": "14a2a5f5fc5d0d397bb9fd9e2ac24d9b218abc42",
+    "pwa_marketplace_oauth": "fa7409049d368abd6ee8b9d081fd1b0648805f94",
+    "polling_regression_fix": "b402470ddb954dffec7c90cf2e75c3fba4a0be30",
+    "listing_package": "20a31afed50dc6e41f7f4e1accfb36fa2ce7f439"
+  },
+  "known_external_blocker": {
+    "description": "The connected HighLevel tool can read CRM resources but does not expose Developer Marketplace app editing/version publishing. Developer Portal UI access is required to rename the approved app, create/configure the draft version and submit it.",
+    "connector_error_observed": "OAuth scope companies.readonly required for legacy CRM search; no Developer Marketplace write action is exposed.",
+    "developer_api_for_listing_edit_found": false
+  },
+  "billing": {
+    "status": "not_enabled_in_highlevel_marketplace",
+    "reason": "Do not mark Paid + External Billing until HighLevel billing authorization webhook is connected to CloudSales Stripe subscription lifecycle.",
+    "cloudsales_subscription_billing": "Stripe LIVE"
+  },
+  "next_actions": [
+    "Confirm Runtime Gate green after polling fix",
+    "Confirm how web/install.js is deployed to app.cloudsales.app and deploy the current commit",
+    "Create new draft version of the approved HighLevel app in Developer Portal",
+    "Rename public listing from Real Estate to CloudSales",
+    "Apply OAuth scopes, redirect URL and webhook URL from listing package",
+    "Use official CloudSales app icon and listing assets",
+    "Test install on a real HighLevel test location",
+    "Submit the new CloudSales version for HighLevel review"
+  ]
+}
