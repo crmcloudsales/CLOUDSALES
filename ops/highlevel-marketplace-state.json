@@ -21,6 +21,16 @@
     "uninstall_webhook_supported": true,
     "automatic_workspace_claim_after_auth": true
   },
+  "pwa_production": {
+    "status": "deployed_and_verified",
+    "source_commit": "b402470ddb954dffec7c90cf2e75c3fba4a0be30",
+    "runtime_gate": "success",
+    "cloudflare_command_id": "4d41182f-472a-4012-95f2-f29548383f5e",
+    "cloudflare_command_status": "succeeded",
+    "cloudflare_service": "cloudsales-pwa-v30",
+    "release_version": "2026.08.30.1",
+    "smoke_tests": "all_passed"
+  },
   "requested_scopes": [
     "contacts.readonly",
     "contacts.write",
@@ -69,11 +79,9 @@
     "cloudsales_subscription_billing": "Stripe LIVE"
   },
   "next_actions": [
-    "Confirm Runtime Gate green after polling fix",
-    "Confirm how web/install.js is deployed to app.cloudsales.app and deploy the current commit",
-    "Create new draft version of the approved HighLevel app in Developer Portal",
-    "Rename public listing from Real Estate to CloudSales",
-    "Apply OAuth scopes, redirect URL and webhook URL from listing package",
+    "Open the approved Real Estate app in HighLevel Developer Portal",
+    "Create or edit its next version and rename the public listing to CloudSales",
+    "Apply OAuth scopes, redirect URL and webhook URL from the listing package",
     "Use official CloudSales app icon and listing assets",
     "Test install on a real HighLevel test location",
     "Submit the new CloudSales version for HighLevel review"
