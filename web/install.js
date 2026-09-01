@@ -94,9 +94,40 @@
 
   function patchCanonicalPricing() {
     const apply = () => {
-      document.querySelectorAll('.planpick[data-plan="basic"]').forEach(el => { el.innerHTML = 'STARTER<br><b>$47</b>'; el.setAttribute('aria-label', 'STARTER 47 USD al mes'); });
-      document.querySelectorAll('.planpick[data-plan="pro"]').forEach(el => { el.innerHTML = 'PRO<br><b>$97</b>'; el.setAttribute('aria-label', 'PRO 97 USD al mes'); });
-      document.querySelectorAll('.planpick[data-plan="premium"]').forEach(el => { el.innerHTML = 'PREMIUM<br><b>$147</b><div style="font-size:9px;color:#9695a7;margin-top:4px">2 usuarios · asiento extra $47</div>'; el.setAttribute('aria-label', 'PREMIUM 147 USD al mes, 2 usuarios incluidos, asiento extra 47 USD'); });
+      document.querySelectorAll('.planpick[data-plan="basic"]').forEach(el => {
+        el.innerHTML = 'BASIC<br><b>$47</b><div style="font-size:9px;color:#9695a7;margin-top:4px">1 usuario · uso: costo +50%</div><span class="trialPlanNote">14 días gratis</span>';
+        el.setAttribute('aria-label', 'BASIC 47 USD al mes, 1 usuario, uso variable a costo real más 50 por ciento');
+      });
+      document.querySelectorAll('.planpick[data-plan="pro"]').forEach(el => {
+        el.innerHTML = 'PRO<br><b>$97</b><div style="font-size:9px;color:#9695a7;margin-top:4px">1 usuario · uso: costo +35%</div><span class="trialPlanNote">14 días gratis</span>';
+        el.setAttribute('aria-label', 'PRO 97 USD al mes, 1 usuario, uso variable a costo real más 35 por ciento');
+      });
+      document.querySelectorAll('.planpick[data-plan="premium"]').forEach(el => {
+        el.innerHTML = 'PREMIUM<br><b>$147</b><div style="font-size:9px;color:#9695a7;margin-top:4px">2 usuarios · extra $47 · uso: costo +25%</div><span class="trialPlanNote">14 días gratis</span>';
+        el.setAttribute('aria-label', 'PREMIUM 147 USD al mes, 2 usuarios incluidos, asiento extra 47 USD, uso variable a costo real más 25 por ciento');
+      });
+
+      const plans = document.querySelector('.plans');
+      if (plans && !document.getElementById('csUsagePricingNotice')) {
+        const notice = document.createElement('div');
+        notice.id = 'csUsagePricingNotice';
+        notice.className = 'trialOnboard';
+        notice.innerHTML = '<b>Uso variable transparente.</b> Basic: costo real ×1.50 · Pro: ×1.35 · Premium: ×1.25 · Dominios: ×2. <a href="https://cloudsales.app/usage-pricing" target="_blank" rel="noopener" style="color:#ff9dcc;text-decoration:underline">Ver Usage Pricing</a>';
+        plans.insertAdjacentElement('afterend', notice);
+      }
+
+      document.querySelectorAll('#page-settings .card').forEach(card => {
+        const h = card.querySelector('h3');
+        if (!h || h.textContent.trim() !== 'Legal & Privacy' || card.querySelector('[data-cs-usage-pricing]')) return;
+        const a = document.createElement('a');
+        a.className = 'btn small';
+        a.href = 'https://cloudsales.app/usage-pricing';
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.dataset.csUsagePricing = '1';
+        a.textContent = 'Usage Pricing';
+        card.append(' ', a);
+      });
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', apply, { once: true });
     else apply();
