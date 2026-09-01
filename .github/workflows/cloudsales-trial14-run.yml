@@ -5,18 +5,28 @@ on:
       - '.github/workflows/cloudsales-trial14-run.yml'
 permissions:
   contents: write
-# trigger 2026-09-01 trial canonicalization
+# trigger 2026-09-01 trial canonicalization v2
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python .github/scripts/apply_cloudsales_trial14.py
+      - run: |
+          mkdir -p supabase/functions/cloudflare-pwa-release-v12
+          printf '2026.09.01.5\n' > supabase/functions/cloudflare-pwa-release-v12/index.ts
+          python .github/scripts/apply_cloudsales_trial14.py
+          rm -rf supabase/functions/cloudflare-pwa-release-v12
       - run: node --check web/cloudsales-i18n-v1.js && node --check web/auth-runtime-v2.js && node --check web/sw.js
+      - run: |
+          grep -q '14 días de prueba gratis' web/commercial.html
+          grep -q 'TRIAL_COPY' web/cloudsales-i18n-v1.js
+          grep -q 'trialOnboardNotice' web/pwa.html
+          grep -q 'TRIAL_UI_COPY' web/auth-runtime-v2.js
+          grep -q 'cloudsales-pwa-2026.09.01.4' web/sw.js
       - run: |
           if git diff --quiet; then exit 0; fi
           git config user.name "crmcloudsales"
           git config user.email "crmcloudsales@gmail.com"
-          git add web/commercial.html web/cloudsales-i18n-v1.js web/pwa.html web/auth-runtime-v2.js web/sw.js supabase/functions/cloudflare-pwa-release-v12/index.ts
+          git add web/commercial.html web/cloudsales-i18n-v1.js web/pwa.html web/auth-runtime-v2.js web/sw.js
           git commit -m "feat(trial): make 14-day free trial canonical across CloudSales"
           git push origin HEAD:main
