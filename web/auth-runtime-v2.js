@@ -1,9 +1,25 @@
 (() => {
   'use strict';
 
-  const VERSION = '2026.09.01.5';
+  const VERSION = '2026.09.01.6';
   const CLAIM_KEY = 'cs_pending_claim';
   const CHECKOUT_KEY = 'cs_pending_checkout';
+
+  const TRIAL_UI_COPY={
+    es:{notice:'<b>14 días de prueba gratis.</b> Se solicita un método de pago y no se cobra la mensualidad hasta terminar la prueba.',mini:'14 días gratis'},
+    en:{notice:'<b>14-day free trial.</b> A payment method is required and the monthly plan is not charged until the trial ends.',mini:'14 days free'},
+    fr:{notice:'<b>Essai gratuit de 14 jours.</b> Un moyen de paiement est requis et l’abonnement n’est débité qu’à la fin de l’essai.',mini:'14 jours gratuits'},
+    it:{notice:'<b>Prova gratuita di 14 giorni.</b> È richiesto un metodo di pagamento e il piano mensile viene addebitato solo al termine della prova.',mini:'14 giorni gratis'},
+    'pt-BR':{notice:'<b>Teste grátis por 14 dias.</b> É necessário adicionar uma forma de pagamento e a mensalidade só é cobrada ao final do teste.',mini:'14 dias grátis'},
+    de:{notice:'<b>14 Tage kostenlos testen.</b> Eine Zahlungsmethode ist erforderlich; die Monatsgebühr wird erst nach dem Testzeitraum berechnet.',mini:'14 Tage kostenlos'},
+    'ar-AE':{notice:'<b>تجربة مجانية لمدة 14 يوماً.</b> يلزم إضافة وسيلة دفع ولن يتم تحصيل الاشتراك الشهري حتى انتهاء التجربة.',mini:'14 يوماً مجاناً'},
+    ru:{notice:'<b>14 дней бесплатно.</b> Требуется способ оплаты; ежемесячная плата списывается только после окончания пробного периода.',mini:'14 дней бесплатно'},
+    he:{notice:'<b>ניסיון חינם ל-14 ימים.</b> נדרש אמצעי תשלום והחיוב החודשי יתבצע רק לאחר תקופת הניסיון.',mini:'14 ימים חינם'},
+    'zh-CN':{notice:'<b>14 天免费试用。</b> 需要添加付款方式，试用结束前不会收取月费。',mini:'免费试用 14 天'},
+    ja:{notice:'<b>14日間の無料トライアル。</b> 支払い方法の登録が必要ですが、月額料金はトライアル終了まで請求されません。',mini:'14日間無料'}
+  };
+  function ensureTrialUi(){const lc=document.documentElement.dataset.csLocale||'es',c=TRIAL_UI_COPY[lc]||TRIAL_UI_COPY.en;const n=node('trialOnboardNotice');if(n)n.innerHTML=c.notice;document.querySelectorAll('.trialPlanNote').forEach(x=>x.textContent=c.mini)}
+
   let resendTimer = null;
   let recoveryMode = false;
 
@@ -61,7 +77,7 @@
         const box=node('onboard')?.querySelector('.onbox');
         if (box && !node('checkoutPaidNotice')) {
           const n=document.createElement('div'); n.id='checkoutPaidNotice'; n.className='notice'; n.style.margin='12px 0';
-          n.innerHTML=`<b>Plan ${plan.toUpperCase()} seleccionado por tu compra.</b><br>Completa los datos del negocio para activar CloudSales.`;
+          n.innerHTML=`<b>Plan ${plan.toUpperCase()} seleccionado para tu prueba gratis de 14 días.</b><br>Completa los datos del negocio para iniciar tu prueba de CloudSales.`;
           box.insertBefore(n,box.querySelector('.plans'));
         }
       }
@@ -82,7 +98,7 @@
       const r=await direct('claim-checkout',{organization_id:currentOrg.id,session_id:sid},true);
       clearCheckout();
       if (typeof loadState==='function') await loadState();
-      message('Pago confirmado. CloudSales quedó activado con tu plan.',true);
+      message('Tu prueba gratis de 14 días quedó activada. La primera mensualidad se cobrará al terminar el trial, salvo que canceles antes.',true);
       return r;
     } catch(err) {
       const code=String(err?.message||'');
@@ -213,9 +229,11 @@
   function existingAccount(text='Esta cuenta ya existe. Entra con tu correo y contraseña.'){message(text,true);if(typeof setMode==='function')setMode('signin')}
   async function finishLogin(data){saveSession(data.session);const claimed=await claimPending();await boot();await claimCheckoutIfReady(true);if(claimed?.organization?.name)message(`Acceso activado: ${claimed.organization.name}.`,true)}
 
+  window.addEventListener('cloudsales:locale',ensureTrialUi);
+
   function bind(){
     const button=node('authBtn'); if(!button||typeof direct!=='function')return false;
-    captureClaim(); captureCheckout(); prepareCheckoutUi(); bindCheckoutOnboarding(); ensureNotice(); const forgot=ensureForgot(); if(forgot)forgot.onclick=forgotPassword;
+    captureClaim(); captureCheckout(); prepareCheckoutUi(); bindCheckoutOnboarding(); ensureNotice(); ensureTrialUi(); const forgot=ensureForgot(); if(forgot)forgot.onclick=forgotPassword;
     if(enterRecovery()){
       button.onclick=doReset; document.documentElement.dataset.authRuntime=VERSION; return true;
     }
