@@ -1,0 +1,54 @@
+{
+  "client": {
+    "canonical_name": "Sabor Extra",
+    "legacy_public_name": "XG Sabor Extra",
+    "vertical": "restaurant",
+    "subvertical": "mexican_home_style_breakfast_lunch",
+    "location": "Playa del Carmen, Quintana Roo, Mexico",
+    "primary_host": "saborextra.cloudsales.app"
+  },
+  "positioning": {
+    "core": "Comida mexicana de casa, abundante, fresca y accesible para locales y visitantes.",
+    "brand_promise": "Comer rico, sentirse en casa y recibir un poco más de lo esperado.",
+    "tagline": "Comida de casa, con ese sabor extra.",
+    "pillars": ["sazón casero", "porciones generosas", "menú que cambia", "precio justo", "trato cercano", "desayuno y comida"],
+    "avoid": ["lujo pretencioso", "marisquería como eje principal", "fine dining", "nightlife", "Tulum branding", "claims no verificados"]
+  },
+  "brand_system": {
+    "tone": ["cálido", "mexicano contemporáneo", "honesto", "familiar", "apetitoso", "local"],
+    "palette": {
+      "chile": "#8F2D1F",
+      "maiz": "#E8A62A",
+      "aguacate": "#496A3C",
+      "crema": "#FFF7E8",
+      "cacao": "#2B201B",
+      "papel": "#FFFCF6"
+    },
+    "logo_direction": "Wordmark SABOR EXTRA with strong editorial serif/sans pairing and a small steam/sun mark; no XG.",
+    "photography": "Real food, daylight, close-up texture, generous portions, no over-styled luxury food imagery."
+  },
+  "verified_public_facts": {
+    "address": "10 Avenida Norte, Luis Donaldo Colosio, 77728 Playa del Carmen, Quintana Roo, México",
+    "phone_primary": "+52 984 803 6703",
+    "phone_secondary_legacy": "+52 984 804 8837",
+    "email_legacy": "xgsaborextra_@hotmail.com",
+    "instagram": "@xgsaborextra_pdc",
+    "current_public_hours": "Monday-Friday 07:30-16:30; Saturday-Sunday closed (current Waze/Restaurant Guru listings; legacy official site differs)",
+    "ratings_snapshot": {
+      "google": "4.5/5 (~515 reviews)",
+      "facebook": "4.1/5 (124 reviews)",
+      "foursquare": "7.7/10 (31 reviews)"
+    },
+    "service_features": ["outdoor seating", "takeaway", "delivery", "wheelchair accessible", "breakfast", "lunch", "special events/catering mentioned on legacy official site"]
+  },
+  "menu_evidence": {
+    "breakfast": ["coctel de frutas", "tostadas de pollo", "enchiladas rojas suizas", "huevos a la mexicana", "molletes con jamón y queso", "enchiladas de mole", "enfrijoladas", "omelette", "club sandwich", "huevos motuleños"],
+    "lunch_and_specials": ["aguacates rellenos", "ensalada caprese", "filete de pescado a la veracruzana", "pollo a la mostaza", "tortitas de plátano", "chile relleno en salsa a 3 chiles", "pechuga parmesana", "fajitas de pollo", "pollo a la naranja", "lasaña a la boloñesa", "rollitos de bistec", "pierna a los 3 chiles", "chilaquiles verdes con camarones", "pechuga cordon bleu", "escalopas en crema de champiñones", "spaghetti con albóndigas"],
+    "repeated_review_signals": ["sopa del día", "enchiladas", "chilaquiles", "omelette", "hot cakes", "licuados", "jugos naturales", "agua de melón", "menú del día", "porciones grandes"]
+  },
+  "source_policy": {
+    "facts": "Use public sources and preserve uncertainty where sources conflict.",
+    "inference": "Brand positioning and visual direction are CloudSales analysis derived from repeated public signals, not claims made by the restaurant.",
+    "review_copy": "Paraphrase reviews; do not fabricate reviewer identities or ratings."
+  }
+}
