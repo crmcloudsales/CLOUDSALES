@@ -47,6 +47,33 @@
       return false;
     }
   }
+  async function retryHighLevelClaim(attempt = 0) {
+    if (!pendingHighLevelClaim() || attempt >= 150) return;
+    if (await claimHighLevelMarketplace()) return;
+    setTimeout(() => retryHighLevelClaim(attempt + 1), 4000);
+  }
+  async function runHighLevelIntake(u, code, attempt = 0) {
+    if (typeof direct !== 'function') {
+      if (attempt < 40) setTimeout(() => runHighLevelIntake(u, code, attempt + 1), 250);
+      return;
+    }
+    try {
+      marketplaceMessage('Conectando HighLevel con CloudSales…', true);
+      const result = await direct('highlevel-private-connect', {
+        action:'marketplace_intake', code,
+        user_type:u.searchParams.get('user_type') || u.searchParams.get('userType') || 'Location',
+        app_id:u.searchParams.get('appId') || u.searchParams.get('app_id') || null,
+        version_id:u.searchParams.get('versionId') || u.searchParams.get('version_id') || null
+      }, false);
+      if (!result?.claim_token) throw new Error('marketplace_intake_failed');
+      localStorage.setItem(HL_CLAIM_KEY, result.claim_token);
+      cleanMarketplaceUrl();
+      marketplaceMessage('HighLevel autorizado. Entra o crea tu cuenta CloudSales para terminar la conexión.', true);
+      if (!(await claimHighLevelMarketplace())) retryHighLevelClaim();
+    } catch {
+      marketplaceMessage('No pudimos completar la conexión con HighLevel. Intenta instalar CloudSales nuevamente desde HighLevel.', false);
+    }
+  }
   async function captureHighLevelMarketplace() {
     let u; try { u = new URL(location.href); } catch { return; }
     const isHighLevel = u.searchParams.get('oauth') === 'highlevel';
@@ -58,37 +85,10 @@
       return;
     }
     if (!isHighLevel || !code) {
-      if (pendingHighLevelClaim()) {
-        let attempts = 0;
-        const timer = setInterval(async () => {
-          attempts += 1;
-          if (await claimHighLevelMarketplace() || attempts >= 1800 || !pendingHighLevelClaim()) clearInterval(timer);
-        }, 1000);
-      }
+      if (pendingHighLevelClaim()) retryHighLevelClaim();
       return;
     }
-    let attempts = 0;
-    const intakeTimer = setInterval(async () => {
-      attempts += 1;
-      if (typeof direct !== 'function') { if (attempts >= 200) clearInterval(intakeTimer); return; }
-      clearInterval(intakeTimer);
-      try {
-        marketplaceMessage('Conectando HighLevel con CloudSales…', true);
-        const result = await direct('highlevel-private-connect', {
-          action:'marketplace_intake', code,
-          user_type:u.searchParams.get('user_type') || u.searchParams.get('userType') || 'Location',
-          app_id:u.searchParams.get('appId') || u.searchParams.get('app_id') || null,
-          version_id:u.searchParams.get('versionId') || u.searchParams.get('version_id') || null
-        }, false);
-        if (!result?.claim_token) throw new Error('marketplace_intake_failed');
-        localStorage.setItem(HL_CLAIM_KEY, result.claim_token);
-        cleanMarketplaceUrl();
-        marketplaceMessage('HighLevel autorizado. Entra o crea tu cuenta CloudSales para terminar la conexión.', true);
-        await claimHighLevelMarketplace();
-      } catch {
-        marketplaceMessage('No pudimos completar la conexión con HighLevel. Intenta instalar CloudSales nuevamente desde HighLevel.', false);
-      }
-    }, 100);
+    runHighLevelIntake(u, code);
   }
   captureHighLevelMarketplace();
 
