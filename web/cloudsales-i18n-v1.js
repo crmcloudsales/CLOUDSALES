@@ -106,6 +106,26 @@ function mount(locale){document.querySelectorAll('.csLang').forEach(x=>x.remove(
 function attrs(locale){const d=T[locale]||{},tr=x=>locale==='es'?x:(d[x]||EN_FULL[x]||x);const email=document.getElementById('cemail');if(email){if(!email.dataset.csOrigPlaceholder)email.dataset.csOrigPlaceholder=email.getAttribute('placeholder')||'';email.setAttribute('placeholder',tr(email.dataset.csOrigPlaceholder))}const err=document.getElementById('cerr');if(err&&!err.dataset.csI18nObs){err.dataset.csI18nObs='1';new MutationObserver(()=>{const v=err.textContent||'';if(locale==='es')return;for(const [a,b] of Object.entries({...EN_FULL,...d})){if(v===a){err.textContent=b;return}if(a.endsWith(': ')&&v.startsWith(a)){err.textContent=b+v.slice(a.length);return}}}).observe(err,{childList:true,characterData:true,subtree:true})}}
 function setLocale(x){const locale=canonicalLocale(x);try{localStorage.setItem(STORE,locale)}catch{}const u=new URL(location.href);u.searchParams.set('lang',locale);history.replaceState(null,'',u);apply(locale)}
 function apply(locale){document.documentElement.lang=locale;document.documentElement.dir=RTL.has(locale)?'rtl':'ltr';translateText(locale);meta(locale);mount(locale);document.documentElement.dataset.csLocale=locale;attrs(locale);window.dispatchEvent(new CustomEvent('cloudsales:locale',{detail:{locale}}))}
+function patchHostedCheckout(){
+  const start=document.getElementById('cstart'),email=document.getElementById('cemail'),mount=document.getElementById('stripeMount'),err=document.getElementById('cerr');
+  if(!start||!email||!mount||!err||start.dataset.csHostedPatched==='1')return;
+  let item='';
+  document.querySelectorAll('.buy[data-item]').forEach(b=>b.addEventListener('click',()=>{item=b.dataset.item||''}));
+  start.dataset.csHostedPatched='1';
+  start.onclick=async()=>{
+    const mail=email.value.trim();if(!mail||!item){err.textContent='Escribe un correo válido.';return}
+    err.textContent='Preparando checkout…';start.disabled=true;
+    try{
+      const ref=new URL(location.href).searchParams.get('ref')||localStorage.getItem('cloudsales_ref')||'';if(ref)localStorage.setItem('cloudsales_ref',ref);
+      const r=await fetch('https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/stripe-checkout-start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({item_key:item,email:mail,affiliate_code:ref})});
+      const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.detail||d.error||'checkout_error');
+      if(d.checkout_url){location.assign(d.checkout_url);return}
+      if(!d.client_secret||!d.publishable_key)throw Error('checkout_not_available');
+      const stripe=Stripe(d.publishable_key),instance=await stripe.initEmbeddedCheckout({clientSecret:d.client_secret});
+      document.getElementById('emailrow').style.display='none';err.textContent='';instance.mount('#stripeMount');
+    }catch(e){err.textContent='No pudimos abrir el checkout: '+(e?.message||'error');start.disabled=false}
+  };
+}
 function checkoutReturnBridge(){try{const u=new URL(location.href),sid=u.searchParams.get('session_id')||'';if(u.searchParams.get('checkout')==='return'&&/^cs_(?:test|live)_/.test(sid)){const saved=localStorage.getItem(STORE)||'',lang=u.searchParams.get('lang')||saved,d=new URL('https://app.cloudsales.app/');d.searchParams.set('checkout','return');d.searchParams.set('session_id',sid);if(lang)d.searchParams.set('lang',lang);location.replace(d.toString());return true}}catch{}return false}
-style();if(checkoutReturnBridge())return;const locale=detect();if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>apply(locale),{once:true});else apply(locale);window.CloudSalesI18n={setLocale,getLocale:()=>canonicalLocale(document.documentElement.dataset.csLocale||locale),languages:LANGS.map(x=>x[0])};
+style();if(checkoutReturnBridge())return;patchHostedCheckout();const locale=detect();if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>apply(locale),{once:true});else apply(locale);window.CloudSalesI18n={setLocale,getLocale:()=>canonicalLocale(document.documentElement.dataset.csLocale||locale),languages:LANGS.map(x=>x[0])};
 })();
