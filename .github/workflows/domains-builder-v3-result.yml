@@ -1,0 +1,35 @@
+name: Domains Builder v3 Result
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/domains-builder-v3-result.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - name: Show generated website result
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          p=Path('web/commercial/domains-v2.html')
+          s=p.read_text()
+          old="msg($('intakeMsg'),r.ok?'¡Listo! Recibimos tus materiales e instrucciones.':'No pudimos recibir los materiales. '+(j.error||''),!r.ok);btn.disabled=false;btn.textContent='CREAR MI SITIO WEB'"
+          new="if(r.ok){const m=$('intakeMsg');m.className='msg show';m.innerHTML=j.generated_url?('¡Tu sitio fue creado! <a href=\"'+j.generated_url+'\" target=\"_blank\" rel=\"noopener\" style=\"color:#fff;font-weight:950;text-decoration:underline\">ABRIR MI SITIO WEB →</a>'+(j.published?'':'<br><span style=\"opacity:.8\">El dominio todavía se está terminando de conectar; esta es la vista previa segura.</span>')):'¡Listo! Tu solicitud quedó guardada y el sitio se está preparando.'}else{msg($('intakeMsg'),'No pudimos crear el sitio. '+(j.error||''),true)}btn.disabled=false;btn.textContent='CREAR MI SITIO WEB'"
+          if old not in s:
+              raise SystemExit('target response block not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit result UX
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'CloudSales Automation'
+          git config user.email 'info@cloudsales.app'
+          git add web/commercial/domains-v2.html
+          git commit -m 'feat(domains): show generated site URL after creation'
+          git push origin HEAD:main
