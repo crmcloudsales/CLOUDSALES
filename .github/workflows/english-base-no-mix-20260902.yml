@@ -5,6 +5,7 @@ on:
       - '.github/workflows/english-base-no-mix-20260902.yml'
 permissions:
   contents: write
+# trigger 2026-09-02
 jobs:
   patch:
     runs-on: ubuntu-latest
