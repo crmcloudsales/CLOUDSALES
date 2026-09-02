@@ -1,0 +1,27 @@
+name: OAuth Existing Account Gate 2026-09-02
+on:
+  push:
+    paths:
+      - '.github/scripts/oauth_existing_account_gate_20260902.py'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch OAuth account gate
+        run: python3 .github/scripts/oauth_existing_account_gate_20260902.py
+      - name: Validate auth runtime
+        run: |
+          node --check web/auth-runtime-v2.js
+          grep -q 'cs_oauth_intent' web/auth-runtime-v2.js
+          grep -q 'Esta cuenta no existe, intenta con otro método.' web/auth-runtime-v2.js
+          grep -q '2026.09.02.5' web/auth-runtime-v2.js
+      - name: Commit auth runtime
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/auth-runtime-v2.js
+          git commit -m 'fix(auth): gate OAuth sign in to existing CloudSales accounts'
+          git push
