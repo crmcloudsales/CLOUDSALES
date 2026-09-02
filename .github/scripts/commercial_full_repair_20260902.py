@@ -46,9 +46,12 @@ s=p.read_text()
 s=s.replace("return LANGS.find(v=>v[0].toLowerCase().split('-')[0]===short)?.[0]||'es'","return LANGS.find(v=>v[0].toLowerCase().split('-')[0]===short)?.[0]||'en'",1)
 s=s.replace("return canonicalLocale(navigator.language||'es')","return 'en'",1)
 s=s.replace("?.[1]||'ES'","?.[1]||'EN'",1)
-# English domain runtime and suggestions
-s=s.replace("const $=id=>document.getElementById(id),input=$('domain'),btn=$('search'),result=$('result'),purchase=$('purchase');", "const $=id=>document.getElementById(id),input=$('domain'),btn=$('search'),result=$('result'),purchase=$('purchase');\nconst SUG_TLDS=['.com','.ai','.co','.io','.app','.net'];\nlet suggest=document.getElementById('domainSuggestions');if(!suggest){suggest=document.createElement('div');suggest.id='domainSuggestions';suggest.style.cssText='display:none;gap:8px;flex-wrap:wrap;margin-top:10px';(document.querySelector('.searchrow')||input.parentElement).insertAdjacentElement('afterend',suggest)}\nfunction suggestions(v){const q=norm(v).replace(/\\..*$/,'').replace(/[^a-z0-9-]/g,'');if(!q||String(v).includes('.')){suggest.style.display='none';suggest.innerHTML='';return}suggest.innerHTML=SUG_TLDS.map(t=>`<button type=\"button\" data-domain=\"${q+t}\" style=\"border:1px solid #3b3345;background:#12101a;color:#eee;border-radius:999px;padding:9px 12px;font:800 12px Inter,system-ui;cursor:pointer\">${q+t}</button>`).join('');suggest.style.display='flex';suggest.querySelectorAll('[data-domain]').forEach(x=>x.onclick=()=>{input.value=x.dataset.domain;suggest.style.display='none';go()})}\ninput.addEventListener('input',()=>suggestions(input.value));")
-s=s.replace("if(!valid(d)){set(d,'ESCRIBE UN DOMINIO VÁLIDO','unavailable','—','—','Ejemplo: minegocio.com');return;}","if(!valid(d)){if(d&&!d.includes('.')){suggestions(d);set(d,'CHOOSE A DOMAIN EXTENSION','available','—','—','Select one of the suggestions above, or type a complete domain such as mybusiness.com.');return;}set(d,'ENTER A VALID DOMAIN','unavailable','—','—','Example: mybusiness.com');return;}")
+# English domain runtime and suggestions. Unique identifiers avoid colliding with older experimental code.
+needle="const $=id=>document.getElementById(id),input=$('domain'),btn=$('search'),result=$('result'),purchase=$('purchase');"
+insert="const $=id=>document.getElementById(id),input=$('domain'),btn=$('search'),result=$('result'),purchase=$('purchase');\nconst CS_SUG_TLDS_20260902=['.com','.ai','.co','.io','.app','.net'];\nlet csSuggest20260902=document.getElementById('domainSuggestions20260902');if(!csSuggest20260902){csSuggest20260902=document.createElement('div');csSuggest20260902.id='domainSuggestions20260902';csSuggest20260902.style.cssText='display:none;gap:8px;flex-wrap:wrap;margin-top:10px';(document.querySelector('.searchrow')||input.parentElement).insertAdjacentElement('afterend',csSuggest20260902)}\nfunction csSuggestions20260902(v){const q=norm(v).replace(/\\..*$/,'').replace(/[^a-z0-9-]/g,'');if(!q||String(v).includes('.')){csSuggest20260902.style.display='none';csSuggest20260902.innerHTML='';return}csSuggest20260902.innerHTML=CS_SUG_TLDS_20260902.map(t=>`<button type=\"button\" data-domain=\"${q+t}\" style=\"border:1px solid #3b3345;background:#12101a;color:#eee;border-radius:999px;padding:9px 12px;font:800 12px Inter,system-ui;cursor:pointer\">${q+t}</button>`).join('');csSuggest20260902.style.display='flex';csSuggest20260902.querySelectorAll('[data-domain]').forEach(x=>x.onclick=()=>{input.value=x.dataset.domain;csSuggest20260902.style.display='none';go()})}\ninput.addEventListener('input',()=>csSuggestions20260902(input.value));"
+if 'CS_SUG_TLDS_20260902' not in s:
+    s=s.replace(needle,insert,1)
+s=s.replace("if(!valid(d)){set(d,'ESCRIBE UN DOMINIO VÁLIDO','unavailable','—','—','Ejemplo: minegocio.com');return;}","if(!valid(d)){if(d&&!d.includes('.')){csSuggestions20260902(d);set(d,'CHOOSE A DOMAIN EXTENSION','available','—','—','Select one of the suggestions above, or type a complete domain such as mybusiness.com.');return;}set(d,'ENTER A VALID DOMAIN','unavailable','—','—','Example: mybusiness.com');return;}")
 repls={
 "'BUSCANDO…'":"'SEARCHING…'","'CONSULTANDO…'":"'CHECKING…'","'Buscando disponibilidad del dominio…'":"'Checking domain availability…'","'NO DISPONIBLE'":"'NOT AVAILABLE'","'Este dominio ya está registrado.'":"'This domain is already registered.'","'POSIBLEMENTE DISPONIBLE'":"'POSSIBLY AVAILABLE'","'POR CONFIRMAR'":"'TO BE CONFIRMED'","'Parece disponible. Confirmaremos disponibilidad y precio antes de cualquier cobro.'":"'It appears available. We will confirm availability and price before any charge.'","'✓ DISPONIBLE'":"'✓ AVAILABLE'","'Disponibilidad confirmada por el registrador.'":"'Availability confirmed by the registrar.'","'RESULTADO NO CONCLUYENTE'":"'INCONCLUSIVE RESULT'","'Intenta nuevamente en unos segundos.'":"'Try again in a few seconds.'","'NO PUDIMOS CONSULTAR AHORA'":"'SEARCH TEMPORARILY UNAVAILABLE'","'No pudimos completar la consulta. Intenta nuevamente.'":"'We could not complete the lookup. Please try again.'","'BUSCAR'":"'SEARCH'"}
 for a,b in repls.items(): s=s.replace(a,b)
@@ -73,7 +76,6 @@ s=s.replace('>BUSCAR<','>SEARCH<')
 s=s.replace('Registro / primer año','Registration / first year').replace('Renovación anual','Annual renewal').replace('Ejemplo: minegocio.com','Example: mybusiness.com')
 s=s.replace('Elige y compra tu dominio','Choose and buy your domain').replace('Nosotros te hacemos el sitio WEB','We build your WEBSITE').replace('¡EL MISMO DÍA!','THE SAME DAY!')
 p.write_text(s)
-# mirrored canonical domain source
 (ROOT/'web/commercial/domains-v2.html').write_text(s)
 
 # --- release: language on every route, CRM logos/Twenty, CSP ---
@@ -83,20 +85,17 @@ s=re.sub(r'VERSION="[^"]+"','VERSION="2026.09.02.4"',s,count=1)
 s=s.replace("['Copper','copper.com']]","['Copper','copper.com'],['Twenty','twenty.com']]",1)
 s=s.replace('CONECTA TU CRM Y MIRA A CLOUDY TRABAJAR','CONNECT YOUR CRM AND WATCH CLOUDY WORK')
 s=s.replace("https://www.google.com https://*.stripe.com", "https://www.google.com https://*.gstatic.com https://*.googleusercontent.com https://*.stripe.com")
-# inject i18n for every commercial route, not only root
 needle="if(isRoot){if(!h.includes('cs-crm-marquee-v1'))"
 must(s,needle,'root brand')
-# add global injection just before return h
 s=s.replace("if(!/id=[\"']download[\"']/i.test(h))h=h.replace(/<h2>\\s*Descarga CloudSales\\.\\s*<\\/h2>/i,'<span id=\"download\"></span><h2>Descarga CloudSales.</h2>');h=h.replace(/href=[\"']#pricing[\"'](?=[^>]*>\\s*Descargar la app\\s*<)/gi,'href=\"#download\"')}return h}","if(!/id=[\"']download[\"']/i.test(h))h=h.replace(/<h2>\\s*Descarga CloudSales\\.\\s*<\\/h2>/i,'<span id=\"download\"></span><h2>Descarga CloudSales.</h2>');h=h.replace(/href=[\"']#pricing[\"'](?=[^>]*>\\s*Descargar la app\\s*<)/gi,'href=\"#download\"')}if(!h.includes('/cloudsales-i18n-v1.js'))h=h.replace('</body>',`<script src=\"/cloudsales-i18n-v1.js?v=${VERSION}\"></script></body>`);return h}")
 p.write_text(s)
 
-# --- guards ---
 checks={
 'commercial english':'<html lang="en">' in (ROOT/'web/commercial.html').read_text(),
 'mobile repair':'cs-commercial-repair-20260902' in (ROOT/'web/commercial.html').read_text(),
 'twenty':'Twenty' in (ROOT/'supabase/functions/cloudflare-site-brand-release/index.ts').read_text(),
 'english default commercial':"return 'en'" in (ROOT/'web/cloudsales-i18n-v1.js').read_text(),
-'domain suggestions':'SUG_TLDS' in (ROOT/'web/cloudsales-i18n-v1.js').read_text(),
+'domain suggestions':'CS_SUG_TLDS_20260902' in (ROOT/'web/cloudsales-i18n-v1.js').read_text(),
 'english default pwa':"return 'en'" in (ROOT/'web/pwa-i18n-runtime-v1.js').read_text(),
 'domains english':'<html lang="en">' in (ROOT/'web/domains.html').read_text(),
 'release version':'2026.09.02.4' in (ROOT/'supabase/functions/cloudflare-site-brand-release/index.ts').read_text(),
