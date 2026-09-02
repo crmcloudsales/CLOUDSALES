@@ -35,13 +35,15 @@
     "marketplace_webhook_url": "https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/highlevel-private-connect",
     "tokens_stored_server_side": true,
     "tokens_stored_in_vault": true,
-    "install_update_uninstall_webhooks_supported": true
+    "install_update_uninstall_webhooks_supported": true,
+    "runtime_health_verified_2026_09_02": true
   },
   "billing": {
     "business_model": "Paid",
     "external_billing_supported": true,
     "billing_url": "https://cloudsales.app/subscribe",
     "highlevel_billing_bridge_function": "highlevel-temp-bootstrap",
+    "highlevel_billing_bridge_version": 10,
     "plans": {
       "basic": {"monthly_usd": 47, "annual_usd": 470, "member_entitlements": 1, "usage_multiplier": 1.50},
       "pro": {"monthly_usd": 97, "annual_usd": 970, "member_entitlements": 1, "usage_multiplier": 1.35},
@@ -49,7 +51,14 @@
     },
     "trial_days": 7,
     "trial_requires_payment_method": true,
-    "domains": {"standard_multiplier": 3.0, "markup_percent": 200},
+    "domains": {
+      "standard_multiplier": 3.0,
+      "markup_percent": 200,
+      "checkout_runtime_version": 14,
+      "checkout_runtime_enforces_x3": true,
+      "webhook_runtime_enforces_x3": true,
+      "database_default": 3.0
+    },
     "usage_pricing_basis": "actual landed provider cost",
     "unknown_cost_behavior": "reconcile rather than invent a charge",
     "pricing_page_url": "https://cloudsales.app/usage-pricing",
@@ -72,9 +81,19 @@
     "Marketplace context is stored server-side with the Stripe checkout session.",
     "After checkout, https://cloudsales.app/welcome calls the server-side HighLevel billing bridge.",
     "The bridge validates the completed Stripe session and authorizes the paid installation through HighLevel's external billing webhook.",
-    "A transactional CloudSales access email is queued and the member is directed to https://app.cloudsales.app/?welcome=1.",
+    "A transactional CloudSales access email is queued, immediate Email Engine delivery is attempted, and the member is directed to https://app.cloudsales.app/?welcome=1.",
     "Marketplace, website and PWA use the same CloudSales plan, member identity, workspace, terms and usage policy."
   ],
+  "email_delivery": {
+    "engine": "CloudCo Email Engine",
+    "provider": "resend",
+    "welcome_purpose": "marketplace_access",
+    "immediate_send_attempt_enabled": true,
+    "sender": "CloudSales <info@cloudsales.app>",
+    "current_sender_identity_status": "pending",
+    "current_provider_status": "active",
+    "current_external_blocker": "Resend API returned HTTP 401 during domain provisioning on 2026-09-02; the stored Resend credential must be replaced or restored before Marketplace welcome email delivery can be verified end-to-end. Checkout, HighLevel billing authorization and PWA redirect do not depend on email delivery."
+  },
   "roles": {
     "cloudy": "Primary operator: work, orchestration, automations and authorized execution.",
     "agentcloud": "AI conversations and calls only."
@@ -102,5 +121,8 @@
     "Register the HighLevel lifecycle/operational webhook endpoint.",
     "Run a real Marketplace sandbox/test installation and verify OAuth, billing authorization, PWA access and webhooks.",
     "Submit for Review."
+  ],
+  "external_non_portal_blockers": [
+    "Restore a valid Resend API credential and complete cloudsales.app sender-domain verification for automatic Marketplace access-email delivery."
   ]
 }
