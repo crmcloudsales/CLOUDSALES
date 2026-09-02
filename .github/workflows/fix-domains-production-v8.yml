@@ -1,0 +1,38 @@
+name: Fix Domains Production v8
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-domains-production-v8.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch official Domains production release
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
+          s=p.read_text()
+          assert 'VERSION="2026.09.01.7"' in s
+          s=s.replace('VERSION="2026.09.01.7"','VERSION="2026.09.01.8"',1)
+          old="const source=route==='/domains'?`${RAW}/domains.html`:`https://cloudsales.app${route}`;"
+          new="const source=route==='/domains'?`${RAW}/commercial/domains-v2.html`:`https://cloudsales.app${route}`;"
+          assert old in s
+          s=s.replace(old,new,1)
+          old="try{const rd=await fetch('https://rdap.org/domain/'+encodeURIComponent(dn),{redirect:'follow',headers:{accept:'application/rdap+json,application/json'}});if(rd.status===404)return r(JSON.stringify({domain:dn,registrable:null,provisional:true,authoritative:false,availability:'possibly_available',currency:'USD',normal:{registration:null,renewal:null},exit_offer:{registration:null,renewal:null},sale_amount:null,renewal_sale_amount:null,website:{included:true,price:0,free_builds:1,free_revisions:0},message:'No aparece registrado en RDAP. Confirmaremos disponibilidad y precio con Cloudflare antes de cualquier cobro.'}),'application/json;charset=utf-8');if(rd.ok)return r(JSON.stringify({domain:dn,registrable:false,provisional:true,authoritative:false,availability:'registered',reason:'domain_unavailable',currency:'USD',normal:{registration:null,renewal:null},exit_offer:{registration:null,renewal:null},sale_amount:null,renewal_sale_amount:null,website:{included:true,price:0,free_builds:1,free_revisions:0},message:'El dominio aparece registrado.'}),'application/json;charset=utf-8')}catch{}"
+          new="try{const tld=dn.split('.').pop()||'';const boot=await fetch('https://data.iana.org/rdap/dns.json',{headers:{accept:'application/json'}});if(boot.ok){const bj=await boot.json();const svc=(bj.services||[]).find((x:any)=>Array.isArray(x?.[0])&&x[0].map((v:any)=>String(v).toLowerCase()).includes(tld));const base=String(svc?.[1]?.[0]||'');if(base){const rd=await fetch(base.replace(/\\/?$/,'/')+'domain/'+encodeURIComponent(dn),{redirect:'follow',headers:{accept:'application/rdap+json,application/json'}});if(rd.status===404)return r(JSON.stringify({domain:dn,registrable:null,provisional:true,authoritative:false,availability:'possibly_available',currency:'USD',normal:{registration:null,renewal:null},exit_offer:{registration:null,renewal:null},sale_amount:null,renewal_sale_amount:null,website:{included:true,price:0,free_builds:1,free_revisions:0},message:'El registro RDAP autoritativo no encuentra este dominio. Parece disponible; Cloudflare confirmará disponibilidad y precio antes de cualquier cobro.'}),'application/json;charset=utf-8');if(rd.ok)return r(JSON.stringify({domain:dn,registrable:false,provisional:true,authoritative:false,availability:'registered',reason:'domain_unavailable',currency:'USD',normal:{registration:null,renewal:null},exit_offer:{registration:null,renewal:null},sale_amount:null,renewal_sale_amount:null,website:{included:true,price:0,free_builds:1,free_revisions:0},message:'El registro RDAP autoritativo confirma que el dominio ya está registrado.'}),'application/json;charset=utf-8')}}}catch{}"
+          assert old in s
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "crmcloudsales"
+          git config user.email "crmcloudsales@gmail.com"
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m "fix(domains): production source and authoritative RDAP fallback"
+          git pull --rebase origin main
+          git push
