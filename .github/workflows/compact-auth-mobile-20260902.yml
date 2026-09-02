@@ -1,0 +1,26 @@
+name: Compact Mobile Auth 2026-09-02
+on:
+  push:
+    paths:
+      - '.github/scripts/compact_auth_mobile_20260902.py'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch mobile auth layout
+        run: python3 .github/scripts/compact_auth_mobile_20260902.py
+      - name: Validate compact auth CSS
+        run: |
+          grep -q 'CloudSales mobile auth: keep Sign in / Create account the same compact height.' web/pwa.html
+          grep -q 'height:min(700px,calc(100dvh - 20px))' web/pwa.html
+          grep -q '#signupEmailNotice' web/pwa.html
+      - name: Commit compact auth
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/pwa.html
+          git commit -m 'fix(auth): keep mobile sign in and signup same compact height'
+          git push
