@@ -1,0 +1,24 @@
+name: CloudSales English Base No Mix 20260902
+on:
+  push:
+    paths:
+      - '.github/workflows/english-base-no-mix-20260902.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 .github/scripts/english_base_no_mix_20260902.py
+      - run: |
+          node --check web/cloudsales-i18n-v1.js
+          node --check web/pwa-i18n-runtime-v1.js
+      - name: Commit
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/commercial.html web/domains.html web/commercial/domains-v2.html web/pwa.html web/cloudsales-i18n-v1.js web/pwa-i18n-runtime-v1.js
+          git commit -m 'fix(i18n): use English base and prevent mixed-language startup'
+          git push origin HEAD:main
