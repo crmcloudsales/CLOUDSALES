@@ -1,1 +1,1 @@
-trigger physical CloudSales launcher icon v4
+trigger physical CloudSales launcher icon v4 diagnostics 2
