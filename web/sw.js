@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.09.02.1';
+const CACHE='cloudsales-pwa-2026.09.02.5';
 const CORE=[
   '/',
   '/manifest.webmanifest',
@@ -18,6 +18,7 @@ const CORE=[
   '/dashboard-runtime-v3.js',
   '/sales-analytics-runtime-v1.js',
   '/native-shell-runtime-v1.js',
+  '/pwa-polish-runtime-v1.js',
   '/workspace-polish-runtime-v1.js',
   '/pwa-i18n-runtime-v1.js',
   '/cloudy-executive-runtime-v1.js',
@@ -57,7 +58,7 @@ self.addEventListener('fetch',event=>{
   const url=new URL(event.request.url);
   if(url.origin!==location.origin) return;
 
-  const runtimeScript=/\/(?:auth|app|meta|cloudy|works|ad-spend|ai-chat|calendar|contact-profile|dashboard|sales-analytics|native-shell|workspace-polish|pwa-i18n|cloudy-executive)[^/]*\.js$/.test(url.pathname);
+  const runtimeScript=/\/(?:auth|app|meta|cloudy|works|ad-spend|ai-chat|calendar|contact-profile|dashboard|sales-analytics|native-shell|pwa-polish|workspace-polish|pwa-i18n|cloudy-executive)[^/]*\.js$/.test(url.pathname);
   const networkFirst=event.request.mode==='navigate'||url.pathname==='/'||url.pathname==='/sw.js'||url.pathname==='/manifest.webmanifest'||url.pathname==='/install.js'||runtimeScript;
 
   if(networkFirst){
