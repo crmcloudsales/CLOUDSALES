@@ -1,12 +1,15 @@
 from pathlib import Path
 from PIL import Image
-import base64, io, json, re
+import base64, io, json, re, hashlib
 
 ROOT=Path(__file__).resolve().parents[2]
 WEB=ROOT/'web'
 AS=WEB/'assets'
-B64=AS/'cloudsales-app-icon-source-v4.webp.b64'
-raw=base64.b64decode(B64.read_text().strip())
+PARTS=AS/'icon-v4-source-parts'
+encoded=''.join((PARTS/f'part-{i:02d}.b64').read_text().strip() for i in range(4))
+assert len(encoded)==13912, len(encoded)
+raw=base64.b64decode(encoded, validate=True)
+assert hashlib.sha256(raw).hexdigest()=='adfcf827665adc949bde470b890e92cd78f27872794887f2b8eafeb91152ca76'
 im=Image.open(io.BytesIO(raw)).convert('RGB')
 if im.size!=(512,512):
     im=im.resize((512,512),Image.Resampling.LANCZOS)
@@ -32,18 +35,16 @@ p.write_text(s)
 
 sw=WEB/'sw.js'; x=sw.read_text()
 x=re.sub(r"const CACHE='[^']+';", "const CACHE='cloudsales-pwa-2026.09.02.7';", x, count=1)
-# Remove stale icon entries and cache the new physical names.
 lines=x.splitlines()
 for entry in ["  '/cloudsales-app-icon-official-v4.png',","  '/cloudsales-app-icon-official-v4-192.png',"]:
     if entry not in lines:
-        # insert before manifest entry if possible
         try: idx=next(i for i,l in enumerate(lines) if "manifest.webmanifest" in l)
         except StopIteration: idx=5
         lines.insert(idx,entry)
 x='\n'.join(lines)+'\n'
 sw.write_text(x)
 
-# Patch release source to serve the new physical icon names and the mobile polish runtime.
+# Patch release source to serve the new physical icon names and mobile polish runtime.
 f=ROOT/'supabase/functions/cloudflare-pwa-brand-release/index.ts'
 r=f.read_text()
 r=r.replace('const VERSION="2026.09.02.6";','const VERSION="2026.09.02.7";')
@@ -54,10 +55,9 @@ r=r.replace('cloudsales-app-icon-official-v2-192.png','cloudsales-app-icon-offic
 r=r.replace('cloudsales-app-icon-official-v2.png','cloudsales-app-icon-official-v4.png')
 f.write_text(r)
 
-# Integrity checks.
 assert out512.exists() and out192.exists()
 assert 'official-v4' in m.read_text()
 assert 'cloudsales-pwa-2026.09.02.7' in sw.read_text()
 assert '/pwa-polish-runtime-v1.js' in f.read_text()
 assert 'cloudsales-app-icon-official-v4.png' in f.read_text()
-print('CloudSales icon v4 built from user-supplied source and production release patched')
+print('CloudSales icon v4 built from verified user-supplied source and production release patched')
