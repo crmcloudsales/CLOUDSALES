@@ -26,6 +26,7 @@ jobs:
           reps = {
             '14 días de prueba gratis':'7 días de prueba gratis',
             '14 días gratis':'7 días gratis',
+            '14 dias':'7 dias',
             '14-day free trial':'7-day free trial',
             '14 days free':'7 days free',
             '14 jours gratuits':'7 jours gratuits',
@@ -64,11 +65,10 @@ jobs:
               p.write_text(n,encoding='utf-8')
               changed.append(str(p))
           print('changed:', *changed, sep='\n- ')
-          # Guard live customer-facing files.
           for p in [Path('web/subscribe.html'),Path('web/welcome.html'),Path('web/install.js'),Path('web/auth-runtime-v2.js'),Path('web/terms.html')]:
             if p.exists():
               s=p.read_text(encoding='utf-8').lower()
-              bad=[x for x in ['14 días','14-day','14 days','14 jours','14 giorni','14 tage','14 дней','14 ימים','14 天','14日間'] if x in s]
+              bad=[x for x in ['14 días','14 dias','14-day','14 days','14 jours','14 giorni','14 tage','14 дней','14 ימים','14 天','14日間'] if x in s]
               if bad: raise SystemExit(f'stale trial copy in {p}: {bad}')
       - name: Commit global trial policy
         run: |
@@ -76,5 +76,5 @@ jobs:
           git config user.email 'info@cloudsales.app'
           git add web/subscribe.html web/welcome.html web/install.js web/auth-runtime-v2.js web/terms.html web/pwa.html web/commercial.html web/commercial/conversion-v1.js ops/highlevel-marketplace-state.json docs/highlevel-marketplace/CLOUDSALES_MARKETPLACE_LISTING.md
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'Set CloudSales trial to 7 days globally'
+          git commit -m 'Finish CloudSales 7-day trial locale sync'
           git push
