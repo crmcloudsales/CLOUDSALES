@@ -5,7 +5,7 @@ on:
       - '.github/workflows/commercial-full-repair-20260902.yml'
 permissions:
   contents: write
-# trigger 2026-09-02
+# trigger 2026-09-02 retry-2
 jobs:
   repair:
     runs-on: ubuntu-latest
@@ -20,7 +20,7 @@ jobs:
       - name: Validate repair guards
         run: |
           grep -q 'cs-commercial-repair-20260902' web/commercial.html
-          grep -q 'SUG_TLDS' web/cloudsales-i18n-v1.js
+          grep -q 'CS_SUG_TLDS_20260902' web/cloudsales-i18n-v1.js
           grep -q 'Twenty' supabase/functions/cloudflare-site-brand-release/index.ts
           grep -q 'CONNECT YOUR CRM AND WATCH CLOUDY WORK' supabase/functions/cloudflare-site-brand-release/index.ts
           grep -q 'VERSION="2026.09.02.4"' supabase/functions/cloudflare-site-brand-release/index.ts
