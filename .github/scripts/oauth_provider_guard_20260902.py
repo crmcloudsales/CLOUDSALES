@@ -1,3 +1,4 @@
+# One-time deterministic OAuth readiness guard patch.
 from pathlib import Path
 p=Path('web/auth-runtime-v2.js')
 s=p.read_text()
