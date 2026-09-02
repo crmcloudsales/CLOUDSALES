@@ -1,3 +1,4 @@
+# trigger 2026-09-02
 from pathlib import Path
 p=Path('web/auth-runtime-v2.js')
 s=p.read_text()
