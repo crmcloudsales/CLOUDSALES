@@ -103,8 +103,8 @@
         el.setAttribute('aria-label', 'PRO 97 USD al mes, 1 usuario, uso variable a costo real más 35 por ciento');
       });
       document.querySelectorAll('.planpick[data-plan="premium"]').forEach(el => {
-        el.innerHTML = 'PREMIUM<br><b>$147</b><div style="font-size:9px;color:#9695a7;margin-top:4px">2 usuarios · extra $47 · uso: costo +25%</div><span class="trialPlanNote">7 días gratis</span>';
-        el.setAttribute('aria-label', 'PREMIUM 147 USD al mes, 2 usuarios incluidos, asiento extra 47 USD, uso variable a costo real más 25 por ciento');
+        el.innerHTML = 'PREMIUM<br><b>$147</b><div style="font-size:9px;color:#9695a7;margin-top:4px">suscripción individual · uso: costo +25%</div><span class="trialPlanNote">7 días gratis</span>';
+        el.setAttribute('aria-label', 'PREMIUM 147 USD al mes, suscripción individual, uso variable a costo real más 25 por ciento');
       });
 
       const plans = document.querySelector('.plans');

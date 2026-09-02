@@ -21,7 +21,7 @@ function patchCanonicalPricing(){
      usageText='Uso variable: costo real ×1.25 (+25%)';
      const w=document.createTreeWalker(box,NodeFilter.SHOW_TEXT);let n;
      while((n=w.nextNode())){const s=n.nodeValue||'';if(/\$197\s*USD\s*\/\s*mes/i.test(s))n.nodeValue=s.replace(/\$197\s*USD\s*\/\s*mes/ig,'$147 USD / mes')}
-     if(!box.querySelector('[data-cs-premium-seats]')){const d=document.createElement('div');d.dataset.csPremiumSeats='1';d.style.cssText='font-size:11px;color:#9695a7;margin:8px 0 2px';d.textContent='2 usuarios incluidos · asiento extra US$47/mes';h.insertAdjacentElement('afterend',d)}
+     if(!box.querySelector('[data-cs-premium-seats]')){const d=document.createElement('div');d.dataset.csPremiumSeats='1';d.style.cssText='font-size:11px;color:#9695a7;margin:8px 0 2px';d.textContent='suscripción individual por persona · asiento extra US$47/mes';h.insertAdjacentElement('afterend',d)}
    }
    if(usageText&&!box.querySelector('[data-cs-usage-markup]')){const d=document.createElement('div');d.dataset.csUsageMarkup='1';d.style.cssText='margin:9px 0 3px;padding:8px 10px;border:1px solid #3b3140;background:#171119;border-radius:10px;font-size:10px;color:#d8c7d5;line-height:1.35';d.innerHTML=usageText+'<br><a href="/usage-pricing" style="color:#ff8fc9;text-decoration:underline">Ver Usage Pricing</a>';h.insertAdjacentElement('afterend',d)}
  }
