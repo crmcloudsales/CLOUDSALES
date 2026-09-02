@@ -3,18 +3,17 @@ from PIL import Image, ImageChops, ImageFile
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 ROOT = Path(__file__).resolve().parents[2]
-SRC = ROOT / 'web/assets/cloudsales-app-icon-official-v2.png'
-OUT512 = ROOT / 'web/assets/cloudsales-app-icon-official-v3.png'
-OUT192 = ROOT / 'web/assets/cloudsales-app-icon-official-v3-192.png'
+SRC512 = ROOT / 'web/assets/cloudsales-app-icon-official-v2.png'
+OUT512 = SRC512
+OUT192 = ROOT / 'web/assets/cloudsales-app-icon-official-v2-192.png'
 
-src = Image.open(SRC).convert('RGBA')
+src = Image.open(SRC512).convert('RGBA')
 # Use the exact background already present in the current official icon.
 bg = src.getpixel((0, 0))
 
 # Isolate the visible isotipo from its current flat background without redrawing it.
 base = Image.new('RGBA', src.size, bg)
 diff = ImageChops.difference(src, base).convert('L')
-# Ignore tiny compression/antialias noise in the background.
 mask = diff.point(lambda p: 255 if p > 10 else 0)
 bbox = mask.getbbox()
 if not bbox:
