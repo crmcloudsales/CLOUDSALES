@@ -1,0 +1,27 @@
+name: Publish Domains Route
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/commercial/domains-v2.html'
+      - '.github/workflows/publish-domains-route.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Publish canonical Domains page
+        run: cp web/commercial/domains-v2.html web/domains.html
+      - name: Commit published route
+        run: |
+          if git diff --quiet -- web/domains.html; then exit 0; fi
+          git config user.name 'CloudSales Automation'
+          git config user.email 'info@cloudsales.app'
+          git add web/domains.html
+          git commit -m 'fix(domains): sync canonical public route'
+          git push origin HEAD:main
