@@ -10,7 +10,7 @@
     en:{notice:'<b>7-day free trial.</b> A payment method is required and the monthly plan is not charged until the trial ends.',mini:'7 days free'},
     fr:{notice:'<b>Essai gratuit de 7 jours.</b> Un moyen de paiement est requis et l’abonnement n’est débité qu’à la fin de l’essai.',mini:'7 jours gratuits'},
     it:{notice:'<b>Prova gratuita di 7 giorni.</b> È richiesto un metodo di pagamento e il piano mensile viene addebitato solo al termine della prova.',mini:'7 giorni gratis'},
-    'pt-BR':{notice:'<b>Teste grátis por 14 dias.</b> É necessário adicionar uma forma de pagamento e a mensalidade só é cobrada ao final do teste.',mini:'14 dias grátis'},
+    'pt-BR':{notice:'<b>Teste grátis por 7 dias.</b> É necessário adicionar uma forma de pagamento e a mensalidade só é cobrada ao final do teste.',mini:'7 dias grátis'},
     de:{notice:'<b>7 Tage kostenlos testen.</b> Eine Zahlungsmethode ist erforderlich; die Monatsgebühr wird erst nach dem Testzeitraum berechnet.',mini:'7 Tage kostenlos'},
     'ar-AE':{notice:'<b>تجربة مجانية لمدة 7 أيام.</b> يلزم إضافة وسيلة دفع ولن يتم تحصيل الاشتراك الشهري حتى انتهاء التجربة.',mini:'7 أيام مجاناً'},
     ru:{notice:'<b>7 дней бесплатно.</b> Требуется способ оплаты; ежемесячная плата списывается только после окончания пробного периода.',mini:'7 дней бесплатно'},
