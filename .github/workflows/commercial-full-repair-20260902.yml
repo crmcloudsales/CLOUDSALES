@@ -1,0 +1,33 @@
+name: CloudSales Commercial Full Repair 20260902
+on:
+  push:
+    paths:
+      - '.github/workflows/commercial-full-repair-20260902.yml'
+permissions:
+  contents: write
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply repair patch
+        run: python3 .github/scripts/commercial_full_repair_20260902.py
+      - name: Validate JavaScript
+        run: |
+          node --check web/cloudsales-i18n-v1.js
+          node --check web/pwa-i18n-runtime-v1.js
+      - name: Validate repair guards
+        run: |
+          grep -q 'cs-commercial-repair-20260902' web/commercial.html
+          grep -q 'SUG_TLDS' web/cloudsales-i18n-v1.js
+          grep -q 'Twenty' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q 'CONNECT YOUR CRM AND WATCH CLOUDY WORK' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q 'VERSION="2026.09.02.4"' supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit repaired sources
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/commercial.html web/cloudsales-i18n-v1.js web/pwa-i18n-runtime-v1.js web/domains.html web/commercial/domains-v2.html supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'fix(commercial): repair mobile UX, checkout, domains, CRM and language defaults'
+          git push origin HEAD:main
