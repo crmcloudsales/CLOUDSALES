@@ -18,14 +18,16 @@ jobs:
       - run: pip install pillow
       - name: Rebuild official PWA icons
         run: python .github/scripts/rebuild_pwa_icon_safearea.py
-      - name: Update manifest to v3 icon assets
+      - name: Keep existing production routes and bump cache key
         run: |
           python - <<'PY'
           from pathlib import Path
           p=Path('web/manifest.webmanifest')
           s=p.read_text()
-          s=s.replace('/cloudsales-app-icon-official-v2-192.png?v=2026090101','/cloudsales-app-icon-official-v3-192.png?v=2026090202')
-          s=s.replace('/cloudsales-app-icon-official-v2.png?v=2026090101','/cloudsales-app-icon-official-v3.png?v=2026090202')
+          s=s.replace('/cloudsales-app-icon-official-v3-192.png?v=2026090202','/cloudsales-app-icon-official-v2-192.png?v=2026090203')
+          s=s.replace('/cloudsales-app-icon-official-v3.png?v=2026090202','/cloudsales-app-icon-official-v2.png?v=2026090203')
+          s=s.replace('/cloudsales-app-icon-official-v2-192.png?v=2026090101','/cloudsales-app-icon-official-v2-192.png?v=2026090203')
+          s=s.replace('/cloudsales-app-icon-official-v2.png?v=2026090101','/cloudsales-app-icon-official-v2.png?v=2026090203')
           p.write_text(s)
           PY
       - name: Validate geometry and manifest
@@ -33,18 +35,19 @@ jobs:
           python - <<'PY'
           from PIL import Image
           from pathlib import Path
-          for f,sz in [('web/assets/cloudsales-app-icon-official-v3.png',(512,512)),('web/assets/cloudsales-app-icon-official-v3-192.png',(192,192))]:
+          for f,sz in [('web/assets/cloudsales-app-icon-official-v2.png',(512,512)),('web/assets/cloudsales-app-icon-official-v2-192.png',(192,192))]:
               im=Image.open(f)
               assert im.size==sz, (f,im.size)
           m=Path('web/manifest.webmanifest').read_text()
-          assert 'official-v3.png?v=2026090202' in m
-          assert 'official-v3-192.png?v=2026090202' in m
+          assert 'official-v2.png?v=2026090203' in m
+          assert 'official-v2-192.png?v=2026090203' in m
+          assert 'official-v3' not in m
           print('validation ok')
           PY
       - name: Commit corrected icon assets
         run: |
           git config user.name 'crmcloudsales'
           git config user.email 'crmcloudsales@gmail.com'
-          git add web/assets/cloudsales-app-icon-official-v3.png web/assets/cloudsales-app-icon-official-v3-192.png web/manifest.webmanifest
-          git diff --cached --quiet || git commit -m 'fix(pwa): shrink and center app isotipo with safe area'
+          git add web/assets/cloudsales-app-icon-official-v2.png web/assets/cloudsales-app-icon-official-v2-192.png web/manifest.webmanifest
+          git diff --cached --quiet || git commit -m 'fix(pwa): shrink and center isotipo on existing production icon routes'
           git push
