@@ -1,0 +1,50 @@
+name: Rebuild PWA Icon Safe Area
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/scripts/rebuild_pwa_icon_safearea.py'
+      - '.github/workflows/rebuild-pwa-icon-safearea.yml'
+permissions:
+  contents: write
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow
+      - name: Rebuild official PWA icons
+        run: python .github/scripts/rebuild_pwa_icon_safearea.py
+      - name: Update manifest to v3 icon assets
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('web/manifest.webmanifest')
+          s=p.read_text()
+          s=s.replace('/cloudsales-app-icon-official-v2-192.png?v=2026090101','/cloudsales-app-icon-official-v3-192.png?v=2026090202')
+          s=s.replace('/cloudsales-app-icon-official-v2.png?v=2026090101','/cloudsales-app-icon-official-v3.png?v=2026090202')
+          p.write_text(s)
+          PY
+      - name: Validate geometry and manifest
+        run: |
+          python - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          for f,sz in [('web/assets/cloudsales-app-icon-official-v3.png',(512,512)),('web/assets/cloudsales-app-icon-official-v3-192.png',(192,192))]:
+              im=Image.open(f)
+              assert im.size==sz, (f,im.size)
+          m=Path('web/manifest.webmanifest').read_text()
+          assert 'official-v3.png?v=2026090202' in m
+          assert 'official-v3-192.png?v=2026090202' in m
+          print('validation ok')
+          PY
+      - name: Commit corrected icon assets
+        run: |
+          git config user.name 'crmcloudsales'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web/assets/cloudsales-app-icon-official-v3.png web/assets/cloudsales-app-icon-official-v3-192.png web/manifest.webmanifest
+          git diff --cached --quiet || git commit -m 'fix(pwa): shrink and center app isotipo with safe area'
+          git push
