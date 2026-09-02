@@ -1,0 +1,68 @@
+name: Domains Commercial Route Fix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/domains-commercial-route-fix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch domains routes and commercial site
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          root = Path('web')
+          source = root / 'commercial' / 'domains-v2.html'
+          canonical = root / 'domains.html'
+          if not source.exists():
+              raise SystemExit('Missing web/commercial/domains-v2.html')
+          canonical.write_text(source.read_text(encoding='utf-8'), encoding='utf-8')
+
+          alias = '''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,follow"><link rel="canonical" href="https://cloudsales.app/domains"><title>CloudSales Domains</title><script>location.replace('/domains'+location.search+location.hash)</script></head><body style="background:#07070d;color:#fff;font-family:system-ui;padding:40px"><a style="color:#ff2b9b" href="/domains">Continuar a CloudSales Domains</a></body></html>'''
+          for name in ('domain.html','dominio.html','dominios.html'):
+              (root/name).write_text(alias, encoding='utf-8')
+
+          p = root / 'commercial.html'
+          html = p.read_text(encoding='utf-8')
+
+          # Add nav item once.
+          if 'href="/domains">Domains</a>' not in html:
+              html = html.replace('<a href="/services">Servicios</a>', '<a href="/domains">Domains</a><a href="/services">Servicios</a>', 1)
+
+          section = r'''<section class="section" id="ai-websites"><div class="wrap"><div class="aiWebGrid"><div><div class="eyebrow">DOMINIO + SITIO WEB CON IA</div><h2>Tu negocio online.<br><span class="grad">Sin pagar una agencia para empezar.</span></h2><p class="lead">Busca tu dominio, cómpralo y describe cómo quieres tu sitio. CloudSales usa IA para convertir tu información, imágenes y materiales en una presencia web profesional lista para revisar y publicar.</p><div class="aiWebPoints"><span>✓ Busca y compra tu dominio</span><span>✓ Describe tu sitio por texto o voz</span><span>✓ Sube imágenes y documentos</span><span>✓ Revisa antes de publicar</span></div><div class="actions"><a class="btn primary" href="/domains">BUSCAR MI DOMINIO</a><a class="btn" href="/domains#buy">Conocer cómo funciona</a></div><div class="micro">Sitio web con IA incluido con la compra elegible del dominio. Aplican restricciones de uso razonable y Términos y Condiciones.</div></div><div class="aiLaptop" aria-label="Ejemplo de sitio web profesional creado para Pennyworth"><div class="aiLaptopCam"></div><div class="aiLaptopScreen"><div class="pwTop"><b>PENNYWORTH</b><span>REAL ESTATE · INVESTMENT</span></div><div class="pwHero"><small>INVERSIÓN INMOBILIARIA</small><strong>Redefinimos la<br>experiencia de invertir.</strong><p>Decisiones informadas, sólidas y seguras para construir patrimonio.</p><i>CONOCER OPORTUNIDADES</i></div><div class="pwCards"><span><b>Real Estate</b><small>Oportunidades seleccionadas</small></span><span><b>Sello PARS</b><small>Seguridad y rentabilidad</small></span><span><b>Advisory</b><small>Estrategia patrimonial</small></span></div></div><div class="aiLaptopBase"></div><div class="aiExample">Ejemplo visual: Pennyworth</div></div></div></div></section>'''
+
+          css = r'''<style id="cs-ai-websites-v1">.aiWebGrid{display:grid;grid-template-columns:1fr 1.05fr;gap:46px;align-items:center}.aiWebPoints{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:26px 0 4px}.aiWebPoints span{border:1px solid #2f2f3e;background:#101018;border-radius:14px;padding:13px 14px;color:#d8d7e0;font-size:12px;font-weight:750}.aiLaptop{position:relative;padding:22px 28px 52px;filter:drop-shadow(0 38px 55px #000a)}.aiLaptopScreen{position:relative;min-height:390px;border:10px solid #24242e;border-bottom-width:16px;border-radius:24px 24px 12px 12px;overflow:hidden;background:linear-gradient(135deg,#12100e,#070707);box-shadow:inset 0 0 0 1px #454550}.aiLaptopCam{position:absolute;z-index:3;top:31px;left:50%;width:7px;height:7px;border-radius:50%;background:#09090b;box-shadow:0 0 0 1px #4a4a55}.aiLaptopBase{position:absolute;left:8%;right:8%;bottom:31px;height:18px;border-radius:3px 3px 18px 18px;background:linear-gradient(#b8b8be,#5d5d66);box-shadow:0 12px 25px #0008}.aiLaptopBase:after{content:'';position:absolute;left:38%;right:38%;top:0;height:5px;background:#8a8a92;border-radius:0 0 7px 7px}.aiExample{text-align:center;color:#77778b;font-size:10px;margin-top:12px}.pwTop{height:52px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #3a312a;background:#0c0b0a}.pwTop b{font-size:14px;letter-spacing:.18em;color:#f3e6d6}.pwTop span{font-size:7px;letter-spacing:.12em;color:#978574}.pwHero{min-height:245px;padding:38px 30px;background:radial-gradient(circle at 78% 20%,#6a513433,transparent 34%),linear-gradient(120deg,#15120f,#080808);display:flex;flex-direction:column;align-items:flex-start}.pwHero small{font-size:8px;letter-spacing:.22em;color:#b89775}.pwHero strong{font-family:Georgia,serif;font-weight:500;font-size:31px;line-height:1.02;margin:12px 0;color:#f5eee5}.pwHero p{font-size:9px;line-height:1.5;color:#b5aaa0;max-width:68%}.pwHero i{font-style:normal;font-size:7px;letter-spacing:.12em;border:1px solid #a18568;color:#d7c1a9;padding:9px 11px;margin-top:5px}.pwCards{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#352d27}.pwCards span{background:#100e0c;padding:15px 12px;min-height:72px}.pwCards b{display:block;color:#eee2d5;font-family:Georgia,serif;font-size:12px}.pwCards small{display:block;margin-top:6px;color:#87796c;font-size:7px;line-height:1.3}@media(max-width:940px){.aiWebGrid{grid-template-columns:1fr}.aiLaptop{max-width:680px;margin:auto;width:100%}}@media(max-width:580px){.aiWebPoints{grid-template-columns:1fr}.aiLaptop{padding:12px 4px 42px}.aiLaptopScreen{min-height:330px;border-width:7px;border-bottom-width:13px}.pwHero{min-height:210px;padding:28px 20px}.pwHero strong{font-size:25px}.pwCards span{padding:12px 8px}.aiLaptopBase{left:2%;right:2%;bottom:27px}}</style>'''
+
+          if 'id="cs-ai-websites-v1"' not in html:
+              html = html.replace('</head>', css + '</head>', 1)
+          if 'id="ai-websites"' not in html:
+              m = re.search(r'<section\s+class="section"[^>]*id="pricing"[^>]*>', html)
+              if m:
+                  html = html[:m.start()] + section + html[m.start():]
+              else:
+                  marker = '<h2>Planes simples.</h2>'
+                  pos = html.find(marker)
+                  if pos == -1:
+                      html = html.replace('</main>', section + '</main>', 1)
+                  else:
+                      sec_start = html.rfind('<section', 0, pos)
+                      html = html[:sec_start] + section + html[sec_start:]
+          p.write_text(html, encoding='utf-8')
+      - name: Commit changes
+        run: |
+          git config user.name "cloudsales-bot"
+          git config user.email "cloudsales-bot@users.noreply.github.com"
+          git add web/domains.html web/domain.html web/dominio.html web/dominios.html web/commercial.html
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "fix(domains): publish all aliases and add AI websites commercial section"
+          git push
