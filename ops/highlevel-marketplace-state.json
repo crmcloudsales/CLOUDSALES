@@ -86,7 +86,7 @@
       "pro": {"monthly_usd": 97, "annual_usd": 970, "included_users": 1, "usage_markup_percent": 35, "usage_multiplier": 1.35},
       "premium": {"monthly_usd": 147, "annual_usd": 1470, "included_users": 2, "extra_seat_monthly_usd": 47, "usage_markup_percent": 25, "usage_multiplier": 1.25}
     },
-    "trial_days": 14,
+    "trial_days": 7,
     "usage_pricing_basis": "landed_provider_cost",
     "unknown_cost_behavior": "reconcile_no_charge",
     "domain_markup_percent": 100,
