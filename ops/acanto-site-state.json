@@ -1,0 +1,47 @@
+{
+  "client": "Acanto Condominiums & Hotel",
+  "organization_id": "48233ee9-b72c-4b61-b643-7143dabb1195",
+  "gate_id": "95d6d9a4-1dba-43bc-9fb8-d05c779114ed",
+  "gate_slug": "acanto-main",
+  "hostname": "acanto.cloudsales.app",
+  "cloudflare_worker": "acanto-condo-gateway",
+  "source": {
+    "landing": "web/clients/acanto/landing.html",
+    "edge_template": "web/clients/acanto/worker-edge-template.mjs",
+    "contact": "web/clients/acanto/contact.json",
+    "research": "web/clients/acanto/research-sources.md"
+  },
+  "security": {
+    "turnstile": "active",
+    "proof_of_work": "hmac_sha256_prefix_000",
+    "honeypot": "active",
+    "origin_validation": "active",
+    "server_validation": "active",
+    "hashed_ip_user_agent": "active",
+    "lead_intake": "cloudsales_supabase",
+    "min_accept_score": 60,
+    "challenge_score": 40
+  },
+  "seo": {
+    "indexable": true,
+    "canonical": "https://acanto.cloudsales.app/",
+    "robots": true,
+    "sitemap": true,
+    "structured_data": true
+  },
+  "verification": {
+    "cloudflare_custom_domain": "enabled",
+    "dns_record_verified": true,
+    "worker_bindings_verified": true,
+    "root_http_status": 200,
+    "health_http_status": 200,
+    "robots_http_status": 200,
+    "sitemap_http_status": 200,
+    "verified_at": "2026-09-02T05:31:17Z"
+  },
+  "notes": [
+    "Exact prices intentionally omitted until the supplied current price list can be re-verified.",
+    "Social profile links intentionally omitted until exact official Facebook/Instagram URLs are verified.",
+    "Rental and investment language avoids guaranteed-return claims."
+  ]
+}
