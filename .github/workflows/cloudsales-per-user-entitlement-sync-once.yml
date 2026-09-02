@@ -1,0 +1,48 @@
+name: CloudSales Per User Entitlement Sync Once
+on:
+  push:
+    paths:
+      - '.github/workflows/cloudsales-per-user-entitlement-sync-once.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch seat language to individual subscriptions
+        shell: python
+        run: |
+          from pathlib import Path
+          targets=[Path('web/subscribe.html'),Path('web/welcome.html'),Path('web/install.js'),Path('web/terms.html'),Path('web/commercial.html'),Path('web/commercial/conversion-v1.js'),Path('ops/highlevel-marketplace-state.json'),Path('docs/highlevel-marketplace/CLOUDSALES_MARKETPLACE_LISTING.md')]
+          reps={
+            '/mes · 2 usuarios · consumo variable x1.25':'/mes · suscripción individual · consumo variable x1.25',
+            '2 usuarios · extra $47 · uso: costo +25%':'suscripción individual · uso: costo +25%',
+            '2 usuarios incluidos, asiento extra 47 USD, uso variable a costo real más 25 por ciento':'suscripción individual, uso variable a costo real más 25 por ciento',
+            '2 usuarios incluidos':'suscripción individual por persona',
+            '2 users included':'individual subscription per person',
+            'Additional Premium seat: US$47/month':'Each additional person uses their own CloudSales subscription.',
+            'usuarios adicionales US$47/mes':'cada persona utiliza su propia suscripción CloudSales',
+            'usuario adicional a US$47/mes':'cada persona utiliza su propia suscripción CloudSales',
+            'extra seat US$47/month':'each person uses an individual CloudSales subscription',
+            'extra $47':'suscripción individual'
+          }
+          changed=[]
+          for p in targets:
+            if not p.exists(): continue
+            s=p.read_text(encoding='utf-8'); n=s
+            for a,b in reps.items(): n=n.replace(a,b)
+            if n!=s:
+              p.write_text(n,encoding='utf-8'); changed.append(str(p))
+          print('changed:',*changed,sep='\n- ')
+      - name: Commit
+        run: |
+          git config user.name 'CloudSales Release Bot'
+          git config user.email 'info@cloudsales.app'
+          git add web/subscribe.html web/welcome.html web/install.js web/terms.html web/commercial.html web/commercial/conversion-v1.js ops/highlevel-marketplace-state.json docs/highlevel-marketplace/CLOUDSALES_MARKETPLACE_LISTING.md
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Adopt per-user CloudSales subscription entitlements'
+          git push
