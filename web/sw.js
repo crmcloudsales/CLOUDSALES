@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.09.01.4';
+const CACHE='cloudsales-pwa-2026.09.02.1';
 const CORE=[
   '/',
   '/manifest.webmanifest',
@@ -39,7 +39,7 @@ self.addEventListener('install',event=>{
   self.skipWaiting();
   event.waitUntil(caches.open(CACHE).then(async cache=>{
     for(const url of CORE){
-      try{ await cache.add(url); }
+      try{ await cache.add(new Request(url,{cache:'reload'})); }
       catch(error){ console.warn('CloudSales precache skipped',url,error); }
     }
   }));
@@ -56,10 +56,13 @@ self.addEventListener('fetch',event=>{
   if(event.request.method!=='GET') return;
   const url=new URL(event.request.url);
   if(url.origin!==location.origin) return;
-  const critical=event.request.mode==='navigate'||url.pathname==='/'||url.pathname==='/sw.js'||url.pathname==='/manifest.webmanifest';
-  if(critical){
+
+  const runtimeScript=/\/(?:auth|app|meta|cloudy|works|ad-spend|ai-chat|calendar|contact-profile|dashboard|sales-analytics|native-shell|workspace-polish|pwa-i18n|cloudy-executive)[^/]*\.js$/.test(url.pathname);
+  const networkFirst=event.request.mode==='navigate'||url.pathname==='/'||url.pathname==='/sw.js'||url.pathname==='/manifest.webmanifest'||url.pathname==='/install.js'||runtimeScript;
+
+  if(networkFirst){
     event.respondWith((async()=>{
-      try{return await put(event.request,await fetch(event.request,{cache:'no-cache'}));}
+      try{return await put(event.request,await fetch(event.request,{cache:'no-store'}));}
       catch(error){
         const cached=await caches.match(event.request);
         if(cached) return cached;
@@ -69,6 +72,7 @@ self.addEventListener('fetch',event=>{
     })());
     return;
   }
+
   const network=fetch(event.request,{cache:'no-cache'}).then(r=>put(event.request,r));
   event.waitUntil(network.catch(()=>null));
   event.respondWith(caches.match(event.request).then(cached=>cached||network));
