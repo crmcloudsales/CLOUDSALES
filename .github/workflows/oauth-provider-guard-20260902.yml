@@ -1,0 +1,27 @@
+name: OAuth Provider Guard 2026-09-02
+on:
+  push:
+    paths:
+      - '.github/scripts/oauth_provider_guard_20260902.py'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch OAuth provider guard
+        run: python3 .github/scripts/oauth_provider_guard_20260902.py
+      - name: Validate auth runtime
+        run: |
+          node --check web/auth-runtime-v2.js
+          grep -q 'oauthProviderReady' web/auth-runtime-v2.js
+          grep -q "startOAuth('azure')" web/auth-runtime-v2.js
+          grep -q '2026.09.02.4' web/auth-runtime-v2.js
+      - name: Commit auth guard
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/auth-runtime-v2.js
+          git commit -m 'fix(auth): keep disabled OAuth errors inside CloudSales'
+          git push
