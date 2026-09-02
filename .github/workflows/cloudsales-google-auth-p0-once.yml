@@ -1,0 +1,82 @@
+name: CloudSales Google Auth P0 Once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/cloudsales-google-auth-p0-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add Google sign in and callback handling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('web/auth-runtime-v2.js')
+          s=p.read_text()
+          s=s.replace("const VERSION = '2026.09.01.6';", "const VERSION = '2026.09.02.1';")
+          anchor="  function ensureForgot() {\n"
+          block=r'''  function ensureGoogleAuth() {
+    let wrap = node('googleAuthWrap'); if (wrap) return wrap;
+    const tabs = node('tabIn')?.parentElement; if (!tabs?.parentNode) return null;
+    wrap = document.createElement('div'); wrap.id='googleAuthWrap';
+    wrap.style.cssText='display:grid;gap:10px;margin:0 0 16px';
+    wrap.innerHTML='<button id="googleAuthBtn" type="button" class="btn block" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f1f1f;border:1px solid #dadce0;font-weight:850"><span aria-hidden="true" style="font-size:18px;font-weight:900;color:#4285f4">G</span><span id="googleAuthLabel">Continuar con Google</span></button><div style="display:flex;align-items:center;gap:10px;color:#777;font-size:10px"><span style="height:1px;background:#2a2a38;flex:1"></span><span>o usa tu email</span><span style="height:1px;background:#2a2a38;flex:1"></span></div>';
+    tabs.insertAdjacentElement('afterend',wrap);
+    node('googleAuthBtn').onclick=startGoogleAuth;
+    return wrap;
+  }
+  function oauthSessionFromHash() {
+    const h = new URLSearchParams(location.hash.replace(/^#/,''));
+    if (!h.get('access_token') || h.get('type') === 'recovery') return null;
+    return {
+      access_token:h.get('access_token'), refresh_token:h.get('refresh_token')||'',
+      token_type:h.get('token_type')||'bearer', expires_in:Number(h.get('expires_in')||3600),
+      expires_at:Number(h.get('expires_at')||0), provider_token:h.get('provider_token')||null,
+      provider_refresh_token:h.get('provider_refresh_token')||null
+    };
+  }
+  async function consumeGoogleCallback() {
+    const s = oauthSessionFromHash(); if (!s) return false;
+    try {
+      history.replaceState(null,'',location.pathname+location.search);
+      message('Acceso con Google confirmado. Preparando CloudSales…',true);
+      await finishLogin({session:s});
+      return true;
+    } catch(err) { message(friendly(err)); return false; }
+  }
+  function startGoogleAuth() {
+    const btn=node('googleAuthBtn'); if(btn){btn.disabled=true;btn.querySelector('#googleAuthLabel').textContent='Abriendo Google…';}
+    const redirect = `${location.origin}${location.pathname}${location.search}`;
+    const url = `https://fkahaqprzgcimgyathqx.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirect)}`;
+    location.assign(url);
+  }
+'''
+          if 'function ensureGoogleAuth()' not in s:
+              s=s.replace(anchor, block+anchor)
+          s=s.replace("captureClaim(); captureCheckout(); prepareCheckoutUi(); bindCheckoutOnboarding(); ensureNotice(); ensureTrialUi(); const forgot=ensureForgot();", "captureClaim(); captureCheckout(); prepareCheckoutUi(); bindCheckoutOnboarding(); ensureNotice(); ensureTrialUi(); ensureGoogleAuth(); const forgot=ensureForgot();")
+          old="    syncUi();\n    button.onclick=async()=>{"
+          new="    syncUi();\n    if (oauthSessionFromHash()) { consumeGoogleCallback(); document.documentElement.dataset.authRuntime=VERSION; return true; }\n    button.onclick=async()=>{"
+          s=s.replace(old,new)
+          p.write_text(s)
+          PY
+      - name: Validate auth runtime
+        run: |
+          node --check web/auth-runtime-v2.js
+          grep -q "function ensureGoogleAuth" web/auth-runtime-v2.js
+          grep -q "provider=google" web/auth-runtime-v2.js
+          grep -q "consumeGoogleCallback" web/auth-runtime-v2.js
+          grep -q "2026.09.02.1" web/auth-runtime-v2.js
+      - name: Commit P0 Google auth
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/auth-runtime-v2.js
+          git commit -m 'feat(auth): add Google sign in and sign up flow'
+          git push origin HEAD:main
