@@ -5,6 +5,7 @@ on:
       - '.github/workflows/i18n-strict-coverage-audit.yml'
 permissions:
   contents: read
+# trigger 2026-09-02
 jobs:
   audit:
     runs-on: ubuntu-latest
