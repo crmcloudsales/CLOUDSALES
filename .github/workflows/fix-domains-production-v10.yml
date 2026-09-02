@@ -1,0 +1,34 @@
+name: Fix Domains Production v10
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-domains-production-v10.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix generated RDAP URL code
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
+          s=p.read_text()
+          assert 'VERSION="2026.09.01.9"' in s
+          s=s.replace('VERSION="2026.09.01.9"','VERSION="2026.09.01.10"',1)
+          old="const rd=await fetch(base.replace(/\\/?$/,'/')+'domain/'+encodeURIComponent(dn)"
+          new="const rd=await fetch((base.endsWith('/')?base:base+'/')+'domain/'+encodeURIComponent(dn)"
+          assert old in s
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "crmcloudsales"
+          git config user.email "crmcloudsales@gmail.com"
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m "fix(domains): remove generated regex escape issue"
+          git pull --rebase origin main
+          git push
