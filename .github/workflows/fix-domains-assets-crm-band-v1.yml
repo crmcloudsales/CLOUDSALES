@@ -1,0 +1,78 @@
+name: Fix Domains Assets CRM Band v1
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-domains-assets-crm-band-v1.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Domains and commercial homepage
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          # ---------- CloudSales Domains ----------
+          p=Path('web/commercial/domains-v2.html')
+          s=p.read_text()
+          s=s.replace('/marketing/cloudy.webp','https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/assets/marketing/cloudy-official.webp')
+          s=s.replace('/marketing/agentcloud.webp','https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/assets/marketing/agentcloud-official.webp')
+          s=s.replace('/marketing/listia-personaje-oficial.webp','https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/assets/listia-personaje-oficial.webp')
+          s=s.replace('<div class="advisual visual-upsells">↗</div>','<div class="advisual visual-upsells contain"><img src="https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/assets/marketing/upsells-official.webp" alt="UpSells"></div>')
+          # Existing card paths can vary; normalize them too.
+          s=s.replace('src="/assets/marketing/cloudy-official.webp"','src="https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/assets/marketing/cloudy-official.webp"')
+          s=s.replace('src="/assets/marketing/agentcloud-official.webp"','src="https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/assets/marketing/agentcloud-official.webp"')
+          s=s.replace('src="/assets/marketing/upsells-official.webp"','src="https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/assets/marketing/upsells-official.webp"')
+          if 'cs-domain-search-v2' not in s:
+            search_js=r'''<script id="cs-domain-search-v2">(()=>{'use strict';const q=id=>document.getElementById(id),btn=q('search'),inp=q('domain'),res=q('result'),purchase=q('purchase');if(!btn||!inp||!res)return;function norm(v){return String(v||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0].replace(/\.$/,'')}function show(name,status,cls,price='—',renew='—',note=''){q('domainName').textContent=name;q('availability').className=cls;q('availability').textContent=status;q('price').textContent=price;q('renew').textContent=renew;q('note').textContent=note;res.classList.add('show')}async function go(ev){if(ev){ev.preventDefault();ev.stopImmediatePropagation()}const d=norm(inp.value);inp.value=d;purchase?.classList.remove('show');if(!/^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(d)){show(d||'Dominio','ESCRIBE UN DOMINIO VÁLIDO','unavailable','—','—','Ejemplo: minegocio.com');return}btn.disabled=true;btn.textContent='BUSCANDO…';show(d,'CONSULTANDO…','available','—','—','Estamos consultando el registro del dominio.');try{const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),12000);const r=await fetch('/api/domain-quote?domain='+encodeURIComponent(d),{cache:'no-store',headers:{accept:'application/json'},signal:ctl.signal});clearTimeout(tm);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.message||j.error||'search_failed');if(j.provisional){if(j.availability==='registered'||j.registrable===false){show(d,'NO DISPONIBLE','unavailable','—','—',j.message||'El dominio ya está registrado.')}else{show(d,'POSIBLEMENTE DISPONIBLE','available','POR CONFIRMAR','POR CONFIRMAR',j.message||'No aparece registrado. Confirmaremos disponibilidad y precio antes de cualquier cobro.');purchase?.classList.add('show')}return}if(j.registrable===false){show(d,'NO DISPONIBLE','unavailable','—','—','Prueba con otro dominio.');return}if(j.registrable===true){const cur=j.currency||'USD',fmt=v=>v==null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:cur}).format(v);show(d,'✓ DISPONIBLE','available',fmt(j.sale_amount??j.normal?.registration),fmt(j.normal?.renewal)+'/año','Disponibilidad confirmada por el registrador.');purchase?.classList.add('show');return}show(d,'RESULTADO NO CONCLUYENTE','unavailable','—','—','Intenta nuevamente en unos segundos.')}catch(e){show(d,'NO PUDIMOS CONSULTAR AHORA','unavailable','—','—','La consulta tardó demasiado o el servicio no respondió. Intenta nuevamente.')}finally{btn.disabled=false;btn.textContent='BUSCAR'}}btn.onclick=go;inp.addEventListener('keydown',e=>{if(e.key==='Enter')go(e)},true)})();</script>'''
+            s=s.replace('</body>',search_js+'</body>')
+          p.write_text(s)
+
+          # ---------- Main commercial homepage CRM marquee ----------
+          p=Path('web/commercial.html')
+          s=p.read_text()
+          if 'cs-crm-marquee-v1' not in s:
+            css=r'''<style id="cs-crm-marquee-v1-css">.cs-crm-band{width:100%;overflow:hidden;border-top:1px solid #282432;border-bottom:1px solid #282432;background:linear-gradient(90deg,#0a0810,#15101c,#0a0810);padding:14px 0;margin:34px 0}.cs-crm-track{display:flex;align-items:center;width:max-content;gap:14px;animation:csCrmMarquee 34s linear infinite;will-change:transform}.cs-crm-item{height:48px;display:flex;align-items:center;gap:9px;padding:0 16px;border:1px solid #342c3d;border-radius:999px;background:#100d15;color:#fff;font:800 13px Inter,system-ui,sans-serif;white-space:nowrap}.cs-crm-item img{width:25px;height:25px;border-radius:6px;object-fit:contain;background:#fff;padding:2px}.cs-crm-call{font-size:15px;font-weight:950;letter-spacing:.055em;color:#fff;background:linear-gradient(90deg,#ff2b9b22,#8c5cff22);border-color:#754060}.cs-crm-call strong{background:linear-gradient(90deg,#ff49a9,#a67cff,#63a8ff);-webkit-background-clip:text;color:transparent}@keyframes csCrmMarquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}@media(max-width:700px){.cs-crm-band{margin:24px 0}.cs-crm-track{animation-duration:27s}.cs-crm-item{height:44px;font-size:12px}.cs-crm-call{font-size:13px}}@media(prefers-reduced-motion:reduce){.cs-crm-track{animation-play-state:paused}}</style>'''
+            logos=[('HighLevel','gohighlevel.com'),('HubSpot','hubspot.com'),('Pipedrive','pipedrive.com'),('Zoho CRM','zoho.com'),('Salesforce','salesforce.com'),('Dynamics 365','microsoft.com'),('monday CRM','monday.com'),('Freshsales','freshworks.com'),('Close','close.com'),('Copper','copper.com')]
+            def group():
+              out=['<div class="cs-crm-item cs-crm-call"><strong>CONECTA TU CRM Y MIRA A CLOUDY TRABAJAR</strong></div>']
+              for name,domain in logos:
+                out.append(f'<div class="cs-crm-item"><img loading="lazy" src="https://www.google.com/s2/favicons?domain={domain}&sz=64" alt="{name}"><span>{name}</span></div>')
+              return ''.join(out)
+            band='<section class="cs-crm-band" aria-label="Integraciones CRM"><div class="cs-crm-track">'+group()+group()+'</div></section>'
+            s=s.replace('</head>',css+'</head>')
+            s=s.replace('</main>',band+'</main>') if '</main>' in s else s.replace('</body>',band+'</body>')
+          p.write_text(s)
+
+          # ---------- Production Worker release / CSP ----------
+          p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
+          s=p.read_text()
+          s=re.sub(r'VERSION="[^"]+"','VERSION="2026.09.02.1"',s,count=1)
+          old="img-src 'self' data: blob: https://storage.googleapis.com https://*.stripe.com https://*.stripe.network;"
+          new="img-src 'self' data: blob: https://storage.googleapis.com https://raw.githubusercontent.com https://www.google.com https://*.stripe.com https://*.stripe.network;"
+          if old in s:s=s.replace(old,new)
+          elif 'https://raw.githubusercontent.com' not in s:
+            raise SystemExit('CSP img-src pattern changed; refusing unsafe blind patch')
+          p.write_text(s)
+          PY
+      - name: Verify source changes
+        run: |
+          grep -q 'cs-domain-search-v2' web/commercial/domains-v2.html
+          grep -q 'cloudy-official.webp' web/commercial/domains-v2.html
+          grep -q 'agentcloud-official.webp' web/commercial/domains-v2.html
+          grep -q 'upsells-official.webp' web/commercial/domains-v2.html
+          grep -q 'cs-crm-marquee-v1' web/commercial.html
+          grep -q 'CONECTA TU CRM Y MIRA A CLOUDY TRABAJAR' web/commercial.html
+          grep -q 'raw.githubusercontent.com' supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit
+        run: |
+          git config user.name "crmcloudsales"
+          git config user.email "crmcloudsales@gmail.com"
+          git add web/commercial/domains-v2.html web/commercial.html supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m "fix(domains): browser search assets and CRM marquee"
+          git pull --rebase origin main
+          git push origin main
