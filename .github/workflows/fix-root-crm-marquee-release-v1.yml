@@ -1,0 +1,40 @@
+name: Fix Root CRM Marquee Release v1
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-root-crm-marquee-release-v1.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inject CRM marquee into official root branding step
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
+          s=p.read_text()
+          s=re.sub(r'VERSION="[^"]+"','VERSION="2026.09.02.2"',s,count=1)
+          needle="if(isRoot){if(!h.includes('/cloudsales-i18n-v1.js'))"
+          if needle not in s:
+            raise SystemExit('root brand marker changed')
+          inject=r'''if(isRoot){if(!h.includes('cs-crm-marquee-v1')){const crmCss=`<style id="cs-crm-marquee-v1-css">.cs-crm-band{width:100%;overflow:hidden;border-top:1px solid #282432;border-bottom:1px solid #282432;background:linear-gradient(90deg,#0a0810,#15101c,#0a0810);padding:14px 0;margin:26px 0}.cs-crm-track{display:flex;align-items:center;width:max-content;gap:14px;animation:csCrmMarquee 34s linear infinite;will-change:transform}.cs-crm-item{height:48px;display:flex;align-items:center;gap:9px;padding:0 16px;border:1px solid #342c3d;border-radius:999px;background:#100d15;color:#fff;font:800 13px Inter,system-ui,sans-serif;white-space:nowrap}.cs-crm-item img{width:25px;height:25px;border-radius:6px;object-fit:contain;background:#fff;padding:2px}.cs-crm-call{font-size:15px;font-weight:950;letter-spacing:.055em;background:linear-gradient(90deg,#ff2b9b22,#8c5cff22);border-color:#754060}.cs-crm-call strong{background:linear-gradient(90deg,#ff49a9,#a67cff,#63a8ff);-webkit-background-clip:text;color:transparent}@keyframes csCrmMarquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}@media(max-width:700px){.cs-crm-track{animation-duration:27s}.cs-crm-item{height:44px;font-size:12px}.cs-crm-call{font-size:13px}}@media(prefers-reduced-motion:reduce){.cs-crm-track{animation-play-state:paused}}</style>`;const crms=[['HighLevel','gohighlevel.com'],['HubSpot','hubspot.com'],['Pipedrive','pipedrive.com'],['Zoho CRM','zoho.com'],['Salesforce','salesforce.com'],['Dynamics 365','microsoft.com'],['monday CRM','monday.com'],['Freshsales','freshworks.com'],['Close','close.com'],['Copper','copper.com']];const cg=()=>`<div class="cs-crm-item cs-crm-call"><strong>CONECTA TU CRM Y MIRA A CLOUDY TRABAJAR</strong></div>`+crms.map(x=>`<div class="cs-crm-item"><img loading="lazy" src="https://www.google.com/s2/favicons?domain=${x[1]}&sz=64" alt="${x[0]}"><span>${x[0]}</span></div>`).join('');const crmBand=`<section id="cs-crm-marquee-v1" class="cs-crm-band" aria-label="Integraciones CRM"><div class="cs-crm-track">${cg()}${cg()}</div></section>`;h=h.replace('</head>',crmCss+'</head>');if(/<main[^>]*>/i.test(h))h=h.replace(/(<main[^>]*>)/i,'$1'+crmBand);else h=h.replace('</body>',crmBand+'</body>')}if(!h.includes('/cloudsales-i18n-v1.js'))'''
+          s=s.replace(needle,inject,1)
+          p.write_text(s)
+          PY
+      - name: Verify
+        run: |
+          grep -q '2026.09.02.2' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q 'cs-crm-marquee-v1' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q 'CONECTA TU CRM Y MIRA A CLOUDY TRABAJAR' supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit
+        run: |
+          git config user.name "crmcloudsales"
+          git config user.email "crmcloudsales@gmail.com"
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m "fix(home): persist CRM marquee in production release"
+          git pull --rebase origin main
+          git push origin main
