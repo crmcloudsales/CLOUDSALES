@@ -1,0 +1,75 @@
+name: Add Microsoft Auth 2026-09-02
+on:
+  push:
+    paths:
+      - '.github/workflows/add-microsoft-auth-20260902.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add Microsoft OAuth button and Azure flow
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('web/auth-runtime-v2.js')
+          s=p.read_text()
+
+          s=s.replace("const VERSION = '2026.09.02.1';", "const VERSION = '2026.09.02.2';")
+
+          old="""wrap.innerHTML='<button id=\"googleAuthBtn\" type=\"button\" class=\"btn block\" style=\"display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f1f1f;border:1px solid #dadce0;font-weight:850\"><span aria-hidden=\"true\" style=\"font-size:18px;font-weight:900;color:#4285f4\">G</span><span id=\"googleAuthLabel\">Continuar con Google</span></button><div style=\"display:flex;align-items:center;gap:10px;color:#777;font-size:10px\"><span style=\"height:1px;background:#2a2a38;flex:1\"></span><span>o usa tu email</span><span style=\"height:1px;background:#2a2a38;flex:1\"></span></div>';
+    tabs.insertAdjacentElement('afterend',wrap); node('googleAuthBtn').onclick=startGoogleAuth; return wrap;"""
+          new="""wrap.innerHTML='<button id=\"googleAuthBtn\" type=\"button\" class=\"btn block\" style=\"display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f1f1f;border:1px solid #dadce0;font-weight:850\"><span aria-hidden=\"true\" style=\"font-size:18px;font-weight:900;color:#4285f4\">G</span><span id=\"googleAuthLabel\">Continuar con Google</span></button><button id=\"microsoftAuthBtn\" type=\"button\" class=\"btn block\" style=\"display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f1f1f;border:1px solid #dadce0;font-weight:850\"><span aria-hidden=\"true\" style=\"display:grid;grid-template-columns:repeat(2,7px);grid-template-rows:repeat(2,7px);gap:2px;width:16px;height:16px\"><i style=\"background:#f25022\"></i><i style=\"background:#7fba00\"></i><i style=\"background:#00a4ef\"></i><i style=\"background:#ffb900\"></i></span><span id=\"microsoftAuthLabel\">Continuar con Microsoft</span></button><div style=\"display:flex;align-items:center;gap:10px;color:#777;font-size:10px\"><span style=\"height:1px;background:#2a2a38;flex:1\"></span><span>o usa tu email</span><span style=\"height:1px;background:#2a2a38;flex:1\"></span></div>';
+    tabs.insertAdjacentElement('afterend',wrap); node('googleAuthBtn').onclick=startGoogleAuth; node('microsoftAuthBtn').onclick=startMicrosoftAuth; return wrap;"""
+          if old not in s:
+              raise SystemExit('google auth block not found')
+          s=s.replace(old,new,1)
+
+          old_google="""  function startGoogleAuth(){
+    const btn=node('googleAuthBtn'); if(btn){btn.disabled=true;const l=node('googleAuthLabel');if(l)l.textContent='Abriendo Google…'}
+    const redirect=`${location.origin}${location.pathname}${location.search}`;
+    location.assign(`https://fkahaqprzgcimgyathqx.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirect)}`);
+  }
+"""
+          new_google="""  function startGoogleAuth(){
+    const btn=node('googleAuthBtn'); if(btn){btn.disabled=true;const l=node('googleAuthLabel');if(l)l.textContent='Abriendo Google…'}
+    const redirect=`${location.origin}${location.pathname}${location.search}`;
+    location.assign(`https://fkahaqprzgcimgyathqx.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirect)}`);
+  }
+  function startMicrosoftAuth(){
+    const btn=node('microsoftAuthBtn'); if(btn){btn.disabled=true;const l=node('microsoftAuthLabel');if(l)l.textContent='Abriendo Microsoft…'}
+    const redirect=`${location.origin}${location.pathname}${location.search}`;
+    location.assign(`https://fkahaqprzgcimgyathqx.supabase.co/auth/v1/authorize?provider=azure&redirect_to=${encodeURIComponent(redirect)}&scopes=${encodeURIComponent('email')}`);
+  }
+"""
+          if old_google not in s:
+              raise SystemExit('startGoogleAuth block not found')
+          s=s.replace(old_google,new_google,1)
+
+          s=s.replace("message('Acceso con Google confirmado. Preparando CloudSales…',true)", "message('Acceso seguro confirmado. Preparando CloudSales…',true)", 1)
+
+          required=[
+            'microsoftAuthBtn',
+            'Continuar con Microsoft',
+            'provider=azure',
+            "encodeURIComponent('email')",
+            'startMicrosoftAuth',
+            "const VERSION = '2026.09.02.2';"
+          ]
+          for marker in required:
+              if marker not in s:
+                  raise SystemExit(f'missing marker: {marker}')
+          p.write_text(s)
+          PY
+          node --check web/auth-runtime-v2.js
+          grep -q 'provider=azure' web/auth-runtime-v2.js
+          grep -q 'Continuar con Microsoft' web/auth-runtime-v2.js
+      - name: Commit Microsoft auth runtime
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/auth-runtime-v2.js
+          git commit -m 'feat(auth): Microsoft sign in and sign up'
+          git push
