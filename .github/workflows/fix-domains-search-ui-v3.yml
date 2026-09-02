@@ -15,7 +15,6 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          # UI
           p=Path('web/commercial/domains-v2.html')
           s=p.read_text()
           old='.free{display:inline-flex;margin-top:26px;padding:9px 14px;border:1px solid #4b3150;border-radius:999px;background:#1a101c;font-size:12px;font-weight:850}'
@@ -32,7 +31,6 @@ jobs:
           s=s.replace(old,new,1)
           p.write_text(s)
 
-          # Official production Worker release source
           p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
           s=p.read_text()
           assert 'VERSION="2026.09.01.6"' in s
@@ -49,4 +47,5 @@ jobs:
           git config user.email "crmcloudsales@gmail.com"
           git add web/commercial/domains-v2.html supabase/functions/cloudflare-site-brand-release/index.ts
           git commit -m "fix(domains): working fallback search and promo layout"
+          git pull --rebase origin main
           git push
