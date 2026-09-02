@@ -1,0 +1,38 @@
+name: Meza exact image assets
+
+on:
+  push:
+    paths:
+      - '.github/workflows/meza-assets-build-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Rebuild exact Josefina and MEZA logo JPEGs
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat web/clients/meza/assets/build-src/josefina/*.b64 | base64 --decode > web/clients/meza/assets/josefina-meza.jpg
+          cat web/clients/meza/assets/build-src/logo/*.b64 | base64 --decode > web/clients/meza/assets/meza-logo.jpg
+          test "$(stat -c%s web/clients/meza/assets/josefina-meza.jpg)" = "25120"
+          test "$(stat -c%s web/clients/meza/assets/meza-logo.jpg)" = "15026"
+          file web/clients/meza/assets/josefina-meza.jpg | grep -qi 'JPEG image data'
+          file web/clients/meza/assets/meza-logo.jpg | grep -qi 'JPEG image data'
+          rm -rf web/clients/meza/assets/build-src
+      - name: Commit verified binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'cloudsales-release-bot'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web/clients/meza/assets/josefina-meza.jpg web/clients/meza/assets/meza-logo.jpg web/clients/meza/assets/build-src
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(meza): publish verified Josefina and logo JPEG assets'
+          git push origin HEAD:main
