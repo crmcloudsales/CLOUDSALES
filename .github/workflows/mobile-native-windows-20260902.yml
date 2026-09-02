@@ -1,0 +1,29 @@
+name: Mobile Native Windows 2026-09-02
+on:
+  push:
+    paths:
+      - '.github/scripts/mobile_native_windows_20260902.py'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch mobile native windows
+        run: python3 .github/scripts/mobile_native_windows_20260902.py
+      - name: Validate native shell
+        run: |
+          node --check web/native-shell-runtime-v1.js
+          grep -q 'cs-native-shell-v4' web/native-shell-runtime-v1.js
+          grep -q 'function bindSwipe' web/native-shell-runtime-v1.js
+          grep -q 'function organizeLeads' web/native-shell-runtime-v1.js
+          grep -q 'csLeadWindowTabs' web/native-shell-runtime-v1.js
+          grep -q 'aria-current' web/native-shell-runtime-v1.js
+      - name: Commit mobile UX
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/native-shell-runtime-v1.js
+          git commit -m 'feat(mobile): native Lead windows, swipe navigation and localized More'
+          git push
