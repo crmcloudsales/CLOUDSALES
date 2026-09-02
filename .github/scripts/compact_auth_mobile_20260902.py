@@ -1,3 +1,4 @@
+# One-time deterministic compact mobile auth patch.
 from pathlib import Path
 
 p=Path('web/pwa.html')
