@@ -1,0 +1,103 @@
+name: Domains Lead Conversion v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/domains-lead-conversion-v1.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Domains aliases, lead consent and commercial section
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('web')
+          source = root/'commercial'/'domains-v2.html'
+          domains = source.read_text(encoding='utf-8')
+
+          # Mandatory lead/contact consent on Domains.
+          consent_css = '''<style id="cs-domain-lead-consent-v1">.domainConsent{margin:12px 0 4px;padding:10px 12px;border:1px solid #2d2d3a;border-radius:12px;background:#0b0b11;color:#8f8c99;font-size:9px;line-height:1.45}.domainConsent label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}.domainConsent input{margin-top:2px;flex:none}.domainConsent a{color:#c9a6ff;text-decoration:underline;text-underline-offset:2px}.domainConsent strong{color:#bdb9c6;font-weight:700}.consentHint{font-size:8px;color:#6f6c78;margin-top:5px}</style>'''
+          if 'cs-domain-lead-consent-v1' not in domains:
+              domains = domains.replace('</head>', consent_css + '</head>')
+
+          consent_html = '''<div class="domainConsent" id="domainLeadConsent"><label><input id="domainContactConsent" type="checkbox" required><span><strong>Al darle click aceptas ser contactado para conocer beneficios que podría tener tu dominio.</strong> Conoce más en nuestros términos y condiciones. <a href="/terms" target="_blank" rel="noopener">Ver términos</a>.</span></label><div class="consentHint">Tu búsqueda y tus datos de contacto pueden ser utilizados por CloudSales para atender tu solicitud y darte seguimiento comercial conforme a nuestros Términos y Política de Privacidad.</div></div>'''
+
+          # Insert before the first purchase/continue button where possible.
+          if 'id="domainContactConsent"' not in domains:
+              anchors = [
+                  '<button id="continue"',
+                  '<button id="checkout"',
+                  '<button id="buyDomain"',
+                  '<button id="pay"',
+                  '<button id="submitLead"'
+              ]
+              inserted = False
+              for a in anchors:
+                  pos = domains.find(a)
+                  if pos != -1:
+                      domains = domains[:pos] + consent_html + domains[pos:]
+                      inserted = True
+                      break
+              if not inserted:
+                  # Safe fallback: place consent at end of purchase block before checkout section.
+                  m = re.search(r'(<div id="checkout"[^>]*>)', domains)
+                  if m:
+                      domains = domains[:m.start()] + consent_html + domains[m.start():]
+                  else:
+                      domains = domains.replace('</main>', consent_html + '</main>')
+
+          # Enforce consent before purchase/checkout-generating actions.
+          consent_js = '''<script id="cs-domain-lead-consent-v1-js">(function(){function ok(){var c=document.getElementById('domainContactConsent');if(!c||c.checked)return true;alert('Para continuar, acepta el contacto relacionado con los beneficios de tu dominio.');c.focus();return false;}document.addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;var id=(b.id||'').toLowerCase(),t=(b.textContent||'').toLowerCase();var gated=/continue|checkout|buy|pay|purchase|lead/.test(id)||/continuar|comprar|pagar|checkout|apartar/.test(t);if(gated&&!ok()){e.preventDefault();e.stopImmediatePropagation();}},true);})();</script>'''
+          if 'cs-domain-lead-consent-v1-js' not in domains:
+              domains = domains.replace('</body>', consent_js + '</body>')
+
+          source.write_text(domains, encoding='utf-8')
+          (root/'domains.html').write_text(domains, encoding='utf-8')
+
+          # Four aliases always resolve to same canonical HTML under Cloudflare Pages.
+          redirects = '''/domains /domains.html 200\n/domain /domains.html 200\n/dominios /domains.html 200\n/dominio /domains.html 200\n/domains/ /domains.html 200\n/domain/ /domains.html 200\n/dominios/ /domains.html 200\n/dominio/ /domains.html 200\n'''
+          red = root/'_redirects'
+          existing = red.read_text(encoding='utf-8') if red.exists() else ''
+          kept = [ln for ln in existing.splitlines() if not re.match(r'^/(domains|domain|dominios|dominio)(/)?\\s', ln)]
+          red.write_text('\n'.join([ln for ln in kept if ln.strip()] + redirects.strip().splitlines())+'\n', encoding='utf-8')
+
+          # Commercial homepage: dedicated AI websites / Domains lead-generating section.
+          commercial = root/'commercial.html'
+          html = commercial.read_text(encoding='utf-8')
+          section = '''<section class="section" id="domains-ai-websites"><div class="wrap"><div class="aiWebGrid"><div><div class="eyebrow">DOMINIOS + SITIOS WEB CON IA</div><h2>Tu dominio puede convertirse en un sitio web <span class="grad">sin pagar una agencia.</span></h2><p class="lead">Busca tu dominio, cómpralo y describe tu negocio. CloudSales utiliza IA para ayudarte a crear y publicar tu sitio web. Es una forma rápida de poner tu negocio online y después conectar ventas, leads, Cloudy y automatización.</p><div class="aiWebPoints"><span>✓ Busca y compra tu dominio</span><span>✓ Sitio web con IA incluido</span><span>✓ Diseño basado en tu negocio</span><span>✓ Preparado para captar leads</span></div><div class="actions"><a class="btn primary" href="/domains">BUSCAR MI DOMINIO</a><a class="btn" href="/terms">Cómo funciona</a></div><div class="micro">La creación con IA está sujeta a uso razonable y a nuestros Términos y Condiciones.</div></div><div class="aiLaptop"><div class="aiLaptopScreen"><img src="https://www.pennyworthrealestate.com/" alt="Ejemplo de sitio web creado para Pennyworth" onerror="this.style.display='none';this.parentElement.classList.add('fallbackPennyworth')"><div class="pennyworthFallback"><div class="pwTop">PENNYWORTH</div><div class="pwHero">REAL ESTATE<br><b>BUILT TO CONVERT.</b></div><div class="pwCards"><i></i><i></i><i></i></div></div></div><div class="aiLaptopBase"></div><div class="aiWebCaption">Ejemplo: experiencia web de Pennyworth</div></div></div></div></section>'''
+          css = '''<style id="cs-domains-commercial-v2">#domains-ai-websites{background:radial-gradient(800px 420px at 75% 45%,#48234f44,transparent 70%)}.aiLaptop{position:relative;padding:20px 28px 55px;filter:drop-shadow(0 38px 55px #000a)}.aiLaptopScreen{position:relative;aspect-ratio:16/10;border:8px solid #20202a;border-radius:18px 18px 8px 8px;background:linear-gradient(145deg,#171724,#08080d);overflow:hidden;box-shadow:inset 0 0 0 1px #454552}.aiLaptopScreen>img{width:100%;height:100%;object-fit:cover;object-position:top}.aiLaptopBase{height:14px;margin:-1px -22px 0;background:linear-gradient(#62626c,#2d2d35);border-radius:2px 2px 20px 20px;box-shadow:0 12px 30px #0008}.aiWebCaption{text-align:center;color:#77778a;font-size:10px;margin-top:14px}.pennyworthFallback{position:absolute;inset:0;padding:28px;background:radial-gradient(circle at 65% 20%,#35404d,transparent 42%),linear-gradient(145deg,#101820,#06080b);color:#fff}.pwTop{font-size:12px;letter-spacing:.22em;font-weight:900}.pwHero{font-size:clamp(24px,4vw,46px);line-height:.98;margin-top:18%;letter-spacing:-.05em}.pwHero b{color:#d9c6a0}.pwCards{display:flex;gap:8px;margin-top:28px}.pwCards i{display:block;width:30%;height:34px;border:1px solid #ffffff22;background:#ffffff0d;border-radius:7px}.aiLaptopScreen:not(.fallbackPennyworth) .pennyworthFallback{display:none}@media(max-width:940px){.aiWebGrid{grid-template-columns:1fr}.aiLaptop{max-width:720px;margin:auto;width:100%}}</style>'''
+          if 'cs-domains-commercial-v2' not in html:
+              html = html.replace('</head>', css + '</head>')
+          if 'id="domains-ai-websites"' not in html:
+              # Put it before pricing if available, else before footer.
+              markers = ['id="pricing"','id="plans"','<footer']
+              placed=False
+              for marker in markers:
+                  pos=html.find(marker)
+                  if pos!=-1:
+                      # find section/footer opening start
+                      start=html.rfind('<section',0,pos) if marker!='<footer' else pos
+                      if start<0: start=pos
+                      html=html[:start]+section+html[start:]
+                      placed=True
+                      break
+              if not placed:
+                  html=html.replace('</main>',section+'</main>')
+          commercial.write_text(html, encoding='utf-8')
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "crmcloudsales"
+          git config user.email "crmcloudsales@gmail.com"
+          git add web/commercial/domains-v2.html web/domains.html web/_redirects web/commercial.html
+          git diff --cached --quiet || git commit -m "feat(domains): unify routes and lead conversion flow"
+          git push
