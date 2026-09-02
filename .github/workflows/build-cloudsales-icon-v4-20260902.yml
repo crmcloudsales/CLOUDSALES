@@ -16,8 +16,21 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install --disable-pip-version-check pillow
-      - name: Build exact v4 assets and patch release
-        run: python3 .github/scripts/build_cloudsales_icon_v4_20260902.py
+      - name: Build exact v4 assets and capture diagnostic
+        run: |
+          set +e
+          python3 .github/scripts/build_cloudsales_icon_v4_20260902.py > /tmp/icon-v4.log 2>&1
+          code=$?
+          set -e
+          cat /tmp/icon-v4.log
+          cp /tmp/icon-v4.log .github/triggers/icon-v4-build-log.txt
+          echo "exit_code=$code" >> .github/triggers/icon-v4-build-log.txt
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add .github/triggers/icon-v4-build-log.txt
+          git commit -m 'chore(pwa): capture icon v4 build diagnostic' || true
+          git push || true
+          exit $code
       - name: Validate binary geometry and references
         run: |
           python - <<'PY'
