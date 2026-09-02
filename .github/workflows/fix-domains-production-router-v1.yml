@@ -1,0 +1,53 @@
+name: Fix Domains Production Router v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-domains-production-router-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Patch official CloudSales Worker source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
+          s=p.read_text()
+          s=s.replace('VERSION="2026.09.01.4"','VERSION="2026.09.01.5"')
+          s=s.replace("ROUTES=['/','/cloudco','/academy','/services','/affiliate','/terms','/privacy']","ROUTES=['/','/cloudco','/academy','/services','/affiliate','/terms','/privacy','/domains']")
+          s=s.replace("HL=${JSON.stringify(HL)},OMNI=${JSON.stringify(OMNI)};const H=", "HL=${JSON.stringify(HL)},OMNI=${JSON.stringify(OMNI)},DOMAIN_API=${JSON.stringify(`${SUPA}/functions/v1/cloudsales-web`)};const H=")
+          s=s.replace("'permissions-policy':'camera=(),geolocation=(),microphone=(),payment=(self)'", "'permissions-policy':'camera=(),geolocation=(),microphone=(self),payment=(self)'")
+          needle="if(p==='/webhooks/highlevel')return proxy(req,HL,['content-type','x-ghl-signature','x-wh-signature','x-webhook-id','user-agent']);"
+          repl="if(p.startsWith('/api/domain-')||p==='/api/promo-offer')return proxy(req,DOMAIN_API+p+u.search,['content-type','origin','user-agent','cf-connecting-ip','x-forwarded-for']);"+needle
+          if "p.startsWith('/api/domain-')" not in s:
+              s=s.replace(needle,repl)
+          old="return r(P[p]||P['/'],'text/html; charset=utf-8','no-store',{},CSP[p]||CSP['/'])"
+          new="const pageKey=['/domain','/dominio','/dominios'].includes(p)?'/domains':p;return r(P[pageKey]||P['/'],'text/html; charset=utf-8','no-store',{},CSP[pageKey]||CSP['/'])"
+          s=s.replace(old,new)
+          old_loop="for(const route of ROUTES){const h=brand(await txt(`https://cloudsales.app${route}`),route==='/');pages[route]=h;csps[route]=await policy(h)}"
+          new_loop="for(const route of ROUTES){const source=route==='/domains'?`${RAW}/domains.html`:`https://cloudsales.app${route}`;const h=brand(await txt(source),route==='/');pages[route]=h;csps[route]=await policy(h)}"
+          s=s.replace(old_loop,new_loop)
+          required=["'/domains'","p.startsWith('/api/domain-')","DOMAIN_API","microphone=(self)","pageKey=['/domain','/dominio','/dominios']","route==='/domains'?`${RAW}/domains.html`"]
+          missing=[x for x in required if x not in s]
+          if missing: raise SystemExit('Missing patches: '+repr(missing))
+          p.write_text(s)
+          PY
+      - name: Commit patched router
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m "fix(domains): route production aliases and APIs"
+          git push origin main
