@@ -1,0 +1,52 @@
+name: Fix Domains Search UI v3
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-domains-search-ui-v3.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Domains UI and production router source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          # UI
+          p=Path('web/commercial/domains-v2.html')
+          s=p.read_text()
+          old='.free{display:inline-flex;margin-top:26px;padding:9px 14px;border:1px solid #4b3150;border-radius:999px;background:#1a101c;font-size:12px;font-weight:850}'
+          new='.free{display:inline-flex;flex-direction:column;align-items:center;gap:3px;margin-top:26px;padding:10px 18px;border:1px solid #4b3150;border-radius:999px;background:#1a101c;font-size:12px;font-weight:850;line-height:1.2}.free strong{display:block;font-size:18px;line-height:1.1;letter-spacing:.01em;color:#fff;font-weight:950}'
+          assert old in s
+          s=s.replace(old,new,1)
+          old='<div class="free">Sin compromiso · Tú compras tu dominio · Desarrollo web US$0</div>'
+          new='<div class="free"><span>Sin compromiso · Tú compras tu dominio</span><strong>DESARROLLO WEB US$0</strong></div>'
+          assert old in s
+          s=s.replace(old,new,1)
+          old="quote=j;if(j.offer_id){domainOfferId=j.offer_id;domainOfferExp=new Date(j.offer_expires_at).getTime();showDomainOffer()}"
+          new="quote=j;if(j.provisional){quote=null;if(j.availability==='registered'||j.registrable===false){$('availability').className='unavailable';$('availability').textContent='NO DISPONIBLE';$('price').textContent=$('renew').textContent='—';$('note').textContent=j.message||'El dominio aparece registrado.'}else{$('availability').className='available';$('availability').textContent='POSIBLEMENTE DISPONIBLE';$('price').textContent=$('renew').textContent='POR CONFIRMAR';$('note').textContent=j.message||'No aparece registrado. Confirmaremos disponibilidad y precio con Cloudflare antes de cualquier cobro.';purchase.classList.add('show')}search.disabled=false;search.textContent='BUSCAR';return}if(j.offer_id){domainOfferId=j.offer_id;domainOfferExp=new Date(j.offer_expires_at).getTime();showDomainOffer()}"
+          assert old in s
+          s=s.replace(old,new,1)
+          p.write_text(s)
+
+          # Official production Worker release source
+          p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
+          s=p.read_text()
+          assert 'VERSION="2026.09.01.6"' in s
+          s=s.replace('VERSION="2026.09.01.6"','VERSION="2026.09.01.7"',1)
+          old="if(p.startsWith('/api/domain-')||p==='/api/promo-offer')return proxy(req,DOMAIN_API+p+u.search,['content-type','origin','user-agent','cf-connecting-ip','x-forwarded-for']);"
+          new="if(p==='/api/domain-quote'){const q=await proxy(req,DOMAIN_API+p+u.search,['content-type','origin','user-agent','cf-connecting-ip','x-forwarded-for']);if(q.status!==503)return q;const dn=String(u.searchParams.get('domain')||'').trim().toLowerCase();if(/^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$/i.test(dn)){try{const rd=await fetch('https://rdap.org/domain/'+encodeURIComponent(dn),{redirect:'follow',headers:{accept:'application/rdap+json,application/json'}});if(rd.status===404)return r(JSON.stringify({domain:dn,registrable:null,provisional:true,authoritative:false,availability:'possibly_available',currency:'USD',normal:{registration:null,renewal:null},exit_offer:{registration:null,renewal:null},sale_amount:null,renewal_sale_amount:null,website:{included:true,price:0,free_builds:1,free_revisions:0},message:'No aparece registrado en RDAP. Confirmaremos disponibilidad y precio con Cloudflare antes de cualquier cobro.'}),'application/json;charset=utf-8');if(rd.ok)return r(JSON.stringify({domain:dn,registrable:false,provisional:true,authoritative:false,availability:'registered',reason:'domain_unavailable',currency:'USD',normal:{registration:null,renewal:null},exit_offer:{registration:null,renewal:null},sale_amount:null,renewal_sale_amount:null,website:{included:true,price:0,free_builds:1,free_revisions:0},message:'El dominio aparece registrado.'}),'application/json;charset=utf-8')}catch{}}return q}if(p.startsWith('/api/domain-')||p==='/api/promo-offer')return proxy(req,DOMAIN_API+p+u.search,['content-type','origin','user-agent','cf-connecting-ip','x-forwarded-for']);"
+          assert old in s
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "crmcloudsales"
+          git config user.email "crmcloudsales@gmail.com"
+          git add web/commercial/domains-v2.html supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m "fix(domains): working fallback search and promo layout"
+          git push
