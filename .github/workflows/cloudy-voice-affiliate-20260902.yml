@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/scripts/cloudy_voice_affiliate_20260902.py'
+      - '.github/triggers/cloudy-voice-affiliate-20260902.txt'
 permissions:
   contents: write
 jobs:
@@ -15,7 +16,6 @@ jobs:
       - name: Validate JS and business UX markers
         run: |
           node --check web/cloudy-runtime-v3.js
-          node --check <(sed -n '/<script>/,/<\/script>/p' web/pwa.html | sed '1d;$d') || true
           grep -q '2026.09.02.2' web/cloudy-runtime-v3.js
           grep -q 'function toggleVoiceSession' web/cloudy-runtime-v3.js
           grep -q "vc('didntUnderstand')" web/cloudy-runtime-v3.js
