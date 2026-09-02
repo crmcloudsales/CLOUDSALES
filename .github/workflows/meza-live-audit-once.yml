@@ -1,0 +1,54 @@
+name: Meza live site audit once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/meza-live-audit-once.yml'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Audit live HTML, SEO, security and images
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE='https://meza.cloudsales.app/'
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36'
+          curl -fsSL -A "$UA" -D /tmp/headers "$SITE" -o /tmp/page.html
+          echo '--- LIVE HEADERS ---'
+          cat /tmp/headers
+          grep -qi '^strict-transport-security:' /tmp/headers
+          grep -qi '^content-security-policy:' /tmp/headers
+          grep -qi '^x-content-type-options: nosniff' /tmp/headers
+          grep -qi '^x-frame-options: SAMEORIGIN' /tmp/headers
+          grep -q 'property="og:title"' /tmp/page.html
+          grep -q 'application/ld+json' /tmp/page.html
+          grep -q 'MEZA & CO. Real Estate | Propiedades en Riviera Maya' /tmp/page.html
+          grep -q 'Powered by CloudSales' /tmp/page.html
+          curl -fsSL -A "$UA" 'https://meza.cloudsales.app/health' | tee /tmp/health.json
+          curl -fsSL -A "$UA" 'https://meza.cloudsales.app/robots.txt' | grep -q 'Sitemap: https://meza.cloudsales.app/sitemap.xml'
+          curl -fsSL -A "$UA" 'https://meza.cloudsales.app/sitemap.xml' | grep -q 'https://meza.cloudsales.app/'
+          curl -fsSL -A "$UA" 'https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/clients/meza/assets/josefina-meza.jpg' -o /tmp/josefina.jpg
+          curl -fsSL -A "$UA" 'https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/clients/meza/assets/meza-logo.jpg' -o /tmp/logo.jpg
+          echo 'e28dc8b7055a43d6bd446c0033e113d0ab554af19f507e302d14113f84f62cc2  /tmp/josefina.jpg' | sha256sum -c -
+          echo 'fdf708d2fb3e8f5b5c9da0649ba8ed9664ac8d9b7c148c9e101dcecb1356605d  /tmp/logo.jpg' | sha256sum -c -
+          file /tmp/josefina.jpg /tmp/logo.jpg
+          python3 - <<'PY'
+          import re,subprocess,html
+          page=open('/tmp/page.html').read()
+          urls=[]
+          for u in re.findall(r'<img[^>]+src="([^"]+)"',page):
+              u=html.unescape(u)
+              if u not in urls: urls.append(u)
+          print('IMAGE_COUNT',len(urls))
+          failures=[]
+          for i,u in enumerate(urls,1):
+              p=subprocess.run(['curl','-L','-A','Mozilla/5.0 Chrome/140 Safari/537.36','--max-time','25','-sS','-o','/dev/null','-w','%{http_code}',u],capture_output=True,text=True)
+              code=p.stdout.strip()
+              print(f'{i:02d} {code} {u}')
+              if not code or not code[0] in '23': failures.append((code,u,p.stderr.strip()))
+          if failures:
+              print('IMAGE_FAILURES',failures)
+              raise SystemExit(1)
+          PY
