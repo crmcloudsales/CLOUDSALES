@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '2026.09.02.4';
+  const VERSION = '2026.09.02.5';
   const CLAIM_KEY = 'cs_pending_claim';
   const CHECKOUT_KEY = 'cs_pending_checkout';
 
@@ -181,7 +181,20 @@
   }
   async function consumeGoogleCallback(){
     const s=oauthSessionFromHash(); if(!s) return false;
-    try{history.replaceState(null,'',location.pathname+location.search);message('Acceso seguro confirmado. Preparando CloudSales…',true);await finishLogin({session:s});return true}catch(err){message(friendly(err));return false}
+    const intent=localStorage.getItem('cs_oauth_intent')||'signin';
+    localStorage.removeItem('cs_oauth_intent');
+    try{
+      history.replaceState(null,'',location.pathname+location.search);
+      message('Acceso seguro confirmado. Preparando CloudSales…',true);
+      await finishLogin({session:s});
+      if(intent==='signin' && (typeof currentOrg==='undefined' || !currentOrg?.id)){
+        try{clearSession?.()}catch{}
+        try{if(typeof showAuth==='function')showAuth()}catch{}
+        message('Esta cuenta no existe, intenta con otro método.');
+        return false;
+      }
+      return true;
+    }catch(err){message(friendly(err));return false}
   }
   async function oauthProviderReady(provider){
     try{
@@ -196,6 +209,8 @@
     if(btn)btn.disabled=false;if(label)label.textContent=isMs?'Continuar con Microsoft':'Continuar con Google';
   }
   async function startOAuth(kind){
+    const currentMode=typeof mode!=='undefined'?mode:'signin';
+    localStorage.setItem('cs_oauth_intent',currentMode==='signup'?'signup':'signin');
     const isMs=kind==='azure',btn=node(isMs?'microsoftAuthBtn':'googleAuthBtn'),label=node(isMs?'microsoftAuthLabel':'googleAuthLabel');
     if(btn)btn.disabled=true;if(label)label.textContent=isMs?'Comprobando Microsoft…':'Comprobando Google…';
     const ready=await oauthProviderReady(kind);
