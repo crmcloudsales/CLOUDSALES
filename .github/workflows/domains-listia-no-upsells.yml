@@ -1,0 +1,52 @@
+name: Domains LISTIA no UpSells
+on:
+  push:
+    paths:
+      - '.github/workflows/domains-listia-no-upsells.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update Domains promo cards
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p=Path('web/commercial/domains-v2.html')
+          s=p.read_text()
+          # Remove UpSells styling and the entire UpSells promotional card.
+          s=re.sub(r'\.visual-upsells\{[^}]*\}', '', s)
+          s=re.sub(r'<a class="ad" href="/upsells">[\s\S]*?<\/a>', '', s, count=1)
+          # Replace text-only LISTIA visual with the official transparent LISTIA character from LISTIA repo.
+          official='https://raw.githubusercontent.com/crmcloudsales/LISTIA/main/public/listia-character-transparent.webp'
+          s=re.sub(
+              r'<div class="advisual visual-listia" aria-label="LISTIA"><div[^>]*>LISTIA<\/div><\/div>',
+              '<div class="advisual visual-listia contain"><img src="'+official+'" alt="LISTIA" loading="lazy"></div>',
+              s,
+              count=1
+          )
+          # Also repair any older LISTIA image reference if it survived a prior version.
+          s=s.replace('https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/assets/listia-personaje-oficial.webp', official)
+          # Safety: Domains must not advertise unreleased UpSells anywhere.
+          if re.search(r'upsells', s, re.I):
+              raise SystemExit('UpSells reference still present in Domains')
+          if official not in s or '<h3>LISTIA</h3>' not in s:
+              raise SystemExit('Official LISTIA card not present')
+          p.write_text(s)
+          Path('web/domains.html').write_text(s)
+      - name: Verify
+        run: |
+          grep -q 'crmcloudsales/LISTIA/main/public/listia-character-transparent.webp' web/commercial/domains-v2.html
+          grep -q '<h3>LISTIA</h3>' web/commercial/domains-v2.html
+          ! grep -qi 'upsells' web/commercial/domains-v2.html
+          cmp web/commercial/domains-v2.html web/domains.html
+      - name: Commit
+        run: |
+          git config user.name 'crmcloudsales'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web/commercial/domains-v2.html web/domains.html
+          git commit -m 'fix(domains): show official LISTIA and remove UpSells'
+          git push
