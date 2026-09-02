@@ -1,0 +1,26 @@
+name: PWA Activation Resilience 2026-09-02
+on:
+  push:
+    paths:
+      - '.github/scripts/pwa_activation_resilience_20260902.py'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch PWA
+        run: python3 .github/scripts/pwa_activation_resilience_20260902.py
+      - name: Validate PWA inline JavaScript markers
+        run: |
+          grep -q 'retryBoot' web/pwa.html
+          grep -q 'El workspace se creó' web/pwa.html
+          grep -q 'error temporal' web/pwa.html
+      - name: Commit
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/pwa.html
+          git commit -m 'fix(pwa): preserve sessions on transient boot failures'
+          git push
