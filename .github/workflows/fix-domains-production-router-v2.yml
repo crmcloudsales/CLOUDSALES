@@ -1,0 +1,40 @@
+name: Fix Domains Production Router v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-domains-production-router-v2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Fix Domains hosted logo in release source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
+          s=p.read_text()
+          s=s.replace('VERSION="2026.09.01.5"','VERSION="2026.09.01.6"')
+          old="for(const route of ROUTES){const source=route==='/domains'?`${RAW}/domains.html`:`https://cloudsales.app${route}`;const h=brand(await txt(source),route==='/');pages[route]=h;csps[route]=await policy(h)}"
+          new="for(const route of ROUTES){const source=route==='/domains'?`${RAW}/domains.html`:`https://cloudsales.app${route}`;let h=brand(await txt(source),route==='/');if(route==='/domains')h=h.replace(/https:\\/\\/raw\\.githubusercontent\\.com\\/crmcloudsales\\/CLOUDSALES\\/main\\/web\\/assets\\/cloudsales-logo-official-v2\\.png/g,`/cloudsales-logo-official-v2.png?v=${VERSION}`);pages[route]=h;csps[route]=await policy(h)}"
+          if old not in s: raise SystemExit('release loop pattern not found')
+          s=s.replace(old,new)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m "fix(domains): use hosted logo in production route"
+          git push origin main
