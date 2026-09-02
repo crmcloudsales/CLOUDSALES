@@ -1,3 +1,4 @@
+# Deterministic one-time patch for CloudSales Microsoft OAuth.
 from pathlib import Path
 
 p = Path('web/auth-runtime-v2.js')
