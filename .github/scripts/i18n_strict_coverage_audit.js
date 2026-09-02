@@ -3,7 +3,7 @@ function extract(src,start,end){const a=src.indexOf(start);if(a<0)throw Error('m
 function obj(code){return vm.runInNewContext('('+code+')')}
 const c=fs.readFileSync('web/cloudsales-i18n-v1.js','utf8');
 const T=obj(extract(c,'const T=',';\nconst EN_FULL='));
-const EN_FULL=obj(extract(c,'const EN_FULL=',';\nfunction canonicalLocale'));
+const EN_FULL=obj(extract(c,'const EN_FULL=',';\n\nconst TRIAL_COPY='));
 const p=fs.readFileSync('web/pwa-i18n-runtime-v1.js','utf8');
 const EN=obj(extract(p,'const EN=',';\nconst L='));
 const L=obj(extract(p,'const L=',';\nfunction locale'));
