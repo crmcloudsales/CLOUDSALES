@@ -1,3 +1,4 @@
+# One-time deterministic PWA activation resilience patch.
 from pathlib import Path
 
 p=Path('web/pwa.html')
@@ -13,7 +14,6 @@ new="""async function boot(){try{if(!session){const x=localStorage.getItem('cs_s
 if old not in s: raise SystemExit('boot marker not found')
 s=s.replace(old,new,1)
 
-# Ensure retry/activation markers are present.
 for marker in ['retryBoot','error temporal','const ready=await loadState()']:
     if marker not in s: raise SystemExit('missing '+marker)
 
