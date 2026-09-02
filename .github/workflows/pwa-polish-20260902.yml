@@ -1,0 +1,33 @@
+name: CloudSales PWA Polish 2026-09-02
+on:
+  push:
+    paths:
+      - '.github/scripts/pwa_polish_wire_20260902.py'
+      - '.github/triggers/pwa-polish-20260902.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply PWA polish wiring
+        run: python3 .github/scripts/pwa_polish_wire_20260902.py
+      - name: Validate release
+        run: |
+          node --check web/pwa-polish-runtime-v1.js
+          node --check web/contact-profile-runtime-v1.js
+          node --check web/sw.js
+          grep -q 'pwa-polish-runtime-v1.js?v=2026090205' web/pwa.html
+          grep -q "cloudsales-pwa-2026.09.02.5" web/sw.js
+          grep -q 'CloudSalesContactProfileOpen' web/contact-profile-runtime-v1.js
+          grep -q 'data-native-page="leads"' web/pwa-polish-runtime-v1.js
+          grep -q 'Twenty CRM' web/pwa-polish-runtime-v1.js
+      - name: Commit PWA polish
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/pwa.html web/sw.js web/contact-profile-runtime-v1.js
+          if git diff --cached --quiet; then echo 'No changes'; exit 0; fi
+          git commit -m 'feat(pwa): polish mobile nav, pipeline, lead profile and CRM surfaces'
+          git push
