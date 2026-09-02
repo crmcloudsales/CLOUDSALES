@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - '.github/scripts/mobile_native_windows_v2_20260902.py'
+      - '.github/triggers/mobile-native-windows-20260902.txt'
 permissions:
   contents: write
 jobs:
