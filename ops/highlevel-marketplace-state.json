@@ -1,138 +1,106 @@
 {
-  "updated_at": "2026-09-01",
+  "updated_at": "2026-09-02",
   "product": "CloudSales",
   "workstream": "HighLevel Marketplace",
   "provider": "highlevel",
   "architecture": {
-    "agency_app": {
-      "marketplace_name": "CloudSales Agency",
-      "app_type": "Public",
-      "target_user": "Agency",
-      "listing_type": "White-label",
-      "purpose": "Agency-level control for CloudSales, including agency resources exposed by HighLevel such as snapshots and future Agency Pro capabilities.",
-      "status": "existing app renamed/configured in Developer Portal"
-    },
     "location_app": {
       "marketplace_name": "CloudSales",
       "app_type": "Public",
       "target_user": "Sub-Account",
       "listing_type": "White-label",
-      "purpose": "Primary CloudSales integration used by Cloudy and AgentCloud to operate each customer Location/Sub-Account.",
-      "status": "being created/configured in Developer Portal"
+      "installers": "Both Agency & Sub-account",
+      "bulk_install": true,
+      "purpose": "Primary customer-facing HighLevel connector. Cloudy operates the authorized HighLevel Location/Sub-Account from CloudSales and the CloudSales PWA.",
+      "portal_status": "draft"
     },
-    "control_model": "CloudSales is the user-facing product. HighLevel remains a connected provider behind CloudSales. Cloudy and AgentCloud select the correct Agency or Location authorization according to the requested action."
+    "agency_app": {
+      "marketplace_name": "CloudSales Agency",
+      "target_user": "Agency",
+      "purpose": "Separate agency-level connector for agency resources and future Agency Pro capabilities.",
+      "portal_status": "not confirmed visible in current My Apps; create/configure separately after the main CloudSales app if needed"
+    },
+    "control_model": "CloudSales is the product and PWA. Cloudy is the primary operator and automation executor. AgentCloud is limited to AI conversations and calls. HighLevel and other CRMs are connected infrastructure behind CloudSales."
   },
-  "redirect_uri": "https://cloudsales.app/oauth/callback",
-  "marketplace_webhook_url": "https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/highlevel-private-connect",
-  "supabase_project_id": "fkahaqprzgcimgyathqx",
-  "backend": {
-    "lifecycle_table": "public.highlevel_marketplace_installations",
-    "oauth_lifecycle_function": "highlevel-private-connect",
-    "oauth_lifecycle_function_version": 4,
-    "crm_command_function": "highlevel-command",
+  "identity": {
+    "customer_term": "CloudSales Member",
+    "persistent_identifier": "CloudSales Member ID",
+    "entitlement_model": "Portable Member Entitlement + Company Sponsorship",
+    "organization_assets_non_portable_by_default": true
+  },
+  "oauth": {
+    "credential_profile": "HIGHLEVEL_USER_*",
+    "client_key_label": "CloudSales User Production",
+    "redirect_uri": "https://cloudsales.app/oauth/callback",
+    "marketplace_webhook_url": "https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/highlevel-private-connect",
+    "tokens_stored_server_side": true,
     "tokens_stored_in_vault": true,
-    "marketplace_first_oauth": true,
-    "install_webhook_supported": true,
-    "update_webhook_supported": true,
-    "uninstall_webhook_supported": true,
-    "automatic_workspace_claim_after_auth": true,
-    "required_follow_up": "Align the deployed OAuth callback/credential redirect URI with https://cloudsales.app/oauth/callback and validate state before production Marketplace install testing."
-  },
-  "location_scope_strategy": {
-    "principle": "Request read and write access for operational modules Cloudy/AgentCloud are expected to manage; avoid unrelated destructive or agency-administrative permissions.",
-    "priority_modules": [
-      "contacts",
-      "opportunities",
-      "pipelines",
-      "conversations",
-      "messages",
-      "calendars",
-      "appointments",
-      "tasks",
-      "notes",
-      "tags",
-      "custom fields",
-      "custom objects",
-      "businesses",
-      "forms",
-      "surveys",
-      "workflows",
-      "payments where applicable",
-      "users",
-      "locations",
-      "phone system",
-      "Twilio-related resources exposed by HighLevel",
-      "ad publishing",
-      "documents/contracts",
-      "associations",
-      "social/media resources exposed by HighLevel"
-    ],
-    "note": "Exact scope identifiers must be selected from the Sub-Account scope list in the HighLevel Developer Portal; do not invent identifiers."
-  },
-  "agency_scope_strategy": {
-    "priority_modules": [
-      "ad publishing read/write where available",
-      "snapshots read/write",
-      "companies readonly",
-      "locations readonly",
-      "marketplace installer details readonly",
-      "users readonly",
-      "phone system/Twilio resources where available and justified"
-    ]
+    "install_update_uninstall_webhooks_supported": true
   },
   "billing": {
+    "business_model": "Paid",
+    "external_billing_supported": true,
+    "billing_url": "https://cloudsales.app/subscribe",
+    "highlevel_billing_bridge_function": "highlevel-temp-bootstrap",
     "plans": {
-      "basic": {"monthly_usd": 47, "annual_usd": 470, "included_users": 1, "usage_markup_percent": 50, "usage_multiplier": 1.5},
-      "pro": {"monthly_usd": 97, "annual_usd": 970, "included_users": 1, "usage_markup_percent": 35, "usage_multiplier": 1.35},
-      "premium": {"monthly_usd": 147, "annual_usd": 1470, "included_users": 2, "extra_seat_monthly_usd": 47, "usage_markup_percent": 25, "usage_multiplier": 1.25}
+      "basic": {"monthly_usd": 47, "annual_usd": 470, "member_entitlements": 1, "usage_multiplier": 1.50},
+      "pro": {"monthly_usd": 97, "annual_usd": 970, "member_entitlements": 1, "usage_multiplier": 1.35},
+      "premium": {"monthly_usd": 147, "annual_usd": 1470, "member_entitlements": 1, "usage_multiplier": 1.25}
     },
     "trial_days": 7,
-    "usage_pricing_basis": "landed_provider_cost",
-    "unknown_cost_behavior": "reconcile_no_charge",
-    "domain_markup_percent": 100,
-    "domain_multiplier": 2,
-    "billing_meters": [
-      {
-        "name": "CloudSales AI Chat",
-        "module_type": "Custom Event (API)",
-        "module_name": "AI Chats",
-        "usage_unit": "AI Response",
-        "max_usage_per_day": 10000,
-        "price_type": "Dynamic",
-        "minimum_price_per_unit_usd": 0.001,
-        "maximum_price_per_unit_usd": 5.0,
-        "default_price_per_unit_usd": 0.02,
-        "pricing_page_url": "https://cloudsales.app/usage-pricing",
-        "status": "current meter being configured in HighLevel"
-      },
-      {"name": "CloudSales AI Voice", "status": "pending final provider-cost validation before Marketplace entry"},
-      {"name": "AgentCloud AI Work", "status": "pending final provider-cost validation before Marketplace entry"},
-      {"name": "CloudSales AI Content", "status": "pending final provider-cost validation before Marketplace entry"},
-      {"name": "CloudSales Communications", "status": "pending final provider-cost validation before Marketplace entry"},
-      {"name": "CloudSales Phone Minutes", "status": "pending final provider-cost validation before Marketplace entry"},
-      {"name": "CloudSales Email", "status": "pending final provider-cost validation before Marketplace entry"},
-      {"name": "CloudSales Automations", "status": "pending final provider-cost validation before Marketplace entry"},
-      {"name": "CloudSales Data & Verification", "status": "pending final provider-cost validation before Marketplace entry"},
-      {"name": "CloudSales Domains", "status": "provider/landed cost x2"}
-    ],
+    "trial_requires_payment_method": true,
+    "domains": {"standard_multiplier": 3.0, "markup_percent": 200},
+    "usage_pricing_basis": "actual landed provider cost",
+    "unknown_cost_behavior": "reconcile rather than invent a charge",
     "pricing_page_url": "https://cloudsales.app/usage-pricing",
-    "dynamic_pricing_rule": "CloudSales charges from actual landed provider cost whenever available. Basic = landed cost x1.50, Pro = landed cost x1.35, Premium = landed cost x1.25. Domains = landed cost x2. Dynamic country, carrier, model, TTS and provider fees are incorporated when applicable. HighLevel default meter values are fallback values only; unknown provider cost is reconciled rather than guessed."
+    "billing_meters": [
+      "CloudSales AI Chat",
+      "CloudSales AI Voice",
+      "Cloudy AI Work",
+      "CloudSales AI Content",
+      "CloudSales Communications",
+      "CloudSales Phone Minutes",
+      "CloudSales Email",
+      "CloudSales Automations",
+      "CloudSales Data & Verification",
+      "CloudSales Domains"
+    ]
+  },
+  "marketplace_subscription_flow": [
+    "HighLevel redirects installer to https://cloudsales.app/subscribe with clientId/installType/locationId/companyId.",
+    "CloudSales validates the HighLevel client ID server-side and creates an embedded Stripe subscription checkout with a 7-day trial and payment method required.",
+    "Marketplace context is stored server-side with the Stripe checkout session.",
+    "After checkout, https://cloudsales.app/welcome calls the server-side HighLevel billing bridge.",
+    "The bridge validates the completed Stripe session and authorizes the paid installation through HighLevel's external billing webhook.",
+    "A transactional CloudSales access email is queued and the member is directed to https://app.cloudsales.app/?welcome=1.",
+    "Marketplace, website and PWA use the same CloudSales plan, member identity, workspace, terms and usage policy."
+  ],
+  "roles": {
+    "cloudy": "Primary operator: work, orchestration, automations and authorized execution.",
+    "agentcloud": "AI conversations and calls only."
+  },
+  "scope_policy": {
+    "product_goal": "Cloudy should be able to perform essentially every operational action a customer may reasonably delegate inside HighLevel.",
+    "review_constraint": "HighLevel requires least privilege and scope justification. Request broad operational read/write scopes that map to real CloudSales/Cloudy features; exclude only scopes with no defensible product use.",
+    "portal_persistence_issue": "Scopes selected in the current Android Chrome Desktop Site session have not reliably persisted. Verify persistence before re-selecting the complete set."
   },
   "marketplace_urls": {
+    "billing": "https://cloudsales.app/subscribe",
+    "welcome": "https://cloudsales.app/welcome",
+    "pwa": "https://app.cloudsales.app",
     "getting_started": "https://cloudsales.app/getting-started.html",
     "privacy": "https://cloudsales.app/privacy",
     "terms": "https://cloudsales.app/terms",
     "pricing": "https://cloudsales.app/pricing",
     "usage_pricing": "https://cloudsales.app/usage-pricing"
   },
-  "next_actions": [
-    "Finish creation of the new Public + Sub-Account + White-label CloudSales app in HighLevel Developer Portal.",
-    "Configure each Dynamic Custom Event API billing meter using validated current provider costs and the canonical landed-cost markup policy.",
-    "Register https://cloudsales.app/oauth/callback on the new Sub-Account app.",
-    "Select the broad operational Sub-Account scopes required by Cloudy and AgentCloud.",
-    "Align the backend provider credential redirect URI and implement/verify the callback route with state validation.",
-    "Configure webhooks for installation lifecycle and operational events used by Cloudy.",
-    "Verify the Getting Started page renders inside the HighLevel iframe.",
-    "Run a real test installation on a HighLevel test Location and verify read/write operations before publishing either app."
+  "current_portal_blockers": [
+    "Persist OAuth scopes in HighLevel Developer Portal.",
+    "Persist exact redirect URL https://cloudsales.app/oauth/callback.",
+    "Confirm CloudSales User Production Client Key is recognized by the draft.",
+    "Set app business model to Paid and enable External Billing with Billing URL https://cloudsales.app/subscribe if not already configured.",
+    "Register the HighLevel lifecycle/operational webhook endpoint.",
+    "Run a real Marketplace sandbox/test installation and verify OAuth, billing authorization, PWA access and webhooks.",
+    "Submit for Review."
   ]
 }
