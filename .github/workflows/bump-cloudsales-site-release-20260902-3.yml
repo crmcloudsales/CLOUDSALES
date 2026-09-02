@@ -1,0 +1,29 @@
+name: Bump CloudSales Site Release 2026.09.02.3
+on:
+  push:
+    paths:
+      - '.github/workflows/bump-cloudsales-site-release-20260902-3.yml'
+permissions:
+  contents: write
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bump release version
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
+          s=p.read_text()
+          s=s.replace('VERSION="2026.09.02.2"','VERSION="2026.09.02.3"')
+          p.write_text(s)
+          PY
+          grep -q 'VERSION="2026.09.02.3"' supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'release(cloudsales): domains runtime 2026.09.02.3'
+          git push
