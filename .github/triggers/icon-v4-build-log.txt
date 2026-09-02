@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "/home/runner/work/CLOUDSALES/CLOUDSALES/.github/scripts/build_cloudsales_icon_v4_20260902.py", line 10, in <module>
+    im=Image.open(io.BytesIO(raw)).convert('RGB')
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/PIL/Image.py", line 1069, in convert
+    self.load()
+  File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/PIL/WebPImagePlugin.py", line 134, in load
+    data, self.info["timestamp"], self.info["duration"] = self._get_next()
+                                                          ^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/PIL/WebPImagePlugin.py", line 102, in _get_next
+    ret = self._decoder.get_next()
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: failed to read next frame
+exit_code=1
