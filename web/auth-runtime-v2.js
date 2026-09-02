@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '2026.09.01.6';
+  const VERSION = '2026.09.02.1';
   const CLAIM_KEY = 'cs_pending_claim';
   const CHECKOUT_KEY = 'cs_pending_checkout';
 
@@ -155,6 +155,27 @@
     el = document.createElement('div'); el.id='signupEmailNotice'; el.className='notice hidden'; el.style.cssText='margin:10px 0 12px;font-size:11px';
     btn.parentNode.insertBefore(el, btn); return el;
   }
+  function ensureGoogleAuth() {
+    let wrap=node('googleAuthWrap'); if(wrap) return wrap;
+    const tabs=node('tabIn')?.parentElement; if(!tabs?.parentNode) return null;
+    wrap=document.createElement('div'); wrap.id='googleAuthWrap'; wrap.style.cssText='display:grid;gap:10px;margin:0 0 16px';
+    wrap.innerHTML='<button id="googleAuthBtn" type="button" class="btn block" style="display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;color:#1f1f1f;border:1px solid #dadce0;font-weight:850"><span aria-hidden="true" style="font-size:18px;font-weight:900;color:#4285f4">G</span><span id="googleAuthLabel">Continuar con Google</span></button><div style="display:flex;align-items:center;gap:10px;color:#777;font-size:10px"><span style="height:1px;background:#2a2a38;flex:1"></span><span>o usa tu email</span><span style="height:1px;background:#2a2a38;flex:1"></span></div>';
+    tabs.insertAdjacentElement('afterend',wrap); node('googleAuthBtn').onclick=startGoogleAuth; return wrap;
+  }
+  function oauthSessionFromHash(){
+    const h=new URLSearchParams(location.hash.replace(/^#/,''));
+    if(!h.get('access_token')||h.get('type')==='recovery') return null;
+    return {access_token:h.get('access_token'),refresh_token:h.get('refresh_token')||'',token_type:h.get('token_type')||'bearer',expires_in:Number(h.get('expires_in')||3600),expires_at:Number(h.get('expires_at')||0),provider_token:h.get('provider_token')||null,provider_refresh_token:h.get('provider_refresh_token')||null};
+  }
+  async function consumeGoogleCallback(){
+    const s=oauthSessionFromHash(); if(!s) return false;
+    try{history.replaceState(null,'',location.pathname+location.search);message('Acceso con Google confirmado. Preparando CloudSales…',true);await finishLogin({session:s});return true}catch(err){message(friendly(err));return false}
+  }
+  function startGoogleAuth(){
+    const btn=node('googleAuthBtn'); if(btn){btn.disabled=true;const l=node('googleAuthLabel');if(l)l.textContent='Abriendo Google…'}
+    const redirect=`${location.origin}${location.pathname}${location.search}`;
+    location.assign(`https://fkahaqprzgcimgyathqx.supabase.co/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirect)}`);
+  }
   function ensureForgot() {
     let btn = node('forgotPassword'); if (btn) return btn;
     const pass = node('password'); const field = pass?.closest('.field'); if (!field?.parentNode) return null;
@@ -233,11 +254,12 @@
 
   function bind(){
     const button=node('authBtn'); if(!button||typeof direct!=='function')return false;
-    captureClaim(); captureCheckout(); prepareCheckoutUi(); bindCheckoutOnboarding(); ensureNotice(); ensureTrialUi(); const forgot=ensureForgot(); if(forgot)forgot.onclick=forgotPassword;
+    captureClaim(); captureCheckout(); prepareCheckoutUi(); bindCheckoutOnboarding(); ensureNotice(); ensureTrialUi(); ensureGoogleAuth(); const forgot=ensureForgot(); if(forgot)forgot.onclick=forgotPassword;
     if(enterRecovery()){
       button.onclick=doReset; document.documentElement.dataset.authRuntime=VERSION; return true;
     }
     syncUi();
+    if(oauthSessionFromHash()){consumeGoogleCallback();document.documentElement.dataset.authRuntime=VERSION;return true;}
     button.onclick=async()=>{
       message(''); const currentMode=typeof mode!=='undefined'?mode:'signin',email=node('email')?.value?.trim()||'',password=node('password')?.value||'',fullName=node('fullName')?.value?.trim()||'',claimToken=currentMode==='signup'?captureClaim():'';
       if(!email)return message('Escribe tu correo.'); if(!password)return message('Escribe tu contraseña.'); if(currentMode==='signup'&&password.length<8)return message('Usa una contraseña de al menos 8 caracteres.');
