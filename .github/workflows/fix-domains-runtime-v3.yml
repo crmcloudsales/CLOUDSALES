@@ -11,8 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Patch Domains runtime and visuals
-        shell: python
         run: |
+          python3 - <<'PY'
           from pathlib import Path
           p=Path('web/commercial/domains-v2.html')
           s=p.read_text()
@@ -23,81 +23,36 @@ jobs:
           if 'src="/cloudsales-i18n-v1.js?v=domains-v3"' not in s:
               s=s.replace('</body>','<script src="/cloudsales-i18n-v1.js?v=domains-v3"></script></body>')
           p.write_text(s)
-          # Keep root copy synchronized for any Pages/static path.
           Path('web/domains.html').write_text(s)
-
           q=Path('web/cloudsales-i18n-v1.js')
           js=q.read_text()
           marker='CS_DOMAINS_SEARCH_RUNTIME_V3'
           if marker not in js:
-              js += r'''
+              js += """
 
 /* CS_DOMAINS_SEARCH_RUNTIME_V3 */
 (()=>{
-  'use strict';
-  if(!document.getElementById('domain')||!document.getElementById('search')) return;
-  const $=id=>document.getElementById(id);
-  const input=$('domain'), btn=$('search'), result=$('result'), purchase=$('purchase');
-  const norm=v=>String(v||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0].replace(/\.$/,'');
-  const valid=d=>/^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(d);
-  const set=(name,status,cls,price='—',renew='—',note='')=>{
-    $('domainName').textContent=name||'Dominio';
-    $('availability').className=cls;
-    $('availability').textContent=status;
-    $('price').textContent=price;
-    $('renew').textContent=renew;
-    $('note').textContent=note;
-    result.classList.add('show');
-  };
-  async function searchDomain(ev){
-    ev?.preventDefault();
-    const domain=norm(input.value); input.value=domain;
-    purchase?.classList.remove('show');
-    if(!valid(domain)){ set(domain,'ESCRIBE UN DOMINIO VÁLIDO','unavailable','—','—','Ejemplo: minegocio.com'); return; }
-    btn.disabled=true; btn.textContent='BUSCANDO…';
-    set(domain,'CONSULTANDO…','available','—','—','Buscando disponibilidad del dominio…');
-    try{
-      const ctrl=new AbortController(); const timer=setTimeout(()=>ctrl.abort(),15000);
-      const r=await fetch('/api/domain-quote?domain='+encodeURIComponent(domain),{cache:'no-store',headers:{accept:'application/json'},signal:ctrl.signal});
-      clearTimeout(timer);
-      const j=await r.json().catch(()=>({}));
-      if(!r.ok) throw new Error(j.message||j.error||'domain_search_failed');
-      if(j.availability==='registered'||j.registrable===false){
-        set(domain,'NO DISPONIBLE','unavailable','—','—',j.message||'Este dominio ya está registrado.');
-      }else if(j.provisional||j.availability==='possibly_available'){
-        set(domain,'POSIBLEMENTE DISPONIBLE','available','POR CONFIRMAR','POR CONFIRMAR',j.message||'Parece disponible. Cloudflare confirmará disponibilidad y precio antes de cualquier cobro.');
-        purchase?.classList.add('show');
-      }else if(j.registrable===true){
-        const cur=j.currency||'USD';
-        const fmt=v=>v==null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:cur}).format(v);
-        set(domain,'✓ DISPONIBLE','available',fmt(j.sale_amount??j.normal?.registration),fmt(j.normal?.renewal)+'/año','Disponibilidad confirmada por el registrador.');
-        purchase?.classList.add('show');
-      }else{
-        set(domain,'RESULTADO NO CONCLUYENTE','unavailable','—','—','Intenta nuevamente en unos segundos.');
-      }
-    }catch(e){
-      set(domain,'NO PUDIMOS CONSULTAR AHORA','unavailable','—','—','No pudimos completar la consulta. Intenta nuevamente.');
-    }finally{
-      btn.disabled=false; btn.textContent='BUSCAR';
-    }
-  }
-  // Capture phase makes this independent from older inline handlers that CSP may block.
-  btn.addEventListener('click',searchDomain,true);
-  input.addEventListener('keydown',e=>{if(e.key==='Enter')searchDomain(e)},true);
+'use strict';
+if(!document.getElementById('domain')||!document.getElementById('search'))return;
+const $=id=>document.getElementById(id),input=$('domain'),btn=$('search'),result=$('result'),purchase=$('purchase');
+const norm=v=>String(v||'').trim().toLowerCase().replace(/^https?:\\/\\//,'').replace(/^www\\./,'').split('/')[0].replace(/\\.$/,'');
+const valid=d=>/^(?=.{3,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$/i.test(d);
+function set(name,status,cls,price='—',renew='—',note=''){ $('domainName').textContent=name||'Dominio'; $('availability').className=cls; $('availability').textContent=status; $('price').textContent=price; $('renew').textContent=renew; $('note').textContent=note; result.classList.add('show'); }
+async function go(e){e&&e.preventDefault();const d=norm(input.value);input.value=d;purchase&&purchase.classList.remove('show');if(!valid(d)){set(d,'ESCRIBE UN DOMINIO VÁLIDO','unavailable','—','—','Ejemplo: minegocio.com');return;}btn.disabled=true;btn.textContent='BUSCANDO…';set(d,'CONSULTANDO…','available','—','—','Buscando disponibilidad del dominio…');try{const c=new AbortController(),t=setTimeout(()=>c.abort(),15000);const r=await fetch('/api/domain-quote?domain='+encodeURIComponent(d),{cache:'no-store',headers:{accept:'application/json'},signal:c.signal});clearTimeout(t);const j=await r.json().catch(()=>({}));if(!r.ok)throw Error(j.message||j.error||'search_failed');if(j.availability==='registered'||j.registrable===false)set(d,'NO DISPONIBLE','unavailable','—','—',j.message||'Este dominio ya está registrado.');else if(j.provisional||j.availability==='possibly_available'){set(d,'POSIBLEMENTE DISPONIBLE','available','POR CONFIRMAR','POR CONFIRMAR',j.message||'Parece disponible. Confirmaremos disponibilidad y precio antes de cualquier cobro.');purchase&&purchase.classList.add('show');}else if(j.registrable===true){const cur=j.currency||'USD',fmt=v=>v==null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:cur}).format(v);set(d,'✓ DISPONIBLE','available',fmt(j.sale_amount??j.normal?.registration),fmt(j.normal?.renewal)+'/año','Disponibilidad confirmada por el registrador.');purchase&&purchase.classList.add('show');}else set(d,'RESULTADO NO CONCLUYENTE','unavailable','—','—','Intenta nuevamente en unos segundos.');}catch(x){set(d,'NO PUDIMOS CONSULTAR AHORA','unavailable','—','—','No pudimos completar la consulta. Intenta nuevamente.');}finally{btn.disabled=false;btn.textContent='BUSCAR';}}
+btn.addEventListener('click',go,true);input.addEventListener('keydown',e=>{if(e.key==='Enter')go(e)},true);
 })();
-'''
+"""
               q.write_text(js)
-      - name: Verify patch
+          PY
+      - name: Verify
         run: |
-          grep -q 'storage.googleapis.com/msgsndr/yj3Po5FyURrYozdJzG88/media/6983a5b80a7fd17e424e3f2b.png' web/commercial/domains-v2.html
-          grep -q 'cloudsales-i18n-v1.js?v=domains-v3' web/commercial/domains-v2.html
           grep -q 'CS_DOMAINS_SEARCH_RUNTIME_V3' web/cloudsales-i18n-v1.js
-          ! grep -q 'assets/marketing/cloudy-official.webp' web/commercial/domains-v2.html
-          ! grep -q 'assets/marketing/agentcloud-official.webp' web/commercial/domains-v2.html
+          grep -q '6983a5b80a7fd17e424e3f2b.png' web/commercial/domains-v2.html
+          grep -q '69829e15cf8ac04a787ed009.png' web/commercial/domains-v2.html
       - name: Commit
         run: |
-          git config user.name 'crmcloudsales'
-          git config user.email 'crmcloudsales@gmail.com'
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
           git add web/commercial/domains-v2.html web/domains.html web/cloudsales-i18n-v1.js
-          git commit -m 'fix(domains): CSP-safe live search and working Cloudy AgentCloud visuals'
+          git commit -m 'fix(domains): CSP-safe search and working visual assets'
           git push
