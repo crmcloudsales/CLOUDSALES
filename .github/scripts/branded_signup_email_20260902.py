@@ -1,3 +1,4 @@
+# trigger 2026-09-02
 from pathlib import Path
 p=Path('supabase/functions/auth-session/index.ts')
 s=p.read_text()
