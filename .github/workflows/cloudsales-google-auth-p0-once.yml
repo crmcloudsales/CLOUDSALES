@@ -80,3 +80,5 @@ jobs:
           git add web/auth-runtime-v2.js
           git commit -m 'feat(auth): add Google sign in and sign up flow'
           git push origin HEAD:main
+
+# trigger: 2026-09-02-p0-google-auth
