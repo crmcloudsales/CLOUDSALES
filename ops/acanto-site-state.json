@@ -5,12 +5,22 @@
   "gate_slug": "acanto-main",
   "hostname": "acanto.cloudsales.app",
   "cloudflare_worker": "acanto-condo-gateway",
+  "site_version": "v3-rich",
   "source": {
     "landing": "web/clients/acanto/landing-v2.html",
     "edge_template": "web/clients/acanto/worker-edge-template.mjs",
     "contact": "web/clients/acanto/contact.json",
     "research": "web/clients/acanto/research-sources.md",
-    "price_list": "ACANTO CONDOMINIUMS PRICELIST-1(1).xlsx"
+    "price_list": "ACANTO CONDOMINIUMS PRICELIST-1(1).xlsx",
+    "drive_root": "https://drive.google.com/drive/folders/1nmjCiP80kWNMj55Yq-iPuFct219hgZP8"
+  },
+  "visual_content": {
+    "image_rich_layout": true,
+    "drive_image_collections": ["Courtyard", "1 Bedroom Villa 8", "3 Bedroom Villa 18"],
+    "filterable_gallery": true,
+    "lightbox": true,
+    "residence_mini_galleries": true,
+    "lazy_loading": true
   },
   "inventory": {
     "verified_source_date": "2026-09-02",
@@ -25,6 +35,30 @@
     "villa_7_sqft": 2142,
     "villa_7_metric_conversion_withheld_pending_source_reconciliation": true
   },
+  "conversion": {
+    "whatsapp": "+52 984 136 9378",
+    "phone": "+52 984 873 1252",
+    "sales_email": "Matt@acantohotels.com",
+    "reservations_email": "reservations@acantohotels.com",
+    "floating_whatsapp": true,
+    "mobile_sticky_cta": true,
+    "villa_specific_interest_options": true
+  },
+  "content_sections": [
+    "hero",
+    "trust_strip",
+    "acanto_experience",
+    "location_positioning",
+    "residence_collection",
+    "current_inventory",
+    "filterable_property_gallery",
+    "hospitality_services",
+    "location_lifestyle",
+    "ownership_rental",
+    "press_background",
+    "faq",
+    "secure_contact"
+  ],
   "security": {
     "turnstile": "active",
     "proof_of_work": "hmac_sha256_prefix_000",
@@ -49,12 +83,17 @@
     "dns_record_verified": true,
     "worker_bindings_verified": true,
     "root_http_status": 200,
-    "pricing_marker_verified": true,
-    "verified_at": "2026-09-02T19:34:00Z"
+    "production_marker": "acanto-condominiums-cloudsales-v3-rich",
+    "gallery_marker_verified": true,
+    "whatsapp_marker_verified": true,
+    "html_length": 54049,
+    "verified_at": "2026-09-02T23:54:53Z"
   },
   "notes": [
-    "Current pricing and availability are published from the user-supplied English price sheet and are explicitly marked subject to change.",
+    "The production site was expanded with a large real-image gallery using the Acanto-supplied Drive archive.",
+    "Current pricing and availability are published from the supplied English price sheet and are marked subject to change.",
     "Villa 7 uses the English-sheet area of 2,142 sq ft; the conflicting metric figure is not published.",
+    "Official hotel contact information and WhatsApp are now visible for conversion.",
     "Social profile links remain omitted until exact official Facebook/Instagram URLs are verified.",
     "Rental and investment language avoids guaranteed-return claims."
   ]
