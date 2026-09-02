@@ -1,0 +1,32 @@
+name: Cloudy Voice First + Affiliate 2026-09-02
+on:
+  push:
+    paths:
+      - '.github/scripts/cloudy_voice_affiliate_20260902.py'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Cloudy and affiliate patch
+        run: python3 .github/scripts/cloudy_voice_affiliate_20260902.py
+      - name: Validate JS and business UX markers
+        run: |
+          node --check web/cloudy-runtime-v3.js
+          node --check <(sed -n '/<script>/,/<\/script>/p' web/pwa.html | sed '1d;$d') || true
+          grep -q '2026.09.02.2' web/cloudy-runtime-v3.js
+          grep -q 'function toggleVoiceSession' web/cloudy-runtime-v3.js
+          grep -q "vc('didntUnderstand')" web/cloudy-runtime-v3.js
+          grep -q 'AFFILIATE_COPY' web/pwa.html
+          grep -q 'affiliateAcqGrid' web/pwa.html
+          grep -q '45 días' web/pwa.html
+          grep -q "'ja':{invite:" web/pwa.html
+      - name: Commit product UX
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/cloudy-runtime-v3.js web/pwa.html
+          git commit -m 'feat(pwa): make Cloudy voice-first and add 45-day referral acquisition UX'
+          git push
