@@ -1,0 +1,39 @@
+name: Domains Commercial Dedupe v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/domains-commercial-dedupe-v1.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove duplicate Domains section and duplicate CSS
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('web/commercial.html')
+          s=p.read_text(encoding='utf-8')
+          s=re.sub(r'<style id="cs-domains-commercial-v2">.*?</style>','',s,flags=re.S)
+          start=s.find('<section class="section" id="domains-ai-websites">')
+          if start!=-1:
+              # remove through the matching closing section immediately before pricing
+              pricing=s.find('<section class="section" id="pricing">', start)
+              if pricing!=-1:
+                  s=s[:start]+s[pricing:]
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "crmcloudsales"
+          git config user.email "crmcloudsales@gmail.com"
+          git add web/commercial.html
+          git diff --cached --quiet || git commit -m "fix(commercial): keep one Domains AI websites section"
+          git push
