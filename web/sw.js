@@ -1,6 +1,8 @@
-const CACHE='cloudsales-pwa-2026.09.02.5';
+const CACHE='cloudsales-pwa-2026.09.02.7';
 const CORE=[
   '/',
+  '/cloudsales-app-icon-official-v4.png',
+  '/cloudsales-app-icon-official-v4-192.png',
   '/manifest.webmanifest',
   '/install.js',
   '/auth-runtime-v2.js',
