@@ -6,10 +6,24 @@
   "hostname": "acanto.cloudsales.app",
   "cloudflare_worker": "acanto-condo-gateway",
   "source": {
-    "landing": "web/clients/acanto/landing.html",
+    "landing": "web/clients/acanto/landing-v2.html",
     "edge_template": "web/clients/acanto/worker-edge-template.mjs",
     "contact": "web/clients/acanto/contact.json",
-    "research": "web/clients/acanto/research-sources.md"
+    "research": "web/clients/acanto/research-sources.md",
+    "price_list": "ACANTO CONDOMINIUMS PRICELIST-1(1).xlsx"
+  },
+  "inventory": {
+    "verified_source_date": "2026-09-02",
+    "available_units": 11,
+    "one_bedroom_from_usd": 199000,
+    "two_bedroom_from_usd": 299000,
+    "three_bedroom_from_usd": 360000,
+    "highest_current_price_usd": 365000,
+    "all_condominiums_include_furniture": true,
+    "all_condominiums_have_long_rental_history": true,
+    "published_units": [1,4,5,6,7,8,11,13,17,18,19],
+    "villa_7_sqft": 2142,
+    "villa_7_metric_conversion_withheld_pending_source_reconciliation": true
   },
   "security": {
     "turnstile": "active",
@@ -27,21 +41,21 @@
     "canonical": "https://acanto.cloudsales.app/",
     "robots": true,
     "sitemap": true,
-    "structured_data": true
+    "structured_data": true,
+    "price_range": "US$199,000-US$365,000"
   },
   "verification": {
     "cloudflare_custom_domain": "enabled",
     "dns_record_verified": true,
     "worker_bindings_verified": true,
     "root_http_status": 200,
-    "health_http_status": 200,
-    "robots_http_status": 200,
-    "sitemap_http_status": 200,
-    "verified_at": "2026-09-02T05:31:17Z"
+    "pricing_marker_verified": true,
+    "verified_at": "2026-09-02T19:34:00Z"
   },
   "notes": [
-    "Exact prices intentionally omitted until the supplied current price list can be re-verified.",
-    "Social profile links intentionally omitted until exact official Facebook/Instagram URLs are verified.",
+    "Current pricing and availability are published from the user-supplied English price sheet and are explicitly marked subject to change.",
+    "Villa 7 uses the English-sheet area of 2,142 sq ft; the conflicting metric figure is not published.",
+    "Social profile links remain omitted until exact official Facebook/Instagram URLs are verified.",
     "Rental and investment language avoids guaranteed-return claims."
   ]
 }
