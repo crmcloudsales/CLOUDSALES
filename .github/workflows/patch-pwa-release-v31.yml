@@ -1,0 +1,25 @@
+name: Patch PWA Release V31
+on:
+  push:
+    paths:
+      - '.github/scripts/patch_pwa_release_v31.py'
+      - '.github/workflows/patch-pwa-release-v31.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Patch release source
+        run: python .github/scripts/patch_pwa_release_v31.py
+      - name: Commit release source
+        run: |
+          git config user.name 'crmcloudsales'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add supabase/functions/cloudflare-pwa-brand-release/index.ts
+          git diff --cached --quiet || git commit -m 'fix(pwa): publish icon through isolated v31 worker'
+          git push
