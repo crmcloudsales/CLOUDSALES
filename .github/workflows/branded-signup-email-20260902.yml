@@ -1,0 +1,27 @@
+name: Branded Signup Email 2026-09-02
+on:
+  push:
+    paths:
+      - '.github/scripts/branded_signup_email_20260902.py'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch branded signup email
+        run: python3 .github/scripts/branded_signup_email_20260902.py
+      - name: Validate auth-session source
+        run: |
+          grep -q 'sendSignupAccess' supabase/functions/auth-session/index.ts
+          grep -q 'Acceder a CloudSales' supabase/functions/auth-session/index.ts
+          grep -q 'generateLink({type:"signup"' supabase/functions/auth-session/index.ts
+          grep -q '2026.09.02.2' supabase/functions/auth-session/index.ts
+      - name: Commit auth-session
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add supabase/functions/auth-session/index.ts
+          git commit -m 'feat(auth): send branded CloudSales signup access email'
+          git push
