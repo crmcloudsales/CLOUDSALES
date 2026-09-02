@@ -1,0 +1,83 @@
+name: Meza SEO security polish once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/meza-seo-security-polish-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  polish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch SEO, accessibility and edge hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          landing=Path('web/clients/meza/landing-edge.html')
+          s=landing.read_text()
+          canonical='https://meza.cloudsales.app/'
+          logo='https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/clients/meza/assets/meza-logo.jpg'
+          josefina='https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/clients/meza/assets/josefina-meza.jpg'
+          if 'property="og:title"' not in s:
+              needle='<meta name="description" content="MEZA & CO. Real Estate: propiedades seleccionadas en Riviera Maya y Tulum, asesoría personalizada con Josefina Meza y oportunidades residenciales y de inversión.">'
+              seo='''<meta property="og:type" content="website"><meta property="og:locale" content="es_MX"><meta property="og:site_name" content="MEZA & CO. Real Estate"><meta property="og:title" content="MEZA & CO. Real Estate | Propiedades en Riviera Maya"><meta property="og:description" content="Propiedades seleccionadas en Playa del Carmen, Corasol y Tulum con acompañamiento directo de Josefina Meza."><meta property="og:url" content="https://meza.cloudsales.app/"><meta property="og:image" content="'''+logo+'''"><meta property="og:image:alt" content="MEZA & CO. Real Estate"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="MEZA & CO. Real Estate | Riviera Maya"><meta name="twitter:description" content="Propiedades seleccionadas en Riviera Maya y Tulum con Josefina Meza."><meta name="twitter:image" content="'''+logo+'''"><link rel="icon" type="image/jpeg" href="'''+logo+'''"><link rel="preconnect" href="https://challenges.cloudflare.com" crossorigin>'''
+              if needle not in s: raise SystemExit('description anchor missing')
+              s=s.replace(needle, needle+seo, 1)
+          if 'application/ld+json' not in s:
+              graph={
+                '@context':'https://schema.org','@graph':[
+                  {'@type':'RealEstateAgent','@id':canonical+'#business','name':'MEZA & CO. Real Estate','url':canonical,'logo':logo,'image':logo,'description':'Asesoría inmobiliaria y propiedades en Riviera Maya, Playa del Carmen, Corasol y Tulum.','areaServed':['Riviera Maya','Playa del Carmen','Tulum','Corasol'],'sameAs':['https://www.instagram.com/jo.meza25','https://www.facebook.com/share/1JWGP56PpW/'],'employee':{'@id':canonical+'#josefina'}},
+                  {'@type':'Person','@id':canonical+'#josefina','name':'Josefina Meza','image':josefina,'jobTitle':'Asesora inmobiliaria','worksFor':{'@id':canonical+'#business'},'sameAs':['https://www.instagram.com/jo.meza25','https://www.facebook.com/share/1JWGP56PpW/']}
+                ]}
+              tag='<script type="application/ld+json">'+json.dumps(graph,ensure_ascii=False,separators=(',',':'))+'</script>'
+              s=s.replace('<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>',tag+'<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>',1)
+          # Performance: lazy-load all non-critical cards/gallery images while keeping logo, hero, and Josefina eager.
+          s=s.replace('<article class="card property"><img src=', '<article class="card property"><img loading="lazy" decoding="async" src=')
+          s=s.replace('<div class="gallery"><img src=', '<div class="gallery"><img loading="lazy" decoding="async" src=')
+          s=s.replace('><img src="https://drive.google.com/thumbnail', '><img loading="lazy" decoding="async" src="https://drive.google.com/thumbnail')
+          # Avoid accidentally changing hero critical image.
+          s=s.replace('<img class="hero-bg" loading="lazy" decoding="async"', '<img class="hero-bg"')
+          s=s.replace('<img class="hero-bg" src=', '<img class="hero-bg" fetchpriority="high" decoding="async" src=')
+          s=s.replace('<img class="brand-logo" src=', '<img class="brand-logo" fetchpriority="high" decoding="async" src=')
+          s=s.replace('<img class="hero-badge" src=', '<img class="hero-badge" decoding="async" src=')
+          s=s.replace('<div class="portrait"><img src=', '<div class="portrait"><img decoding="async" src=')
+          landing.write_text(s)
+
+          worker=Path('web/clients/meza/worker-edge-template.mjs')
+          w=worker.read_text()
+          old='"x-frame-options":"SAMEORIGIN","content-security-policy"'
+          new='"x-frame-options":"SAMEORIGIN","strict-transport-security":"max-age=31536000; includeSubDomains","cross-origin-opener-policy":"same-origin","x-permitted-cross-domain-policies":"none","content-security-policy"'
+          if old in w: w=w.replace(old,new,1)
+          anchor='if(request.method==="POST"&&u.pathname==="/api/lead"){'
+          hard='''if(request.method==="POST"&&u.pathname==="/api/lead"){const origin=request.headers.get("origin")||"";if(origin&&origin!=="https://meza.cloudsales.app")return json({error:"origin_forbidden"},403);const ctype=(request.headers.get("content-type")||"").toLowerCase();if(!ctype.includes("application/json"))return json({error:"content_type_required"},415);const clen=Number(request.headers.get("content-length")||0);if(clen>16384)return json({error:"payload_too_large"},413);'''
+          if anchor in w and 'origin_forbidden' not in w: w=w.replace(anchor,hard,1)
+          name_anchor='const name=clean(b.name,160),parts='
+          validate='''const candidateName=clean(b.name,160),candidateEmail=clean(b.email,320),candidatePhone=clean(b.phone,40);if(candidateName.length<2||(!candidateEmail&&!candidatePhone))return json({error:"contact_required"},400);if(candidateEmail&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(candidateEmail))return json({error:"invalid_email"},400);const name=candidateName,parts='''
+          if name_anchor in w and 'candidateName' not in w: w=w.replace(name_anchor,validate,1)
+          worker.write_text(w)
+          PY
+          grep -q 'property="og:title"' web/clients/meza/landing-edge.html
+          grep -q 'application/ld+json' web/clients/meza/landing-edge.html
+          grep -q 'strict-transport-security' web/clients/meza/worker-edge-template.mjs
+          grep -q 'origin_forbidden' web/clients/meza/worker-edge-template.mjs
+          grep -q 'contact_required' web/clients/meza/worker-edge-template.mjs
+      - name: Commit polish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'cloudsales-release-bot'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web/clients/meza/landing-edge.html web/clients/meza/worker-edge-template.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(meza): harden SEO security and image performance'
+          git pull --rebase origin main
+          git push origin HEAD:main
