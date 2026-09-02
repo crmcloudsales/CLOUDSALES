@@ -2,7 +2,7 @@ name: Mobile Native Windows 2026-09-02
 on:
   push:
     paths:
-      - '.github/scripts/mobile_native_windows_20260902.py'
+      - '.github/scripts/mobile_native_windows_v2_20260902.py'
 permissions:
   contents: write
 jobs:
@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Patch mobile native windows
-        run: python3 .github/scripts/mobile_native_windows_20260902.py
+        run: python3 .github/scripts/mobile_native_windows_v2_20260902.py
       - name: Validate native shell
         run: |
           node --check web/native-shell-runtime-v1.js
