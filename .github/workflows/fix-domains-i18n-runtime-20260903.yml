@@ -1,0 +1,54 @@
+name: Fix CloudSales Domains I18N Runtime 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/fix_domains_i18n_runtime_20260903.py'
+      - '.github/workflows/fix-domains-i18n-runtime-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: fix-domains-i18n-runtime-20260903
+  cancel-in-progress: false
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Replace historical domain lookup listeners
+        run: python3 .github/scripts/fix_domains_i18n_runtime_20260903.py
+      - name: Bump release revision
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/functions/cloudflare-site-brand-release/index.ts')
+          s=p.read_text()
+          if 'VERSION="2026.09.03.9"' in s:s=s.replace('VERSION="2026.09.03.9"','VERSION="2026.09.03.10"',1)
+          elif 'VERSION="2026.09.03.10"' not in s:raise SystemExit('unexpected release version')
+          p.write_text(s)
+          PY
+      - name: Validate canonical runtime
+        run: |
+          node --check web/cloudsales-i18n-v1.js
+          grep -Fq 'CS_DOMAINS_SEARCH_RUNTIME_V4_11_LOCALES' web/cloudsales-i18n-v1.js
+          grep -Fq "'fr':{choose:" web/cloudsales-i18n-v1.js
+          grep -Fq "'ja':{choose:" web/cloudsales-i18n-v1.js
+          ! grep -Fq "en:{choose:dt().choose" web/cloudsales-i18n-v1.js
+          test "$(grep -o "id='domainSuggestions'" web/cloudsales-i18n-v1.js | wc -l)" -eq 1
+          grep -Fq 'VERSION="2026.09.03.10"' supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit production sources
+        run: |
+          if git diff --quiet -- web/cloudsales-i18n-v1.js supabase/functions/cloudflare-site-brand-release/index.ts; then
+            echo 'Domains I18N runtime already canonical'
+            exit 0
+          fi
+          git config user.name 'CloudSales Domains QA'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/cloudsales-i18n-v1.js supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'fix(domains): one canonical 11-language search runtime'
+          git push origin HEAD:main
