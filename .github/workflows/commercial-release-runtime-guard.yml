@@ -1,0 +1,26 @@
+name: CloudSales Commercial Release Runtime Guard
+on:
+  push:
+    paths:
+      - '.github/scripts/commercial_release_runtime_guard_20260902.py'
+      - '.github/triggers/commercial-release-runtime-guard.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add runtime guard to commercial release
+        run: python3 .github/scripts/commercial_release_runtime_guard_20260902.py
+      - name: Validate guard
+        run: |
+          grep -q "replace('/assets/cloudsales-logo-official-v2.png','/cloudsales-logo-official-v2.png')" supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit release guard
+        run: |
+          if git diff --quiet; then echo 'No changes'; exit 0; fi
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'fix(commercial): normalize logo route while embedding runtime'
+          git push origin HEAD:main
