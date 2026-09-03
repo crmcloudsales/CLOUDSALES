@@ -1,0 +1,232 @@
+001	CloudSales — AI works for you. You stay in control.
+002	Saltar al contenido
+003	Qué es
+004	Cloudy
+005	Calidad de prospectos
+006	Dominios
+007	Servicios
+008	Academy
+009	Afiliados
+010	Entrar
+011	Empezar
+012	Integraciones
+013	Planes
+014	Precios de uso
+015	IA trabajando por ti · Mejores leads · Tu CRM en la palma de tu mano
+016	La IA trabaja por ti.
+017	Tú mantienes el control.
+018	CloudSales opera sobre tu CRM: Cloudy coordina tareas y prioridades, AgentCloud atiende prospectos y la capa de calidad ayuda a reducir junk leads y priorizar oportunidades reales. Tú revisas, decides y controlas tu operación desde el celular.
+019	Ver planes
+020	Abrir la aplicación
+021	7 días gratis
+022	· No es otro CRM. No es otra app que tienes que administrar. Es la capa de IA que trabaja sobre tu operación.
+023	Prospectos de mayor calidad
+024	Reduce junk leads y prioriza oportunidades con mayor intención.
+025	Más citas
+026	Seguimiento y automatización enfocados en convertir intención en citas.
+027	Más ventas
+028	Pipeline, conversaciones y próximos pasos en la palma de tu mano.
+029	CloudSales
+030	Cloudy activo
+031	Inicio
+032	Leads
+033	Pipeline
+034	Marketing
+035	Inbox
+036	“Revisa los leads de hoy, sigue los de mayor intención y dime qué necesita mi aprobación.”
+037	18
+038	7
+039	Alta intención
+040	2
+041	Por aprobar
+042	Tendencia de calidad
+043	7 días
+044	Mejores prospectos
+045	Control del CRM
+046	Citas
+047	Automatización
+048	No es otro software que tienes que aprender.
+049	CloudSales es la capa operativa que conecta las herramientas de tu negocio y las convierte en trabajo ejecutado. Tu CRM puede seguir siendo la infraestructura; CloudSales es la experiencia, el cerebro operativo y el control desde tu celular.
+050	La BMP donde ves lo importante: leads, pipeline, conversaciones, archivos, campañas, citas, señales y resultados. Menos menús. Menos fricción.
+051	El operador central. Entiende lo que necesitas, revisa contexto y datos, coordina herramientas, ejecuta tareas permitidas y te pide aprobación cuando una acción lo requiere.
+052	AgentCloud
+053	Agentes especializados que trabajan bajo la coordinación de Cloudy: seguimiento, citas, contenido, mensajes, campañas, operaciones y otras tareas repetitivas.
+054	Cloudy no te dice cómo hacerlo. Lo hace contigo.
+055	Pídele resultados en lenguaje normal. Cloudy convierte una instrucción corta en acciones sobre las cuentas y herramientas que tú hayas conectado y autorizado.
+056	Cloudy · Operador de IA
+057	Tu mano derecha operativa.
+058	Puede revisar leads, preparar seguimiento, crear contenido, organizar campañas, analizar actividad, coordinar citas, trabajar con archivos conectados y ejecutar tareas comerciales.
+059	AgentCloud · Agentes de IA especializados
+060	Un equipo de agentes dentro de CloudSales.
+061	Cloudy asigna trabajo especializado a AgentCloud según el canal y el objetivo. Tú ves el resultado y mantienes control sobre permisos, límites y aprobaciones.
+062	Entiende tu instrucción
+063	Consulta contexto
+064	Planifica
+065	Usa las conexiones autorizadas
+066	Ejecuta
+067	Reporta resultado
+068	Conecta tu CRM. O deja que CloudSales incluya la infraestructura.
+069	Si ya trabajas con un CRM, puedes conectarlo para que Cloudy opere sobre él. Si no tienes CRM, no necesitas comprar otro por separado para comenzar.
+070	HighLevel
+071	Salesforce
+072	HubSpot
+073	Zoho CRM
+074	Pipedrive
+075	monday CRM
+076	Freshsales
+077	Close
+078	Copper
+079	¿No tienes CRM?
+080	Continúa con CloudSales. La infraestructura de gestión que Cloudy necesita puede quedar incluida dentro de tu cuenta.
+081	Continuar
+082	Mejor calidad empieza antes de que el lead llegue al CRM.
+083	CloudSales combina protección de entrada, validaciones, señales de comportamiento y feedback comercial. El objetivo es que el proceso publicitario y comercial reciba información más limpia y útil, no simplemente acumular formularios.
+084	Bloquea automatización no deseada
+085	WAF, desafíos anti-bot, honeypots, rate limiting y controles server-side reducen tráfico y registros automatizados antes del CRM.
+086	Evalúa cada registro
+087	Lead Quality utiliza señales disponibles para clasificar intención y riesgo y decidir aceptar, desafiar o rechazar según configuración.
+088	Aprende del resultado comercial
+089	Web Events y CRM Events conectan el origen del lead con citas, oportunidades y resultados para producir feedback más útil.
+090	Devuelve mejores señales
+091	Cuando las plataformas lo permiten, CloudSales prepara Conversion API, atribución y audiencias usando eventos de mayor valor.
+092	Junk Lead Firewall
+093	WAF
+094	Anti-Bot
+095	Web Events
+096	CRM Events
+097	Conversion API
+098	Data Signals
+099	Attribution
+100	Audiences
+101	Por qué existe CloudSales
+102	Mejores leads. Menos trabajo desperdiciado.
+103	CloudSales fue diseñado para reducir el desperdicio comercial: junk leads, seguimiento perdido, herramientas desconectadas y horas frente a un CRM complejo. Convierte tecnología comercial e inteligencia artificial en
+104	trabajo ejecutado
+105	y devuelve al negocio tiempo, visibilidad y capacidad operativa.
+106	Mejores prospectos. Control total de tu CRM.
+107	Tres planes simples. Empieza controlando tu operación desde el celular y aumenta protección, automatización, agentes y capacidad de equipo conforme crece tu negocio. Servicios de terceros —mensajería, llamadas, IA u otros consumos— pueden generar cargos de uso según tu plan.
+108	Basic $47/mes
+109	Pro $97/mes · Recomendado
+110	Premium $147/mes · Incluye 2 usuarios
+111	7 días de prueba gratis.
+112	Agrega tu método de pago hoy y no se cobra la mensualidad hasta que termine la prueba. Cancela antes de que termine si no deseas continuar.
+113	Basic
+114	$47
+115	USD / mes
+116	Control total de tu CRM
+117	Prospectos, pipeline y citas
+118	Asistente de IA Cloudy
+119	Monitoreo de calidad de prospectos
+120	Control desde celular / PWA
+121	Elegir Basic
+122	RECOMENDADO
+123	Pro
+124	$97
+125	Todo Basic
+126	Junk Lead Firewall + calidad de prospectos con IA
+127	Calificación y seguimiento automatizado
+128	Automatización avanzada + señales de datos
+129	Elegir Pro
+130	Premium
+131	$147
+132	Todo Pro
+133	Incluye 2 usuarios
+134	Agentes avanzados de IA y automatización
+135	Más conexiones + control de equipo
+136	Prioridad de automatización
+137	Elegir Premium
+138	DOMINIO + SITIO WEB CON IA
+139	Tu negocio online.
+140	Sin pagar una agencia para empezar.
+141	Busca tu dominio, cómpralo y describe cómo quieres tu sitio. CloudSales usa IA para convertir tu información, imágenes y materiales en una presencia web profesional lista para revisar y publicar.
+142	✓ Busca y compra tu dominio
+143	✓ Describe tu sitio por texto o voz
+144	✓ Sube imágenes y documentos
+145	✓ Revisa antes de publicar
+146	BUSCAR MI DOMINIO
+147	Conocer cómo funciona
+148	Sitio web con IA incluido con la compra elegible del dominio. Aplican restricciones de uso razonable y Términos y Condiciones.
+149	PENNYWORTH
+150	REAL ESTATE · INVESTMENT
+151	INVERSIÓN INMOBILIARIA
+152	Redefinimos la
+153	experiencia de invertir.
+154	Decisiones informadas, sólidas y seguras para construir patrimonio.
+155	CONOCER OPORTUNIDADES
+156	Real Estate
+157	Oportunidades seleccionadas
+158	Sello PARS
+159	Seguridad y rentabilidad
+160	Advisory
+161	Estrategia patrimonial
+162	Ejemplo visual: Pennyworth
+163	Más que una aplicación.
+164	CloudSales también incluye formación y servicios opcionales para quienes quieren combinar automatización con acompañamiento humano especializado.
+165	CloudSales Academy
+166	Marketing digital + IA, CRM, automatización, webmaster, community management, campañas y entrenamiento para equipos.
+167	Ver Academy
+168	Servicios profesionales
+169	Webmaster, Community Management, administración de campañas y Concierge Setup cuando prefieres delegar una parte de la ejecución.
+170	Ver Servicios
+171	40%
+172	Affiliate Program
+173	Refiere CloudSales con tu propio link. Recibe 40% de comisión sobre las ventas elegibles atribuidas a tu enlace.
+174	Conocer programa
+175	Instala CloudSales donde trabajas.
+176	La misma cuenta funciona en navegador y como PWA. Instálala directamente en iPhone/iPad, Android o computadora.
+177	iPhone / iPad
+178	Android
+179	Desktop
+180	Preguntas frecuentes.
+181	Lo esencial antes de conectar tu negocio a CloudSales.
+182	¿Qué es CloudSales?
+183	Es una Business Management Platform operada por inteligencia artificial. Reúne la operación comercial y conecta las herramientas que ya usas para que Cloudy pueda ayudarte a ejecutar trabajo, no solo mostrar información.
+184	¿CloudSales es un CRM?
+185	No se limita a ser un CRM. Puede controlar un CRM existente o utilizar infraestructura de gestión incluida cuando no tienes uno. CloudSales se coloca por encima del stack como capa de operación, IA y experiencia móvil.
+186	¿Quién es Cloudy?
+187	Cloudy es el AI Operator central de CloudSales. Interpreta instrucciones, consulta contexto, coordina herramientas y AgentCloud, ejecuta acciones permitidas y reporta resultados.
+188	¿Qué es AgentCloud?
+189	Es el conjunto de agentes de IA especializados de CloudSales. Pueden asumir funciones concretas —por ejemplo seguimiento, citas, contenido o mensajería— bajo políticas, permisos y supervisión de Cloudy.
+190	¿Puedo conservar mi CRM actual?
+191	Sí. La estrategia de CloudSales es conectarse con CRMs líderes y operar sobre ellos. La profundidad de cada integración depende de los permisos y APIs disponibles de cada proveedor.
+192	¿Qué pasa si no tengo CRM?
+193	Puedes comenzar con CloudSales sin contratar un CRM adicional por separado. CloudSales puede incluir la infraestructura de gestión necesaria para contactos, pipeline, conversaciones y automatizaciones.
+194	¿Puedo importar mis contactos y oportunidades?
+195	Sí, cuando el origen y el CRM conectado ofrecen exportación o APIs compatibles. CloudSales está diseñado para mapear contactos, oportunidades y campos para reducir la configuración manual.
+196	¿Cloudy puede actuar sin pedirme permiso cada vez?
+197	Puede automatizar tareas dentro del nivel de autonomía que autorices. Acciones sensibles, costosas, destructivas o con impacto legal pueden configurarse para pedir aprobación.
+198	¿Cómo mejora CloudSales la calidad de los leads?
+199	Actúa en varias capas: protege formularios y landings, detecta automatización no deseada, valida señales del registro, asigna un score de calidad, deduplica y conecta el comportamiento web con lo que después ocurre en el CRM. Ese feedback permite trabajar con señales comerciales más útiles.
+200	¿CloudSales filtra después o puede bloquear antes del CRM?
+201	El Junk Lead Firewall está diseñado para intervenir antes de que el registro pase al flujo comercial cuando la campaña utiliza una landing/gateway de CloudSales. Así se puede desafiar o rechazar tráfico sospechoso antes de contaminar el CRM.
+202	¿Qué son Web Events y CRM Events?
+203	Son eventos que conectan lo que una persona hace en la web con lo que ocurre después en ventas: lead aceptado, cita, oportunidad, avance de etapa, compra u otros resultados configurados.
+204	¿CloudSales puede trabajar con Meta, Google, TikTok y LinkedIn?
+205	La plataforma está diseñada para conectar ecosistemas publicitarios y sociales mediante APIs e integraciones disponibles. Cada conexión requiere autorización del propietario de la cuenta y está sujeta a las políticas de cada plataforma.
+206	¿Cloudy puede publicar contenido?
+207	Sí, cuando el usuario conecta los canales y archivos necesarios. Cloudy puede usar materiales autorizados —por ejemplo del Drive del negocio— para preparar contenido y coordinar su publicación.
+208	¿Puedo trabajar solo desde mi celular?
+209	Ese es uno de los objetivos centrales: reducir drásticamente la dependencia de la computadora. La PWA permite gestionar lo esencial y hablar con Cloudy desde el teléfono. Algunas autorizaciones externas pueden abrir páginas del proveedor.
+210	¿Funciona en iPhone, Android y computadora?
+211	Sí. CloudSales es una PWA instalable y también funciona desde navegador. La misma cuenta se utiliza en todos los dispositivos compatibles.
+212	¿Necesito conocimientos técnicos?
+213	No para la operación cotidiana. El diseño busca que el usuario describa objetivos y Cloudy se encargue de la mayor parte de la ejecución. Integraciones avanzadas pueden requerir permisos administrativos de las plataformas conectadas.
+214	¿Mis credenciales quedan visibles para Cloudy?
+215	Las integraciones sensibles se diseñan para trabajar con OAuth, tokens y almacenamiento seguro del lado servidor. La PWA no necesita mostrar secretos para operar las conexiones.
+216	¿CloudSales reemplaza una agencia o un equipo completo?
+217	Puede eliminar muchas tareas manuales y reducir la necesidad de varias herramientas o servicios separados, pero cada negocio decide qué funciones automatizar y cuáles mantener con personas. También ofrecemos servicios profesionales opcionales.
+218	¿Hay costos adicionales?
+219	La suscripción cubre el plan de CloudSales. Algunos servicios externos —mensajes, llamadas, modelos de IA, publicidad u otros consumos— pueden cobrarse por uso. Los servicios profesionales y Academy se venden por separado.
+220	¿CloudSales tiene prueba gratis?
+221	Sí. Basic, Pro y Premium incluyen 7 días de prueba gratis. Se solicita un método de pago al iniciar y la primera mensualidad se cobra al terminar la prueba, salvo que canceles antes.
+222	¿Puedo cancelar?
+223	Sí. Puedes cancelar de acuerdo con los términos de tu suscripción y conservar acceso según las condiciones vigentes del periodo contratado.
+224	CloudSales · IA trabajando por ti · Mejores prospectos · Control total desde tu celular · un producto de CloudCo.
+225	Las integraciones, automatizaciones y funciones disponibles dependen de permisos, APIs y políticas de cada proveedor.
+226	Programa de Afiliados
+227	Términos y Condiciones
+228	Política de Privacidad
+229	Activar CloudSales
+230	Checkout seguro por Stripe
+231	Tu correo
+232	CloudSales includes a 7-day free trial. Cloudy coordinates CRM, lead-quality protection, marketing, follow-up, appointments and business operations through authorized connections.
