@@ -1,0 +1,28 @@
+name: Commercial Palette Fix 2026-09-03
+on:
+  push:
+    paths:
+      - '.github/scripts/commercial_palette_fix_20260903.py'
+      - '.github/triggers/commercial-palette-fix-20260903.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply palette correction
+        run: python3 .github/scripts/commercial_palette_fix_20260903.py
+      - name: Validate
+        run: |
+          node --check web/commercial-brand-runtime-v2.js
+          grep -q '2026.09.03.1' web/commercial-brand-runtime-v2.js
+          grep -q '#E8C6F7' web/commercial-brand-runtime-v2.js
+          grep -q '#F078C8' web/commercial-brand-runtime-v2.js
+      - name: Commit
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/commercial-brand-runtime-v2.js
+          git commit -m 'fix(brand): align commercial palette with official CloudSales reference'
+          git push
