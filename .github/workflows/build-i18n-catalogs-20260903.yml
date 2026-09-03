@@ -1,0 +1,80 @@
+name: Build CloudSales 11-Language Catalogs
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/build_i18n_catalog_locale_20260903.mjs'
+      - '.github/workflows/build-i18n-catalogs-20260903.yml'
+permissions:
+  contents: write
+  id-token: write
+concurrency:
+  group: cloudsales-i18n-static-catalog-v1
+  cancel-in-progress: false
+jobs:
+  localize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        locale: [es, en, fr, it, pt-BR, de, ar-AE, ru, he, zh-CN, ja]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Generate ${{ matrix.locale }} static catalog
+        env:
+          LOCALE: ${{ matrix.locale }}
+        run: node .github/scripts/build_i18n_catalog_locale_20260903.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: i18n-${{ matrix.locale }}
+          path: build/i18n/${{ matrix.locale }}.json
+          if-no-files-found: error
+          retention-days: 1
+  commit:
+    needs: localize
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: i18n-*
+          path: web/i18n/catalog-v1
+          merge-multiple: true
+      - name: Validate complete catalog set
+        run: |
+          node <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const locales=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
+          const manifest={version:'2026.09.03.1',generated_at:new Date().toISOString(),locales:{}};
+          let expected=null;
+          for(const lc of locales){
+            const p=`web/i18n/catalog-v1/${lc}.json`;if(!fs.existsSync(p))throw Error('missing_'+lc);
+            const raw=fs.readFileSync(p,'utf8'),j=JSON.parse(raw);
+            if(j.locale!==lc||!j.commercial||!j.pwa)throw Error('invalid_'+lc);
+            const c=Object.keys(j.commercial).length,w=Object.keys(j.pwa).length;
+            if(c<250||w<100)throw Error(`coverage_too_small_${lc}_${c}_${w}`);
+            if(!expected)expected={c,w};else if(c!==expected.c||w!==expected.w)throw Error(`count_mismatch_${lc}_${c}_${w}_${expected.c}_${expected.w}`);
+            for(const [surface,obj] of [['commercial',j.commercial],['pwa',j.pwa]])for(const [k,v] of Object.entries(obj))if(!k.trim()||typeof v!=='string'||!v.trim())throw Error(`blank_${lc}_${surface}`);
+            manifest.locales[lc]={commercial:c,pwa:w,sha256:crypto.createHash('sha256').update(raw).digest('hex')};
+          }
+          fs.writeFileSync('web/i18n/catalog-v1/manifest.json',JSON.stringify(manifest,null,2)+'\n');
+          console.log(JSON.stringify(manifest,null,2));
+          NODE
+      - name: Commit certified static catalogs
+        run: |
+          git config user.name 'CloudSales I18N Build'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/i18n/catalog-v1
+          if git diff --cached --quiet; then echo 'Catalogs already current'; exit 0; fi
+          git commit -m 'feat(i18n): add complete static 11-language catalogs'
+          git push origin HEAD:main
