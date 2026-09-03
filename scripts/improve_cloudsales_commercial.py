@@ -31,55 +31,29 @@ pricing_new = pricing_lead + '<div class="pricingProof"><span>Basic $47/mo</span
 if 'class="pricingProof"' not in s:
     s = s.replace(pricing_lead, pricing_new, 1)
 
-# Canonical trial is seven days everywhere. Remove stale legacy copy from HTML.
 s = re.sub(r'14\s+d[ií]as\s+gratis\s+para\s+comenzar', '7 días gratis para comenzar', s, flags=re.I)
 s = re.sub(r'14\s+days\s+free\s+to\s+start', '7 days free to start', s, flags=re.I)
 
-# Inline the conversion narrative into commercial.html. The production Cloudflare
-# commercial worker serves one self-contained HTML document, so external runtime
-# dependencies are deliberately avoided here.
 runtime = RUNTIME.read_text(encoding="utf-8").replace('</script>', '<\\/script>')
 inline_tag = '<script id="cs-commercial-sales-story-v1">' + runtime + '</script>'
 s = re.sub(r'<script\s+src="/commercial-sales-story-v1\.js[^>]*></script>', '', s, flags=re.I)
 s = re.sub(r'<script\s+id="cs-commercial-sales-story-v1">[\s\S]*?</script>', '', s, flags=re.I)
 s = s.replace('</body>', inline_tag + '</body>', 1)
 
-# Keep the canonical 7-day trial explicit for search engines and no-JS visitors.
 if 'data-cs-trial-seo="1"' not in s:
     seo = '<div data-cs-trial-seo="1" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">CloudSales includes a 7-day free trial. Cloudy coordinates CRM, lead-quality protection, marketing, follow-up, appointments and business operations through authorized connections.</div>'
     s = s.replace('</body>', seo + '</body>', 1)
-
 P.write_text(s, encoding="utf-8")
 
-# Normalize all supported locale/runtime trial copy to the canonical seven-day trial.
-# This intentionally touches only exact legacy trial-duration phrases.
 TRIAL_REPLACEMENTS = {
-    '14 días': '7 días',
-    '14 dias': '7 dias',
-    '14 days': '7 days',
-    '14 jours': '7 jours',
-    '14 giorni': '7 giorni',
-    '14 Tage': '7 Tage',
-    '14 يوماً': '7 أيام',
-    '14 يومًا': '7 أيام',
-    '14 дней': '7 дней',
-    '14 ימים': '7 ימים',
-    '14 天': '7 天',
-    '14日間': '7日間',
+    '14 días': '7 días','14 dias': '7 dias','14 days': '7 days','14 jours': '7 jours','14 giorni': '7 giorni','14 Tage': '7 Tage',
+    '14 kostenlosen Tagen': '7 kostenlosen Tagen','14 يوماً': '7 أيام','14 يومًا': '7 أيام','14 дней': '7 дней','14-дневный': '7-дневный',
+    '14 бесплатных': '7 бесплатных','14 ימים': '7 ימים','14 天': '7 天','14日間': '7日間',
 }
-for path in [
-    ROOT / 'web' / 'cloudsales-i18n-v1.js',
-    ROOT / 'web' / 'commercial-brand-runtime-v2.js',
-    ROOT / 'web' / 'commercial' / 'conversion-v1.js',
-]:
-    if not path.exists():
-        continue
-    text = path.read_text(encoding='utf-8')
-    original = text
-    for old, new in TRIAL_REPLACEMENTS.items():
-        text = text.replace(old, new)
-    text = re.sub(r'14\s+d[ií]as\s+gratis\s+para\s+comenzar', '7 días gratis para comenzar', text, flags=re.I)
-    if text != original:
-        path.write_text(text, encoding='utf-8')
-
-print("CloudSales commercial UX + Cloudy story + canonical 7-day trial patch applied")
+for path in [ROOT/'web'/'cloudsales-i18n-v1.js',ROOT/'web'/'commercial-brand-runtime-v2.js',ROOT/'web'/'commercial'/'conversion-v1.js']:
+    if not path.exists(): continue
+    text=path.read_text(encoding='utf-8'); original=text
+    for old,new in TRIAL_REPLACEMENTS.items(): text=text.replace(old,new)
+    text=re.sub(r'14\s+d[ií]as\s+gratis\s+para\s+comenzar','7 días gratis para comenzar',text,flags=re.I)
+    if text!=original: path.write_text(text,encoding='utf-8')
+print('CloudSales commercial UX + Cloudy story + canonical 7-day trial patch applied')
