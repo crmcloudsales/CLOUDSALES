@@ -12,7 +12,7 @@ permissions:
   id-token: write
 concurrency:
   group: cloudsales-i18n-static-catalog-v1
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   localize:
     runs-on: ubuntu-24.04
@@ -27,6 +27,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Apply semantic money-preservation guard
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.github/scripts/build_i18n_catalog_locale_20260903.mjs')
+          s=p.read_text()
+          old="function numbers(s){return [...s.matchAll(/(?:[$€£¥]\\s*)?\\d+(?:[.,]\\d+)?\\s*%?/g)].map(m=>m[0].replace(/\\s+/g,'')).sort()}\nfunction validatePreservation(source,target){const a=numbers(source),b=numbers(target);if(JSON.stringify(a)!==JSON.stringify(b))throw new Error('numeric_preservation_failed: '+source.slice(0,80)+' => '+target.slice(0,80));for(const brand of ['CloudSales','Cloudy','AgentCloud','CloudCo','LISTIA','Stripe','PayPal','Binance'])if(source.includes(brand)&&!target.includes(brand))throw new Error('brand_preservation_failed_'+brand)}"
+          new="function numericValues(s){return [...s.matchAll(/\\d+(?:[.,]\\d+)?/g)].map(m=>m[0].replace(',','.')).sort()}\nfunction currencyCodes(s){return [...s.matchAll(/\\b(?:USD|MXN|CAD|EUR|GBP|JPY|CNY|RMB|BRL|AED|ILS|RUB)\\b/gi)].map(m=>m[0].toUpperCase()).sort()}\nfunction validatePreservation(source,target){const a=numericValues(source),b=numericValues(target);if(JSON.stringify(a)!==JSON.stringify(b))throw new Error('numeric_preservation_failed: '+source.slice(0,80)+' => '+target.slice(0,80));const ca=currencyCodes(source),cb=currencyCodes(target);if(JSON.stringify(ca)!==JSON.stringify(cb))throw new Error('currency_preservation_failed: '+source.slice(0,80)+' => '+target.slice(0,80));const pa=(source.match(/%/g)||[]).length,pb=(target.match(/%/g)||[]).length;if(pa!==pb)throw new Error('percent_preservation_failed: '+source.slice(0,80)+' => '+target.slice(0,80));if(!ca.length&&/[$€£¥]/.test(source)&&!/[$€£¥]/.test(target))throw new Error('currency_symbol_missing: '+source.slice(0,80)+' => '+target.slice(0,80));for(const brand of ['CloudSales','Cloudy','AgentCloud','CloudCo','LISTIA','Stripe','PayPal','Binance'])if(source.includes(brand)&&!target.includes(brand))throw new Error('brand_preservation_failed_'+brand)}"
+          if old not in s: raise SystemExit('money guard marker not found')
+          p.write_text(s.replace(old,new,1))
+          PY
       - name: Generate ${{ matrix.locale }} static catalog
         env:
           LOCALE: ${{ matrix.locale }}
