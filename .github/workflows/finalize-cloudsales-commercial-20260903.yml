@@ -1,0 +1,72 @@
+name: Finalize CloudSales Commercial 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/finalize_cloudsales_commercial_20260903.py'
+      - '.github/workflows/finalize-cloudsales-commercial-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: finalize-cloudsales-commercial-20260903
+  cancel-in-progress: false
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Canonicalize CloudSales commercial sources
+        run: python3 .github/scripts/finalize_cloudsales_commercial_20260903.py
+      - name: Validate JavaScript syntax
+        run: |
+          node --check web/cloudsales-i18n-v1.js
+          node --check web/commercial-brand-runtime-v2.js
+          node --check web/commercial-sales-story-v1.js
+          node --check web/commercial-crm-bmp-v3.js
+      - name: Validate canonical brand, trial and pricing truth
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          root=Path('.')
+          bad=[]
+          pats=[r'14\s*d[ií]as',r'14\s*days',r'14[-\s]day',r'14\s*jours',r'14\s*giorni',r'14\s*Tage',r'14\s*дней',r'14\s*ימים',r'14\s*天',r'14日間',r'14\s*يو']
+          for p in root.rglob('*'):
+              if not p.is_file() or '.git' in p.parts or p.name=='finalize_cloudsales_commercial_20260903.py': continue
+              if p.suffix.lower() not in {'.html','.htm','.css','.js','.mjs','.cjs','.ts','.tsx','.jsx','.json','.md','.txt','.yml','.yaml','.py','.sql'}: continue
+              try:s=p.read_text(encoding='utf-8')
+              except:continue
+              for pat in pats:
+                  if re.search(pat,s,re.I): bad.append(f'{p}:{pat}')
+          assert not bad, '\n'.join(bad[:100])
+          h=Path('web/commercial.html').read_text(encoding='utf-8')
+          assert '#2D0A4A' in h and '#F955B6' in h and '#F3F4F8' in h
+          assert 'La IA trabaja por ti.' in h and 'Tú mantienes el control.' in h
+          assert '<meta name="color-scheme" content="dark">' in h
+          assert 'Premium $147/mes · Incluye 2 usuarios' in h
+          assert 'suscripción individual por persona' not in h
+          assert 'Asiento Premium adicional $47/mes' not in h
+          i=Path('web/cloudsales-i18n-v1.js').read_text(encoding='utf-8')
+          assert 'CS_FINAL_TRANSLATIONS' in i
+          assert "locale==='en'?(dict[base]||EN_FULL[base]):dict[base]" in i
+          rel=Path('supabase/functions/cloudflare-site-brand-release/index.ts').read_text(encoding='utf-8')
+          assert 'VERSION="2026.09.03.4"' in rel
+          assert 'CONECTA TU CRM Y MIRA A CLOUDY TRABAJAR' in rel
+          print('FINAL_VALIDATION_OK')
+          PY
+      - name: Commit canonicalized sources
+        run: |
+          if git diff --quiet; then
+            echo 'CloudSales already canonical'
+            exit 0
+          fi
+          git config user.name 'CloudSales Finalizer'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(commercial): finalize branding, i18n and permanent 7-day trial'
+          git push origin HEAD:main
