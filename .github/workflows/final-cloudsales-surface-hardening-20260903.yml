@@ -1,0 +1,44 @@
+name: Final CloudSales Surface Hardening 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/final_cloudsales_surface_hardening_20260903.py'
+      - '.github/workflows/final-cloudsales-surface-hardening-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Harden CloudSales browser and locale surfaces
+        run: python3 .github/scripts/final_cloudsales_surface_hardening_20260903.py
+      - name: Validate language runtime and dark surfaces
+        run: |
+          node --check web/cloudsales-i18n-v1.js
+          grep -Fq "const primary=path==='/'||path==='/crm'" web/cloudsales-i18n-v1.js
+          python3 - <<'PY'
+          from pathlib import Path
+          for rel in ['commercial.html','academy.html','services.html','affiliate.html','terms.html','privacy.html','commercial/domains-v2.html']:
+              s=(Path('web')/rel).read_text(encoding='utf-8')
+              assert '<meta name="color-scheme" content="dark">' in s, rel
+              assert 'data-cs-color-scheme-guard="1"' in s, rel
+          print('FINAL_SURFACE_VALIDATION_OK')
+          PY
+      - name: Commit hardened production surfaces
+        run: |
+          if git diff --quiet -- web; then
+            echo 'CloudSales surfaces already hardened'
+            exit 0
+          fi
+          git config user.name 'CloudSales Surface Guard'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web
+          git commit -m 'fix(commercial): harden browser colors and isolate secondary locale state'
+          git push origin HEAD:main
