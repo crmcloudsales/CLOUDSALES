@@ -1,1 +1,1 @@
-trigger valid CRM sitemap/robots worker
+trigger valid CRM sitemap/robots worker v2
