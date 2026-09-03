@@ -1,0 +1,46 @@
+name: CloudSales Brand + Language Lock 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/cloudsales-brand-language-guard-v1.js'
+      - '.github/scripts/cloudsales_brand_language_lock_20260903.py'
+      - '.github/workflows/cloudsales-brand-language-lock-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: cloudsales-brand-language-lock-20260903
+  cancel-in-progress: false
+jobs:
+  lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Apply canonical CloudSales brand and language lock
+        run: python3 .github/scripts/cloudsales_brand_language_lock_20260903.py
+      - name: Validate JavaScript and canonical tokens
+        run: |
+          node --check web/cloudsales-brand-language-guard-v1.js
+          node --check web/commercial-brand-runtime-v2.js
+          node --check web/commercial-sales-story-v1.js
+          grep -Fq '#2D0A4A' web/commercial-brand-runtime-v2.js
+          grep -Fq '#F955B6' web/commercial-brand-runtime-v2.js
+          grep -Fq '#F3F4F8' web/commercial-brand-runtime-v2.js
+          grep -Fq "csLanguageIntegrity='strict'" web/commercial-brand-runtime-v2.js
+          grep -Fq 'CLOUDSALES_CANONICAL_BRAND_LANGUAGE_GUARD_START' web/commercial-brand-runtime-v2.js
+          grep -Fq 'PARTE 1 · CONFIGURACIÓN + PROTECCIÓN' web/commercial-sales-story-v1.js
+          ! grep -Fq 'Atención y troubleshooting' web/commercial-sales-story-v1.js
+          grep -Fq '<meta name="theme-color" content="#08070D">' web/commercial.html
+      - name: Commit canonicalized commercial sources
+        run: |
+          if git diff --quiet; then echo 'Canonical sources already locked'; exit 0; fi
+          git config user.name 'CloudSales Brand Guard'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/commercial.html web/commercial-brand-runtime-v2.js web/commercial-sales-story-v1.js
+          git commit -m 'fix(commercial): lock canonical branding and prevent language drift'
+          git push origin HEAD:main
