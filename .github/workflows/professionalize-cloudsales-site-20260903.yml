@@ -1,0 +1,61 @@
+name: Professionalize CloudSales Site 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/professionalize_cloudsales_site_20260903.py'
+      - '.github/workflows/professionalize-cloudsales-site-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: professionalize-cloudsales-site-20260903
+  cancel-in-progress: false
+jobs:
+  professionalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Apply professional commercial release
+        run: python3 .github/scripts/professionalize_cloudsales_site_20260903.py
+      - name: Validate JavaScript syntax
+        run: node --check web/cloudsales-i18n-v1.js
+      - name: Validate critical source truth
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          home=Path('web/commercial.html').read_text()
+          terms=Path('web/terms.html').read_text()
+          usage=Path('web/usage-pricing.html').read_text()
+          domains=Path('web/commercial/domains-v2.html').read_text()
+          rel=Path('supabase/functions/cloudflare-site-brand-release/index.ts').read_text()
+          assert 'La IA trabaja por ti.' in home and 'Tú mantienes el control.' in home
+          assert '#2D0A4A' in home and '#F955B6' in home and '#F3F4F8' in home
+          assert 'Basic $47/mes' in home and 'Pro $97/mes' in home and 'Premium $147/mes · Incluye 2 usuarios' in home
+          assert '7 días' in home
+          assert 'cs-professional-nav-a11y-20260903' in home
+          assert 'role="dialog"' in home and 'aria-modal="true"' in home
+          assert '× 2.00 (100% markup)' in terms and '× 3.00' not in terms
+          assert '×2.00 landed cost' in usage and '×3.00' not in usage
+          assert 'Elige y compra tu dominio' in domains and 'Busca tu dominio' in domains
+          assert 'VERSION="2026.09.03.8"' in rel
+          assert "'/usage-pricing':'usage-pricing.html'" in rel
+          assert "p==='/crm-logo'" in rel
+          assert 'missing.status===404' in rel
+          print('PROFESSIONAL_RELEASE_VALIDATION_OK')
+          PY
+      - name: Commit production sources
+        run: |
+          if git diff --quiet -- web supabase/functions/cloudflare-site-brand-release/index.ts; then
+            echo 'CloudSales professional release already applied'
+            exit 0
+          fi
+          git config user.name 'CloudSales Professional Release'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'fix(site): professionalize CloudSales commercial experience'
+          git push origin HEAD:main
