@@ -1,135 +1,23 @@
 (()=>{
 'use strict';
-const VERSION='2026.09.03.1';
-const LOGO='/cloudsales-logo-official-v2.png?v=2026090301';
-const BRAND={bg:'#08070D',bg2:'#0c0c14',panel:'#11111b',panel2:'#171724',line:'#2a2a3a',text:'#F3F4F8',muted:'#aaa9b8',pink:'#F955B6',violet:'#C52DE8',blue:'#A878F4',green:'#5de6a2'};
-const CRM=['HighLevel','Salesforce','HubSpot','Zoho CRM','Pipedrive','monday CRM','Freshsales','Close','Copper','Twenty'];
-const ICONS={
- apple:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.33.07 2.25.73 3.03.78 1.17-.24 2.29-.93 3.54-.84 1.5.12 2.63.71 3.38 1.8-3.09 1.85-2.36 5.92.48 7.06-.57 1.5-1.31 2.99-2.43 4.17ZM12.03 7.25C11.88 5.02 13.69 3.18 15.77 3c.29 2.58-2.34 4.5-3.74 4.25Z"/></svg>',
- android:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z"/><path d="m8 8-1.5-3M16 8l1.5-3M8.5 12h.01M15.5 12h.01M7 19v2M17 19v2M5 11H3v5h2M19 11h2v5h-2"/></svg>',
- windows:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4.5 10.5 3v8H3zM12 2.7 21 1v10h-9zM3 12.5h7.5v8L3 19zM12 12.5h9V23l-9-1.7z"/></svg>',
- web:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9S14.5 18.4 12 21M12 3C9.5 5.6 8.2 8.6 8.2 12S9.5 18.4 12 21"/></svg>'
-};
-const CRM_SVG={
- 'HighLevel':'<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="9" fill="#101826"/><path d="M10 27V17m0 0-4 4m4-4 4 4M20 27V13m0 0-4 4m4-4 4 4M30 27V9m0 0-4 4m4-4 4 4" fill="none" stroke="#41b7ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 29h20" stroke="#8ee65d" stroke-width="2.7" stroke-linecap="round"/></svg>',
- 'Salesforce':'<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M13.2 31.4c-4.8 0-8.7-3.5-8.7-7.9 0-3.7 2.8-6.9 6.7-7.7.9-4.2 4.8-7.3 9.5-7.3 4 0 7.5 2.2 9 5.5 3.5.1 6.3 2.8 6.3 6.1 0 3.4-3 6.2-6.7 6.2-.9 3-3.9 5.1-7.3 5.1H13.2Z" fill="#00A1E0"/><text x="20" y="24" text-anchor="middle" font-size="7.5" font-family="Arial,sans-serif" font-weight="700" fill="#fff">salesforce</text></svg>',
- 'HubSpot':'<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="21" cy="20" r="6" fill="none" stroke="#FF7A59" stroke-width="3"/><circle cx="8" cy="12" r="3" fill="#FF7A59"/><circle cx="30" cy="8" r="3" fill="#FF7A59"/><circle cx="31" cy="29" r="3" fill="#FF7A59"/><path d="M10.7 13.7 16 17m9-1 3.3-5.2M25.5 24l3.2 3" stroke="#FF7A59" stroke-width="3" stroke-linecap="round"/></svg>',
- 'Zoho CRM':'<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="8" width="9" height="24" rx="2" fill="#E42527"/><rect x="11" y="8" width="9" height="24" rx="2" fill="#F7C600"/><rect x="20" y="8" width="9" height="24" rx="2" fill="#2F80ED"/><rect x="29" y="8" width="9" height="24" rx="2" fill="#36A852"/><text x="6.5" y="24" text-anchor="middle" font-size="8" font-family="Arial" font-weight="900" fill="#fff">Z</text><text x="15.5" y="24" text-anchor="middle" font-size="8" font-family="Arial" font-weight="900" fill="#fff">O</text><text x="24.5" y="24" text-anchor="middle" font-size="8" font-family="Arial" font-weight="900" fill="#fff">H</text><text x="33.5" y="24" text-anchor="middle" font-size="8" font-family="Arial" font-weight="900" fill="#fff">O</text></svg>',
- 'Pipedrive':'<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M11 7h11c8 0 13 5 13 12s-5 12-13 12h-5v6h-6V7Zm6 6v12h5c4 0 7-2 7-6s-3-6-7-6h-5Z" fill="#22B573"/></svg>',
- 'monday CRM':'<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="5" y="7" width="8" height="25" rx="4" transform="rotate(35 9 19.5)" fill="#FF3D57"/><rect x="17" y="7" width="8" height="25" rx="4" transform="rotate(35 21 19.5)" fill="#FFCB00"/><circle cx="31" cy="27" r="4" fill="#00D647"/></svg>',
- 'Freshsales':'<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 4c9 0 16 7 16 16s-7 16-16 16S4 29 4 20 11 4 20 4Z" fill="#F36"/><path d="M13 24c4-9 10-12 17-12-2 8-7 14-17 12Z" fill="#fff"/><path d="M14 27c4-5 9-9 15-11" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
- 'Close':'<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="4" y="4" width="32" height="32" rx="9" fill="#111827"/><path d="M28 12c-2.2-2-4.8-3-7.7-3C14.1 9 9 14 9 20s5.1 11 11.3 11c3 0 5.6-1 7.7-3" fill="none" stroke="#FF4F64" stroke-width="4" stroke-linecap="round"/><path d="m24 12 5 0 0 5" fill="none" stroke="#FF4F64" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
- 'Copper':'<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="#E77D62"/><path d="M27 13a10 10 0 1 0 0 14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg>',
- 'Twenty':'<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="4" y="5" width="32" height="30" rx="8" fill="#fff"/><path d="M10 13h20M10 20h8M22 20h8M10 27h20" stroke="#111827" stroke-width="3" stroke-linecap="round"/><circle cx="20" cy="20" r="3" fill="#7C3AED"/></svg>'
-};
-function css(){if(document.getElementById('cs-commercial-brand-v2-css'))document.getElementById('cs-commercial-brand-v2-css').remove();const s=document.createElement('style');s.id='cs-commercial-brand-v2-css';s.textContent=`
-:root{--bg:${BRAND.bg}!important;--bg2:${BRAND.bg2}!important;--panel:${BRAND.panel}!important;--panel2:${BRAND.panel2}!important;--line:${BRAND.line}!important;--text:${BRAND.text}!important;--muted:${BRAND.muted}!important;--pink:${BRAND.pink}!important;--violet:${BRAND.violet}!important;--blue:${BRAND.blue}!important;--green:${BRAND.green}!important}
-html,body{background:${BRAND.bg}!important;color:${BRAND.text}!important}body{background-image:radial-gradient(900px 540px at 50% -180px,#2b102f 0,transparent 72%)!important}.nav{background:#08070Df4!important;border-bottom:1px solid #231d2b!important}.navin{height:72px!important}.brand{min-width:0!important;display:flex!important;align-items:center!important}.brand img{display:block!important;width:auto!important;height:43px!important;max-width:230px!important;object-fit:contain!important;object-position:left center!important;background:transparent!important;border:0!important}.brand>span{display:none!important}
-.hero h1{color:${BRAND.text}!important}.hero h1 .grad,.hero h1 span.grad,.grad{opacity:1!important;filter:none!important;background:linear-gradient(90deg,#FAF9FC 0%,#E8C6F7 34%,#E59AE0 64%,#F078C8 100%)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;color:transparent!important}.hero p,.lead,.card p,.faq p{color:#b8b6c4!important}.eyebrow{background:#0d0d15!important;border-color:#3a3143!important;color:#f0edf4!important}.micro{color:#9b98a8!important}.btn{background:#11111b!important;border-color:#383443!important;color:#fff!important}.btn.primary{border:0!important;background:linear-gradient(135deg,#F955B6 0%,#D52BDA 55%,#C12DF0 100%)!important;box-shadow:0 14px 38px #F955B638!important}.card,.mission,.included,.faq details,.crm{background:linear-gradient(180deg,#11111b,#0c0c14)!important;border-color:#34303e!important}.plan.featured{border-color:#D653BC!important;box-shadow:0 0 0 1px #D653BC,0 30px 90px #F955B620!important}.trialBanner,.trialCheckout,.trialMini{border-color:#6b365c!important;background:linear-gradient(135deg,#231126,#111119)!important}.trialMini{color:#F955B6!important}
-.cs-crm-band{margin:0!important;border-top:0!important;border-bottom:1px solid #32283a!important;background:#09080e!important;padding:9px 0!important}.cs-crm-track{gap:10px!important}.cs-crm-item{height:44px!important;background:#111019!important;border-color:#3a3042!important;padding:0 15px!important;color:#f4f2f7!important}.cs-crm-item .crmMark{width:25px!important;height:25px!important}.cs-crm-call{background:linear-gradient(90deg,#F955B618,#C52DE81a)!important;border-color:#674267!important}.cs-crm-call strong{background:linear-gradient(90deg,#F78ACB,#E7B7F4,#F2A0D6)!important;-webkit-background-clip:text!important;color:transparent!important}
-.crmgrid{gap:12px!important}.crm{min-height:110px!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:10px!important;font-size:14px!important;color:#F3F4F8!important}.crmMark{display:inline-grid!important;place-items:center!important;width:38px!important;height:38px!important;flex:0 0 auto!important}.crmMark svg{display:block!important;width:100%!important;height:100%!important;overflow:visible!important}.crmLabel{display:inline-block!important;white-space:nowrap!important;font-weight:850!important}
-.aiLaptop{transform:perspective(1100px) rotateY(-7deg) rotateX(2deg)!important;transform-origin:50% 55%!important;padding:18px 30px 58px!important;filter:drop-shadow(25px 38px 52px #000c)!important}.aiLaptopScreen{border:11px solid #292934!important;border-bottom-width:18px!important;border-radius:25px 25px 13px 13px!important;box-shadow:inset 0 0 0 1px #555566,0 18px 60px #0009!important}.aiLaptopBase{left:3%!important;right:3%!important;height:21px!important;background:linear-gradient(180deg,#b9b9c3,#5b5b67)!important}.pwHero{position:relative!important;background-image:linear-gradient(90deg,rgba(8,7,7,.91),rgba(8,7,7,.55)),url('https://i0.wp.com/pennyworth.vip/wp-content/uploads/2025/07/Distrito-Xcalacoco-Beach_Exterior8.jpg?resize=1800%2C1200&ssl=1')!important;background-size:cover!important;background-position:center!important}.pwHero>*{position:relative;z-index:2}.pwTop{background:#0b0908e8!important}.pwCards span{background:#0d0b09f2!important}
-.download{grid-template-columns:repeat(4,1fr)!important}.download a{min-height:96px!important;display:flex!important;flex-direction:column!important;gap:8px!important;border-color:#34313f!important;background:#11111b!important;font-size:16px!important}.csDeviceIcon{width:34px;height:34px;display:grid;place-items:center;color:#f7f6fb}.csDeviceIcon svg{width:31px;height:31px;display:block;fill:currentColor;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}.footer .brand img{height:42px!important;max-width:230px!important}.footer .brand>span{display:none!important}
-@media(max-width:940px){.download{grid-template-columns:1fr 1fr!important}}
-@media(max-width:700px){.navin{height:68px!important;gap:8px!important}.brand{flex:1!important;overflow:hidden!important}.brand img{height:38px!important;width:auto!important;max-width:min(52vw,190px)!important}.navlinks{gap:7px!important}.navlinks .btn{font-size:14px!important;padding:9px 13px!important}.hero{padding-top:46px!important}.hero h1{font-size:clamp(48px,13vw,64px)!important;line-height:.94!important}.hero p{font-size:18px!important;line-height:1.52!important}.eyebrow{font-size:14px!important}.cs-crm-item{font-size:13px!important;height:44px!important}.crm{min-height:108px!important}.aiLaptop{transform:perspective(900px) rotateY(-3deg) rotateX(1deg)!important;padding:10px 5px 48px!important}.download a{font-size:15px!important;min-height:92px!important}}
-@media(max-width:430px){.brand img{max-width:47vw!important;height:36px!important}.download{grid-template-columns:1fr 1fr!important}.navlinks .btn{padding:9px 11px!important}.crmMark{width:34px!important;height:34px!important}.crmLabel{font-size:13px!important}}
-`;document.head.appendChild(s)}
-function fixBrand(){document.querySelectorAll('.brand img').forEach(img=>{img.src=LOGO;img.alt='CloudSales';img.removeAttribute('width');img.removeAttribute('height')});document.querySelectorAll('.brand>span').forEach(x=>x.style.display='none')}
-function normalizeTrials(root=document.body){const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let n;while(n=walker.nextNode()){let t=n.nodeValue||'';const before=t;t=t.replace(/14[-\s]?day free trial/gi,'7-day free trial').replace(/14\s+days\s+free/gi,'7 days free').replace(/14[-\s]?day trial/gi,'7-day trial').replace(/14\s*d[ií]as\s+(de\s+)?prueba\s+gratis/gi,'7 días de prueba gratis').replace(/14\s*d[ií]as\s+gratis/gi,'7 días gratis').replace(/prueba\s+gratis\s+de\s+14\s*d[ií]as/gi,'prueba gratis de 7 días');if(t!==before)n.nodeValue=t}}
-function normalizeHighLevel(root=document.body){root.querySelectorAll('*').forEach(el=>{if(el.children.length===0&&/^highlevel$/i.test((el.textContent||'').trim()))el.textContent='HighLevel'})}
-function crmMarkup(name){return `<span class="crmMark" aria-hidden="true">${CRM_SVG[name]||''}</span><span class="crmLabel">${name}</span>`}
-function buildBand(){const groups=()=>`<div class="cs-crm-item cs-crm-call"><strong>${document.documentElement.lang.startsWith('es')?'CONECTA TU CRM Y MIRA A CLOUDY TRABAJAR':'CONNECT YOUR CRM AND WATCH CLOUDY WORK'}</strong></div>`+CRM.map(name=>`<div class="cs-crm-item">${crmMarkup(name)}</div>`).join('');return `<section id="cs-crm-marquee-v1" class="cs-crm-band" aria-label="CRM integrations"><div class="cs-crm-track">${groups()}${groups()}</div></section>`}
-function ensureCrm(){let band=document.querySelector('.cs-crm-band');const nav=document.querySelector('.nav');if(!band&&nav){nav.insertAdjacentHTML('afterend',buildBand());band=document.querySelector('.cs-crm-band')}else if(band&&nav&&band.previousElementSibling!==nav)nav.insertAdjacentElement('afterend',band);if(band){const track=band.querySelector('.cs-crm-track');if(track){track.innerHTML=buildBand().match(/<div class="cs-crm-track">([\s\S]*)<\/div><\/section>/)?.[1]||track.innerHTML}}
- const grid=document.querySelector('.crmgrid');if(grid){grid.innerHTML='';CRM.forEach(name=>{const d=document.createElement('div');d.className='crm';d.setAttribute('data-crm',name);d.innerHTML=crmMarkup(name);grid.appendChild(d)})}}
-function devices(){const d=document.querySelector('.download');if(!d)return;d.innerHTML=`<a href="https://app.cloudsales.app/?install=ios"><span class="csDeviceIcon">${ICONS.apple}</span><span>iPhone / iPad</span></a><a href="https://app.cloudsales.app/?install=android"><span class="csDeviceIcon">${ICONS.android}</span><span>Android</span></a><a href="https://app.cloudsales.app/?install=desktop"><span class="csDeviceIcon">${ICONS.windows}</span><span>Windows</span></a><a href="https://app.cloudsales.app/"><span class="csDeviceIcon">${ICONS.web}</span><span>Web</span></a>`}
-function fixCopy(){const h=document.querySelector('.hero h1');if(h){h.style.color=BRAND.text;h.querySelectorAll('.grad').forEach(g=>{g.style.opacity='1';g.style.filter='none'})}}
-function repair(){css();fixBrand();normalizeTrials();normalizeHighLevel();ensureCrm();devices();fixCopy();document.documentElement.dataset.commercialBrandRuntime=VERSION}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',repair,{once:true});else repair();window.addEventListener('cloudsales:locale',()=>setTimeout(repair,20));new MutationObserver(()=>requestAnimationFrame(()=>{normalizeTrials();normalizeHighLevel()})).observe(document.documentElement,{childList:true,subtree:true});
+/*
+ CloudSales compatibility runtime.
+ Canonical branding now lives in web/commercial.html and canonical localization
+ lives in web/cloudsales-i18n-v1.js. This file intentionally performs no color,
+ typography, trial-copy, pricing-copy or language mutations. It remains only so
+ cached HTML or release layers that still request the historical URL do not 404.
+*/
+const VERSION='2026.09.03.6';
+function normalizeHighLevel(){
+  document.querySelectorAll('*').forEach(el=>{
+    if(el.children.length===0 && /^highlevel$/i.test((el.textContent||'').trim())) el.textContent='HighLevel';
+  });
+}
+function mark(){
+  normalizeHighLevel();
+  document.documentElement.dataset.commercialCompatibilityRuntime=VERSION;
+}
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',mark,{once:true});
+else mark();
+window.addEventListener('cloudsales:locale',()=>setTimeout(mark,0));
 })();
-/* CLOUDSALES_CANONICAL_BRAND_LANGUAGE_GUARD_START */
-(()=>{
-'use strict';
-const VERSION='2026.09.03.2';
-const BRAND={purple:'#2D0A4A',pink:'#F955B6',white:'#F3F4F8',canvas:'#08070D',canvasAlt:'#070713',panel:'#121019',panel2:'#17141F',line:'#37323F',muted:'#AAA7B2',violet:'#C13BE4'};
-const COPY={
- es:{
-  eyebrow:'IA TRABAJANDO POR TI · MEJORES LEADS · TU CRM EN LA PALMA DE TU MANO',
-  hero:'La IA trabaja por ti. <span class="grad">Tú mantienes el control.</span>',
-  lead:'CloudSales opera sobre tu CRM: Cloudy coordina tareas y prioridades, AgentCloud atiende prospectos y la capa de calidad ayuda a reducir junk leads y priorizar oportunidades reales. Tú revisas, decides y controlas tu operación desde el celular.',
-  micro:'No es otro CRM. No es otra app que tienes que administrar. Es la capa de IA que trabaja sobre tu operación.',
-  hookKicker:'NO ES OTRA APP MÁS',
-  hookTitle:'Tu negocio no necesita más software que administrar. Necesita IA que haga el trabajo.',
-  hookLead:'Conecta el CRM que ya utilizas. CloudSales coordina la operación encima de esa infraestructura para ayudarte a conseguir prospectos de mejor calidad, dar seguimiento, mover oportunidades y mantener el control desde la palma de tu mano.',
-  setupKicker:'PARTE 1 · CONFIGURACIÓN + PROTECCIÓN',
-  setupTitle:'Primero organiza y protege. Después escala.',
-  setupLead:'Cloudy ayuda a preparar la operación, conectar lo que ya utilizas y activar controles de calidad antes de pedirte que aumentes inversión.',
-  cloudyKicker:'PARTE 2 · CLOUDY',
-  cloudyTitle:'Cloudy es tu operador personal de IA.',
-  cloudyLead:'Habla o escribe lo que necesitas. Cloudy coordina CRM, marketing, ventas, seguimiento, citas, tareas y prioridades dentro de tus permisos. Tú mantienes la decisión; Cloudy absorbe trabajo operativo.',
-  agentsKicker:'PARTE 4 · AGENTCLOUD',
-  agentsTitle:'AgentCloud es tu equipo de IA de cara al cliente.',
-  agentsLead:'Cloudy coordina la operación. AgentCloud conversa con prospectos: califica, responde, da seguimiento, ayuda a vender, agenda citas y escala a una persona cuando corresponde, usando únicamente información y acciones autorizadas.',
-  appKicker:'CONTROL DESDE LA PALMA DE TU MANO',
-  appTitle:'Toda tu operación comercial, sin vivir frente a la computadora.',
-  appLead:'Revisa prospectos, conversaciones, citas, pipeline, campañas y prioridades desde el celular. Pídele a Cloudy que haga el trabajo y entra al detalle solo cuando necesitas revisar, aprobar o decidir.',
-  calm:'Más tranquilidad. Menos trabajo manual. Mejor calidad de prospectos. Más tiempo para vender, dirigir tu negocio o simplemente alejarte de la computadora sin perder el control.',
-  finalKicker:'MIRA A LA IA TRABAJAR',
-  finalTitle:'Conecta tu operación y deja que Cloudy te demuestre el valor.',
-  finalLead:'CloudSales no busca darte otra pantalla que administrar. Busca que la inteligencia artificial haga más trabajo por ti mientras tú conservas el control de tu negocio.',
-  bmpKicker:'CLOUDSALES · PLATAFORMA DE GESTIÓN EMPRESARIAL CON IA',
-  bmpTitle:'Tu CRM es la infraestructura. CloudSales es la capa de IA que lo opera contigo.',
-  bmpIntro:'CloudSales conecta tu CRM, datos, archivos, campañas y agentes de IA en una sola capa operativa. Cloudy ayuda a configurar, coordinar y ejecutar trabajo comercial para que el CRM deje de convertirse en otra herramienta que tú tienes que alimentar manualmente.',
-  bmpQuality:'La adquisición no termina cuando llega un formulario. CloudSales conecta validación, scoring, seguimiento y señales de conversión para ayudarte a reducir junk leads y priorizar prospectos con mayor intención.',
-  crmCall:'CONECTA TU CRM Y MIRA A CLOUDY TRABAJAR'
- },
- en:{
-  eyebrow:'AI WORKING FOR YOU · BETTER LEADS · YOUR CRM IN THE PALM OF YOUR HAND',
-  hero:'AI works for you. <span class="grad">You stay in control.</span>',
-  lead:'CloudSales operates on top of your CRM: Cloudy coordinates work and priorities, AgentCloud engages prospects, and the lead-quality layer helps reduce junk and prioritize real opportunities. You review, decide, and control the operation from your phone.',
-  micro:'Not another CRM. Not another app you have to manage. It is the AI operating layer working on top of your business.',
-  hookKicker:'NOT ANOTHER APP',
-  hookTitle:'Your business does not need more software to manage. It needs AI that does the work.',
-  hookLead:'Connect the CRM you already use. CloudSales coordinates the operation on top of that infrastructure to help you get better-quality prospects, follow up, move opportunities forward, and stay in control from the palm of your hand.',
-  setupKicker:'PART 1 · SETUP + PROTECTION',
-  setupTitle:'Organize and protect first. Scale second.',
-  setupLead:'Cloudy helps prepare the operation, connect what you already use, and activate lead-quality controls before asking you to increase spend.',
-  cloudyKicker:'PART 2 · CLOUDY',
-  cloudyTitle:'Cloudy is your personal AI operator.',
-  cloudyLead:'Speak or type what you need. Cloudy coordinates CRM, marketing, sales, follow-up, appointments, tasks, and priorities within your permissions. You keep the decision; Cloudy absorbs operational work.',
-  agentsKicker:'PART 4 · AGENTCLOUD',
-  agentsTitle:'AgentCloud is your customer-facing AI team.',
-  agentsLead:'Cloudy coordinates the operation. AgentCloud engages prospects: qualifies, answers, follows up, supports sales, books appointments, and hands off to a person when appropriate, using only authorized information and actions.',
-  appKicker:'CONTROL FROM THE PALM OF YOUR HAND',
-  appTitle:'Your entire commercial operation, without living in front of a computer.',
-  appLead:'Review prospects, conversations, appointments, pipeline, campaigns, and priorities from your phone. Ask Cloudy to do the work and go into detail only when you need to review, approve, or decide.',
-  calm:'More peace of mind. Less manual work. Better-quality prospects. More time to sell, lead your business, or step away from the computer without losing control.',
-  finalKicker:'WATCH AI WORK',
-  finalTitle:'Connect your operation and let Cloudy prove the value.',
-  finalLead:'CloudSales is not trying to give you another screen to manage. It is designed so AI can do more work for you while you keep control of your business.',
-  bmpKicker:'CLOUDSALES · AI BUSINESS MANAGEMENT PLATFORM',
-  bmpTitle:'Your CRM is the infrastructure. CloudSales is the AI layer that operates it with you.',
-  bmpIntro:'CloudSales connects your CRM, data, files, campaigns, and AI agents in one operating layer. Cloudy helps configure, coordinate, and execute commercial work so the CRM stops becoming another system you have to feed manually.',
-  bmpQuality:'Acquisition does not end when a form is submitted. CloudSales connects validation, scoring, follow-up, and conversion signals to help reduce junk and prioritize higher-intent prospects.',
-  crmCall:'CONNECT YOUR CRM AND WATCH CLOUDY WORK'
- }
-};
-function locale(){const raw=(document.documentElement.lang||'').toLowerCase();if(raw.startsWith('es'))return'es';if(raw.startsWith('en'))return'en';return'other'}
-function one(s){return document.querySelector(s)}
-function setText(s,v){const e=one(s);if(e&&v!=null&&e.textContent!==v)e.textContent=v}
-function setHtml(s,v){const e=one(s);if(e&&v!=null&&e.innerHTML!==v)e.innerHTML=v}
-function setMeta(n,v){const e=one(`meta[name="${n}"]`);if(e&&e.getAttribute('content')!==v)e.setAttribute('content',v)}
-function style(){let s=document.getElementById('cloudsales-canonical-brand-v1');if(!s){s=document.createElement('style');s.id='cloudsales-canonical-brand-v1';document.head.appendChild(s)}const css=`
-:root{--cs-brand-purple:${BRAND.purple};--cs-brand-pink:${BRAND.pink};--cs-brand-white:${BRAND.white};--bg:${BRAND.canvas}!important;--bg2:${BRAND.panel}!important;--panel:${BRAND.panel}!important;--panel2:${BRAND.panel2}!important;--line:${BRAND.line}!important;--text:${BRAND.white}!important;--muted:${BRAND.muted}!important;--pink:${BRAND.pink}!important;--violet:${BRAND.violet}!important}
-html,body{background:${BRAND.canvas}!important;color:${BRAND.white}!important}body{background-image:radial-gradient(920px 520px at 50% -180px,${BRAND.purple} 0,rgba(45,10,74,.62) 28%,transparent 72%)!important}.nav{background:rgba(8,7,13,.94)!important;border-bottom:1px solid rgba(249,85,182,.12)!important}.brand img{height:39px!important;width:auto!important;max-width:210px!important;object-fit:contain!important;background:transparent!important}.hero h1,.section h2,.csStoryTitle,.csBmp h3{color:${BRAND.white}!important}.grad,.hero h1 .grad,.hero h1 span.grad{background:linear-gradient(90deg,${BRAND.white} 0%,#F7D7EC 34%,${BRAND.pink} 100%)!important;-webkit-background-clip:text!important;background-clip:text!important;-webkit-text-fill-color:transparent!important;color:transparent!important;opacity:1!important}.hero p,.lead,.card p,.faq p,.micro,.csStoryLead,.csStoryCard p,.csBmpIntro{color:${BRAND.muted}!important}.btn.primary,.csHeroTrial,.csFinalTrial,.csFooterCrmBtn{background:linear-gradient(135deg,${BRAND.pink} 0%,#E548C9 58%,${BRAND.violet} 100%)!important;border:0!important;box-shadow:0 14px 38px rgba(249,85,182,.27)!important;color:#fff!important}.btn:not(.primary){background:#121019!important;border-color:#3B3442!important;color:${BRAND.white}!important}.card,.crm,.faq details,.included,.mission,.csStoryCard,.csSaving{background:linear-gradient(180deg,#15121B,#0E0C13)!important;border-color:#39323F!important}.csHookPanel,.csFinalBox,.csBmp{background:radial-gradient(520px 250px at 100% 0,rgba(249,85,182,.09),transparent 70%),linear-gradient(145deg,rgba(45,10,74,.54),#100D14)!important;border-color:rgba(249,85,182,.26)!important}.csStoryKicker,.csBmpKicker,.csStoryNum{color:#F6A5D4!important}.csGrowthIndex,.csBmpStep b{background:linear-gradient(135deg,${BRAND.pink},${BRAND.violet})!important}.cs-crm-band{background:#0C0911!important;border-color:#332A39!important}.cs-crm-item{background:#141019!important;border-color:#3A3040!important;color:${BRAND.white}!important}.cs-crm-call{background:linear-gradient(90deg,rgba(249,85,182,.09),rgba(45,10,74,.34))!important;border-color:rgba(249,85,182,.23)!important}.cs-crm-call strong{background:linear-gradient(90deg,${BRAND.white},#F8C9E5,${BRAND.pink})!important;-webkit-background-clip:text!important;background-clip:text!important;color:transparent!important}@media(max-width:620px){.brand img{height:35px!important;max-width:174px!important}.navin{gap:10px!important}.hero h1{letter-spacing:-.055em!important}}
-`;if(s.textContent!==css)s.textContent=css}
-function showWithheld(){document.querySelectorAll('[data-cs-withheld-untranslated="1"]').forEach(e=>{e.hidden=false;e.removeAttribute('data-cs-withheld-untranslated')})}
-function supported(lang){const c=COPY[lang];document.documentElement.dataset.csLanguageIntegrity='strict';document.documentElement.dataset.csBrandCanonical=VERSION;showWithheld();setHtml('section.hero h1,.hero h1',c.hero);setText('section.hero .eyebrow,.hero .eyebrow',c.eyebrow);const hero=one('section.hero,.hero');if(hero){const p=hero.querySelector('p');if(p&&p.textContent!==c.lead)p.textContent=c.lead;const m=hero.querySelector('.micro');if(m&&m.textContent!==c.micro)m.textContent=c.micro}
-setText('#cs-story-hook .csStoryKicker',c.hookKicker);setText('#cs-story-hook .csStoryTitle',c.hookTitle);setText('#cs-story-hook .csStoryLead',c.hookLead);setText('#cs-story-setup .csStoryKicker',c.setupKicker);setText('#cs-story-setup .csStoryTitle',c.setupTitle);setText('#cs-story-setup .csStoryLead',c.setupLead);setText('#cs-story-cloudy .csStoryKicker',c.cloudyKicker);setText('#cs-story-cloudy .csStoryTitle',c.cloudyTitle);setText('#cs-story-cloudy .csStoryLead',c.cloudyLead);setText('#cs-story-agents .csStoryKicker',c.agentsKicker);setText('#cs-story-agents .csStoryTitle',c.agentsTitle);setText('#cs-story-agents .csStoryLead',c.agentsLead);setText('#cs-story-app .csStoryKicker',c.appKicker);setText('#cs-story-app .csStoryTitle',c.appTitle);setText('#cs-story-app .csStoryLead',c.appLead);setText('#cs-story-app .csCalm',c.calm);setText('#cs-story-final .csStoryKicker',c.finalKicker);setText('#cs-story-final .csStoryTitle',c.finalTitle);setText('#cs-story-final .csStoryLead',c.finalLead);setText('#business-management-platform .csBmpKicker',c.bmpKicker);setText('#business-management-platform h3',c.bmpTitle);setText('#business-management-platform .csBmpIntro',c.bmpIntro);setText('#business-management-platform .csBmpQuality',c.bmpQuality);document.querySelectorAll('.cs-crm-call strong').forEach(e=>{if(e.textContent!==c.crmCall)e.textContent=c.crmCall});
-if(lang==='es'){document.querySelectorAll('*').forEach(e=>{if(e.children.length)return;const t=(e.textContent||'').trim();if(t==='PARTE 1 · SETUP + PROTECCIÓN')e.textContent='PARTE 1 · CONFIGURACIÓN + PROTECCIÓN';else if(t==='Atención y troubleshooting')e.textContent='Atención y resolución de problemas';else if(t==='Lead Quality')e.textContent='Calidad de prospectos'});document.title='CloudSales — IA trabajando por ti, mejores leads y control desde tu celular';setMeta('description','CloudSales opera sobre tu CRM con Cloudy y AgentCloud, ayuda a reducir junk leads, prioriza mejores oportunidades y te permite controlar tu operación desde la palma de tu mano.')}else{document.title='CloudSales — AI working for you, better leads and mobile control';setMeta('description','CloudSales operates on top of your CRM with Cloudy and AgentCloud, helps reduce junk leads, prioritizes better opportunities, and lets you control your operation from the palm of your hand.')}}
-function unsupported(){document.documentElement.dataset.csLanguageIntegrity='strict-no-fallback';document.documentElement.dataset.csBrandCanonical=VERSION}
-function apply(){style();const l=locale();if(l==='es'||l==='en')supported(l);else unsupported()}
-function boot(){apply();setTimeout(apply,120);setTimeout(apply,420);setTimeout(apply,1100)}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-new MutationObserver(()=>{setTimeout(apply,40)}).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
-})();
-/* CLOUDSALES_CANONICAL_BRAND_LANGUAGE_GUARD_END */
