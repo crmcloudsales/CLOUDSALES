@@ -1,0 +1,57 @@
+name: CloudSales I18N Block 3
+on:
+  push:
+    branches: [cloudsales-site-finish-20260903]
+    paths:
+      - '.github/scripts/block3_i18n_hardening_20260903.py'
+      - '.github/workflows/block3-cloudsales-i18n-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: cloudsales-i18n-block3
+  cancel-in-progress: false
+jobs:
+  i18n:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudsales-site-finish-20260903
+          fetch-depth: 0
+      - name: Apply Block 3 language hardening
+        run: python3 .github/scripts/block3_i18n_hardening_20260903.py
+      - name: Validate JavaScript
+        run: |
+          node --check web/cloudsales-i18n-v1.js
+          node --check web/commercial-brand-runtime-v2.js
+      - name: Validate 11-language contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          i=Path('web/cloudsales-i18n-v1.js').read_text(encoding='utf-8')
+          r=Path('web/commercial-brand-runtime-v2.js').read_text(encoding='utf-8')
+          rel=Path('supabase/functions/cloudflare-site-brand-release/index.ts').read_text(encoding='utf-8')
+          langs=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja']
+          assert all(("['"+x+"'") in i for x in langs)
+          assert "const RTL=new Set(['ar-AE','he'])" in i
+          assert '[data-cs-untranslated]{display:none!important}' not in i
+          assert 'data-cs-fallback-lang' in i
+          assert 'dataset.csWritingMode' in i
+          assert '[dir="rtl"] .heroGrid' in r
+          assert 'html:not([lang^="en"]):not([lang^="es"]) .csStorySection' in r
+          assert 'VERSION="2026.09.03.12"' in rel
+          print('BLOCK3_I18N_VALIDATION_OK')
+          PY
+      - name: Commit transformed language sources
+        run: |
+          if git diff --quiet -- web/cloudsales-i18n-v1.js web/commercial-brand-runtime-v2.js supabase/functions/cloudflare-site-brand-release/index.ts; then
+            echo 'Block 3 already applied'
+            exit 0
+          fi
+          git config user.name 'CloudSales I18N Block 3'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/cloudsales-i18n-v1.js web/commercial-brand-runtime-v2.js supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'feat(i18n): harden 11 locales and RTL behavior'
+          git push origin HEAD:cloudsales-site-finish-20260903
