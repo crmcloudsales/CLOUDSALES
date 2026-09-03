@@ -1,0 +1,29 @@
+name: CloudSales Commercial Release V6 Patch
+on:
+  push:
+    paths:
+      - '.github/scripts/commercial_release_v6_patch.py'
+      - '.github/triggers/commercial-release-v6-patch.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch release worker
+        run: python3 .github/scripts/commercial_release_v6_patch.py
+      - name: Validate release worker source
+        run: |
+          grep -q "route==='/'?.*commercial.html" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q "commercial-brand-runtime-v2.js" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q "BRAND_RUNTIME" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q "cloudsales-app-icon-official-v4.png" supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit release worker patch
+        run: |
+          if git diff --quiet; then echo 'No changes'; exit 0; fi
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'fix(commercial): source root from repo and serve brand runtime in v6 release'
+          git push origin HEAD:main
