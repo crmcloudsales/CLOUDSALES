@@ -5,7 +5,7 @@
   "gate_slug": "acanto-main",
   "hostname": "acanto.cloudsales.app",
   "cloudflare_worker": "acanto-condo-gateway",
-  "site_version": "v3-rich",
+  "site_version": "v4-visual-assets",
   "source": {
     "landing": "web/clients/acanto/landing-v2.html",
     "edge_template": "web/clients/acanto/worker-edge-template.mjs",
@@ -17,10 +17,19 @@
   "visual_content": {
     "image_rich_layout": true,
     "drive_image_collections": ["Courtyard", "1 Bedroom Villa 8", "3 Bedroom Villa 18"],
+    "image_delivery": "lh3.googleusercontent.com direct image/jpeg",
+    "production_gallery_items": 34,
+    "hero_image": true,
+    "hero_image_tiles": 3,
+    "visual_ribbon": 8,
     "filterable_gallery": true,
+    "gallery_categories": ["courtyard", "one-bedroom", "three-bedroom", "aerial-property"],
     "lightbox": true,
     "residence_mini_galleries": true,
-    "lazy_loading": true
+    "location_lifestyle_gallery": true,
+    "lazy_loading": true,
+    "representative_asset_http_status": 200,
+    "representative_asset_content_type": "image/jpeg"
   },
   "inventory": {
     "verified_source_date": "2026-09-02",
@@ -29,6 +38,7 @@
     "two_bedroom_from_usd": 299000,
     "three_bedroom_from_usd": 360000,
     "highest_current_price_usd": 365000,
+    "published_size_range_sqft": "699-2142",
     "all_condominiums_include_furniture": true,
     "all_condominiums_have_long_rental_history": true,
     "published_units": [1,4,5,6,7,8,11,13,17,18,19],
@@ -42,23 +52,10 @@
     "reservations_email": "reservations@acantohotels.com",
     "floating_whatsapp": true,
     "mobile_sticky_cta": true,
-    "villa_specific_interest_options": true
+    "villa_specific_interest_options": true,
+    "brochure_link": true,
+    "rental_pool_document_link": true
   },
-  "content_sections": [
-    "hero",
-    "trust_strip",
-    "acanto_experience",
-    "location_positioning",
-    "residence_collection",
-    "current_inventory",
-    "filterable_property_gallery",
-    "hospitality_services",
-    "location_lifestyle",
-    "ownership_rental",
-    "press_background",
-    "faq",
-    "secure_contact"
-  ],
   "security": {
     "turnstile": "active",
     "proof_of_work": "hmac_sha256_prefix_000",
@@ -76,25 +73,28 @@
     "robots": true,
     "sitemap": true,
     "structured_data": true,
-    "price_range": "US$199,000-US$365,000"
+    "price_range": "US$199,000-US$365,000",
+    "og_image": true
   },
   "verification": {
     "cloudflare_custom_domain": "enabled",
     "dns_record_verified": true,
     "worker_bindings_verified": true,
     "root_http_status": 200,
-    "production_marker": "acanto-condominiums-cloudsales-v3-rich",
-    "gallery_marker_verified": true,
+    "production_marker": "acanto-condominiums-cloudsales-v4-visual-assets",
+    "googleusercontent_delivery_verified": true,
+    "gallery_count_verified": 34,
     "whatsapp_marker_verified": true,
-    "html_length": 54049,
-    "verified_at": "2026-09-02T23:54:53Z"
+    "turnstile_placeholder_leaked": false,
+    "html_length": 56327,
+    "verified_at": "2026-09-03T00:12:08Z"
   },
   "notes": [
-    "The production site was expanded with a large real-image gallery using the Acanto-supplied Drive archive.",
-    "Current pricing and availability are published from the supplied English price sheet and are marked subject to change.",
+    "Drive image delivery was changed from drive.google.com/uc links to direct lh3.googleusercontent.com image/jpeg delivery after live verification.",
+    "The site now uses dozens of real supplied Acanto assets across hero, visual ribbon, residence cards, filtered gallery, ownership and location sections.",
+    "The prior incorrect published size-range minimum was corrected to 699 sq ft from the supplied inventory table.",
+    "Current pricing and availability remain marked subject to change.",
     "Villa 7 uses the English-sheet area of 2,142 sq ft; the conflicting metric figure is not published.",
-    "Official hotel contact information and WhatsApp are now visible for conversion.",
-    "Social profile links remain omitted until exact official Facebook/Instagram URLs are verified.",
     "Rental and investment language avoids guaranteed-return claims."
   ]
 }
