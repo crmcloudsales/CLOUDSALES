@@ -1,0 +1,58 @@
+name: CloudSales Site Block 1 Source Cleanup
+on:
+  push:
+    branches: [cloudsales-site-finish-20260903]
+    paths:
+      - '.github/scripts/cloudsales_site_block1_source_cleanup_20260903.py'
+      - '.github/workflows/cloudsales-site-block1-source-cleanup.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  source-cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudsales-site-finish-20260903
+          fetch-depth: 0
+      - name: Apply canonical source cleanup
+        run: python3 .github/scripts/cloudsales_site_block1_source_cleanup_20260903.py
+      - name: Validate HTML hard invariants
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          s=Path('web/commercial.html').read_text(encoding='utf-8')
+          checks={
+            'canonical_palette': all(x in s for x in ['#2D0A4A','#F955B6','#F3F4F8']),
+            'dark_color_scheme': '<meta name="color-scheme" content="dark">' in s,
+            'no_dynamics': not re.search(r'\b(?:Microsoft\s+)?Dynamics\s*365\b',s,re.I),
+            'no_legacy_inline_repair': 'cs-commercial-repair-20260902-js' not in s,
+            'no_retired_brand_runtime': 'commercial-brand-runtime-v2.js' not in s,
+            'no_developer_outsourcing': not re.search(r'hire\s+developers?|contratar\s+desarrolladores?|software\s+development\s+services?|development\s+outsourcing',s,re.I),
+            'trial_7': bool(re.search(r'7[-\s](?:day|days)|7\s+d[ií]as',s,re.I)),
+            'no_trial_14': not re.search(r'14[-\s]*(?:day|days|d[ií]as|jours|giorni|Tage)',s,re.I),
+            'basic_47': '$47' in s,
+            'pro_97': '$97' in s,
+            'premium_147': '$147' in s,
+            'premium_2_users': bool(re.search(r'2\s+(?:users?|usuarios)',s,re.I)),
+            'official_logo': 'cloudsales-logo-official-v2.png' in s,
+            'official_icon': 'cloudsales-app-icon-official-v4.png' in s,
+          }
+          failed=[k for k,v in checks.items() if not v]
+          print('\n'.join(f'{k}={v}' for k,v in checks.items()))
+          if failed: raise SystemExit('BLOCK1_VALIDATION_FAILED: '+', '.join(failed))
+          PY
+      - name: Commit cleaned canonical commercial source
+        run: |
+          if git diff --quiet -- web/commercial.html; then
+            echo 'No source changes required.'
+            exit 0
+          fi
+          git config user.name 'CloudSales Site Block 1'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/commercial.html
+          git commit -m 'fix(site): canonicalize commercial source before redesign'
+          git push origin HEAD:cloudsales-site-finish-20260903
