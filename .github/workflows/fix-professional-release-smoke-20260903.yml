@@ -1,0 +1,40 @@
+name: Fix Professional CloudSales Release Smoke 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/fix_professional_release_smoke_20260903.py'
+      - '.github/workflows/fix-professional-release-smoke-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: fix-professional-release-smoke-20260903
+  cancel-in-progress: false
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Fix release smoke guard
+        run: python3 .github/scripts/fix_professional_release_smoke_20260903.py
+      - name: Validate release helper
+        run: |
+          grep -Fq 'VERSION="2026.09.03.9"' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq "sitemapLive.text.includes('<loc>https://cloudsales.app/usage-pricing</loc>')&&!sitemapLive.text.includes('<loc>https://cloudsales.app/crm</loc>')" supabase/functions/cloudflare-site-brand-release/index.ts
+          test "$(grep -o "if(p==='/crm-logo')" supabase/functions/cloudflare-site-brand-release/index.ts | wc -l)" -eq 1
+      - name: Commit release helper
+        run: |
+          if git diff --quiet -- supabase/functions/cloudflare-site-brand-release/index.ts; then
+            echo 'Release helper already fixed'
+            exit 0
+          fi
+          git config user.name 'CloudSales Release QA'
+          git config user.email 'actions@users.noreply.github.com'
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'fix(site): correct professional release smoke guard'
+          git push origin HEAD:main
