@@ -31,13 +31,15 @@ jobs:
           from pathlib import Path
           s=Path('web/commercial.html').read_text(encoding='utf-8')
           runtime=Path('web/commercial-sales-story-v1.js').read_text(encoding='utf-8')
+          i18n=Path('web/cloudsales-i18n-v1.js').read_text(encoding='utf-8')
           checks={
             'existing_plans_preserved':'class="plans"' in s,
             'sales_story_inlined':'id="cs-commercial-sales-story-v1"' in s,
             'no_external_story_dependency':'src="/commercial-sales-story-v1.js' not in s,
             'trial_checkout':'/subscribe?plan=pro' in runtime,
             'trial_copy':'7 DÍAS CLOUDY GRATIS' in runtime,
-            'no_stale_14_day':'14 días gratis para comenzar' not in s.lower(),
+            'no_stale_spanish_14':'14 días' not in (s+i18n).lower(),
+            'no_stale_english_14':'14 days' not in (s+i18n).lower(),
             'lead_quality':'Junk Lead Firewall' in runtime,
             'continuous_improvement':'MEJORA CONTINUA' in runtime,
             'agentcloud':'AGENTCLOUD' in runtime,
@@ -49,12 +51,13 @@ jobs:
 
       - name: Commit commercial update
         run: |
-          if git diff --quiet -- web/commercial.html; then
+          TARGETS="web/commercial.html web/cloudsales-i18n-v1.js web/commercial-brand-runtime-v2.js web/commercial/conversion-v1.js"
+          if git diff --quiet -- $TARGETS; then
             echo "Commercial site already up to date"
             exit 0
           fi
           git config user.name "cloudsales-build-bot"
           git config user.email "cloudsales-build-bot@users.noreply.github.com"
-          git add web/commercial.html
-          git commit -m "feat(site): inline Cloudy conversion story and 7-day trial"
+          git add $TARGETS
+          git commit -m "feat(site): Cloudy conversion story and canonical 7-day trial"
           git push
