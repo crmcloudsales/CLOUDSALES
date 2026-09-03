@@ -1,0 +1,31 @@
+name: Commercial CRM BMP 2026-09-03
+on:
+  push:
+    paths:
+      - '.github/scripts/commercial_crm_bmp_wire_20260903.py'
+      - '.github/triggers/commercial-crm-bmp-20260903.txt'
+permissions:
+  contents: write
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wire CRM BMP runtime
+        run: python3 .github/scripts/commercial_crm_bmp_wire_20260903.py
+      - name: Validate commercial page
+        run: |
+          node --check web/commercial-crm-bmp-v3.js
+          grep -q 'cs-commercial-crm-bmp-v3' web/commercial.html
+          grep -q "CRMS=\['HighLevel','Salesforce','HubSpot','Zoho CRM','Pipedrive','monday CRM','Freshsales','Close','Copper','Twenty'\]" web/commercial-crm-bmp-v3.js
+          ! grep -q "CRMS=.*Dynamics 365" web/commercial-crm-bmp-v3.js
+          grep -q "Business Management Platform" web/commercial-crm-bmp-v3.js
+          grep -q "href=\"/crm\"" web/commercial-crm-bmp-v3.js
+      - name: Commit wiring
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/commercial.html
+          if git diff --cached --quiet; then echo 'No changes'; exit 0; fi
+          git commit -m 'feat(commercial): wire CRM BMP discovery experience'
+          git push
