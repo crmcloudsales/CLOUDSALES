@@ -1,0 +1,41 @@
+name: Pin CloudSales Release Source 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/pin_cloudsales_release_source_20260903.py'
+      - '.github/workflows/pin-cloudsales-release-source-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: pin-cloudsales-release-source-20260903
+  cancel-in-progress: false
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Pin release to requested source SHA
+        run: python3 .github/scripts/pin_cloudsales_release_source_20260903.py
+      - name: Validate release source pin
+        run: |
+          grep -Fq 'VERSION="2026.09.03.7"' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq "const requestedRef=String(q.input?.source_commit||'')" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq 'no_obsolete_14_day_trial' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq "if(p==='/commercial-brand-runtime-v2.js')" supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit exact-source release logic
+        run: |
+          if git diff --quiet -- supabase/functions/cloudflare-site-brand-release/index.ts; then
+            echo 'Release source already pinned'
+            exit 0
+          fi
+          git config user.name 'CloudSales Release Guard'
+          git config user.email 'actions@users.noreply.github.com'
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'fix(release): build CloudSales from exact authorized commit'
+          git push origin HEAD:main
