@@ -1,0 +1,58 @@
+name: CloudSales Secondary Pages Block 5
+on:
+  push:
+    branches: [cloudsales-site-finish-20260903]
+    paths:
+      - '.github/scripts/block5_secondary_brand_20260903.py'
+      - '.github/workflows/block5-secondary-pages-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: cloudsales-secondary-pages-block5
+  cancel-in-progress: false
+jobs:
+  block5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudsales-site-finish-20260903
+          fetch-depth: 0
+      - name: Apply canonical CloudSales visual system
+        run: python3 .github/scripts/block5_secondary_brand_20260903.py
+      - name: Validate secondary routes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          targets=['academy.html','services.html','affiliate.html','terms.html','privacy.html','usage-pricing.html','commercial/domains-v2.html']
+          for f in targets:
+              s=Path('web',f).read_text(encoding='utf-8')
+              assert 'cs-secondary-brand-20260903' in s,f
+              assert '<meta name="color-scheme" content="dark">' in s,f
+              assert '#2D0A4A' in s and '#F955B6' in s and '#F3F4F8' in s,f
+          for f in ['academy.html','services.html','affiliate.html','terms.html','privacy.html','usage-pricing.html']:
+              s=Path('web',f).read_text(encoding='utf-8')
+              assert '/assets/cloudsales-logo-official-v2.png' in s,f
+          d=Path('web/commercial/domains-v2.html').read_text(encoding='utf-8')
+          assert 'raw.githubusercontent.com/crmcloudsales/CLOUDSALES/main/web/assets/cloudsales-logo-official-v2.png' not in d
+          assert '/assets/cloudsales-logo-official-v2.png' in d
+          # CloudCo intentionally keeps its own identity.
+          c=Path('web/cloudco.html').read_text(encoding='utf-8')
+          assert '/cloudco-assets/cloudco-logo-official.webp' in c
+          assert '--blue:#1769ff' in c and 'background:#ffffff' in c
+          assert 'cs-secondary-brand-20260903' not in c
+          print('BLOCK5_SECONDARY_ROUTES_OK')
+          PY
+      - name: Commit transformed secondary sources
+        run: |
+          if git diff --quiet -- web/academy.html web/services.html web/affiliate.html web/terms.html web/privacy.html web/usage-pricing.html web/commercial/domains-v2.html; then
+            echo 'Block 5 already applied'
+            exit 0
+          fi
+          git config user.name 'CloudSales Secondary Pages Block 5'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/academy.html web/services.html web/affiliate.html web/terms.html web/privacy.html web/usage-pricing.html web/commercial/domains-v2.html
+          git commit -m 'feat(site): unify secondary CloudSales pages with canonical brand'
+          git push origin HEAD:cloudsales-site-finish-20260903
