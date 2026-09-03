@@ -1,0 +1,16 @@
+name: CloudSales Visible Commercial I18N Audit 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/i18n_visible_commercial_audit_20260903.js'
+      - '.github/workflows/i18n-visible-commercial-audit-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node .github/scripts/i18n_visible_commercial_audit_20260903.js
