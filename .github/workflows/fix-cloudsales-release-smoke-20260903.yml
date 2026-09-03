@@ -1,0 +1,41 @@
+name: Fix CloudSales Release Smoke 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/fix_cloudsales_release_smoke_20260903.py'
+      - '.github/workflows/fix-cloudsales-release-smoke-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: fix-cloudsales-release-smoke-20260903
+  cancel-in-progress: false
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Apply canonical smoke-test fix
+        run: python3 .github/scripts/fix_cloudsales_release_smoke_20260903.py
+      - name: Validate Edge Function source
+        run: |
+          grep -Fq 'VERSION="2026.09.03.6"' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq '14日間' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq 'Premium $147/mes · Incluye 2 usuarios' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq 'no_obsolete_14_day_trial' supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit release verifier fix
+        run: |
+          if git diff --quiet -- supabase/functions/cloudflare-site-brand-release/index.ts; then
+            echo 'Release verifier already aligned'
+            exit 0
+          fi
+          git config user.name 'CloudSales Release Guard'
+          git config user.email 'actions@users.noreply.github.com'
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'fix(release): align canonical trial and Premium smoke checks'
+          git push origin HEAD:main
