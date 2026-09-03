@@ -1,5 +1,5 @@
 name: CloudSales Visible Commercial I18N Audit 2026-09-03
-# Trigger visible-content coverage audit.
+# Trigger visible-content coverage audit with canonical English fallback.
 on:
   push:
     branches: [main]
