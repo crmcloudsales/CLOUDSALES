@@ -16,7 +16,6 @@ jobs:
       - name: Validate source markers
         run: |
           grep -q 'VERSION="2026.09.03.3"' supabase/functions/cloudflare-site-brand-release/index.ts
-          grep -q "SITEMAP=${JSON.stringify(sitemap)}" supabase/functions/cloudflare-site-brand-release/index.ts || true
           grep -q "if(p==='/sitemap.xml')return r(SITEMAP" supabase/functions/cloudflare-site-brand-release/index.ts
           grep -q "sitemapLive.status===200" supabase/functions/cloudflare-site-brand-release/index.ts
           grep -q "ROUTES=\['/','/crm'" supabase/functions/cloudflare-site-brand-release/index.ts
