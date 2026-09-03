@@ -1,0 +1,25 @@
+name: CloudSales Block 3 I18N Inventory
+on:
+  push:
+    branches: [cloudsales-site-finish-20260903]
+    paths:
+      - '.github/scripts/block3_i18n_inventory_20260903.py'
+      - '.github/workflows/block3-i18n-inventory-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudsales-site-finish-20260903
+      - run: python3 .github/scripts/block3_i18n_inventory_20260903.py
+      - run: |
+          git config user.name 'CloudSales I18N Inventory'
+          git config user.email 'actions@users.noreply.github.com'
+          git add docs/site-i18n-static-inventory-20260903.txt
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'docs(i18n): inventory commercial static copy'
+          git push origin HEAD:cloudsales-site-finish-20260903
