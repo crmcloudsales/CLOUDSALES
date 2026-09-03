@@ -2,7 +2,7 @@ from pathlib import Path
 import re
 
 LOCALES = "['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja']"
-SCRIPT = '<script src="/cloudsales-static-i18n-v2.js?v=2026.09.03.2" defer></script>'
+SCRIPT = '<script src="/cloudsales-static-i18n-v2.js?v=2026.09.03.3"></script>'
 
 
 def replace_once(text, old, new, label):
@@ -24,6 +24,8 @@ def inject_html(path, pwa=False):
             raise RuntimeError(f'no body close in {path}')
         idx = s.lower().rfind('</body>')
         s = s[:idx] + SCRIPT + s[idx:]
+    else:
+        s = re.sub(r'<script src="/cloudsales-static-i18n-v2\.js\?v=[^"]+"(?: defer)?></script>', SCRIPT, s)
     p.write_text(s, encoding='utf-8')
 
 
@@ -84,9 +86,11 @@ if "cloudsales-static-i18n-v2.js?v=${VERSION}" not in s:
     s = replace_once(
         s,
         "if(!h.includes('/cloudsales-i18n-v1.js'))h=h.replace('</body>',`<script src=\"/cloudsales-i18n-v1.js?v=${VERSION}\"></script></body>`);return h}",
-        "if(!h.includes('/cloudsales-i18n-v1.js'))h=h.replace('</body>',`<script src=\"/cloudsales-i18n-v1.js?v=${VERSION}\"></script></body>`);if(!h.includes('/cloudsales-static-i18n-v2.js'))h=h.replace('</body>',`<script src=\"/cloudsales-static-i18n-v2.js?v=${VERSION}\" defer></script></body>`);return h}",
+        "if(!h.includes('/cloudsales-i18n-v1.js'))h=h.replace('</body>',`<script src=\"/cloudsales-i18n-v1.js?v=${VERSION}\"></script></body>`);if(!h.includes('/cloudsales-static-i18n-v2.js'))h=h.replace('</body>',`<script src=\"/cloudsales-static-i18n-v2.js?v=${VERSION}\"></script></body>`);return h}",
         'site brand injection'
     )
+else:
+    s = s.replace('`<script src="/cloudsales-static-i18n-v2.js?v=${VERSION}" defer></script></body>`', '`<script src="/cloudsales-static-i18n-v2.js?v=${VERSION}"></script></body>`')
 # Replace the source-load/upload statement with catalog-aware version.
 pattern = re.compile(r"const \[icon,logo\]=await Promise\.all\(\[bytes\(`\$\{RAW\}/assets/cloudsales-app-icon-official-v4\.png`\),bytes\(`\$\{RAW\}/assets/cloudsales-logo-official-v2\.png`\)\]\),widget=await txt\(`\$\{RAW\}/webchat\.js`\),i18n=await txt\(`\$\{RAW\}/cloudsales-i18n-v1\.js`\),brandRuntime=\(await txt\(`\$\{RAW\}/commercial-brand-runtime-v2\.js`\)\)\.replace\('/assets/cloudsales-logo-official-v2\.png','/cloudsales-logo-official-v2\.png'\),cl=await bytes\('https://cloudsales\.app/cloudco-assets/cloudco-logo-official\.webp'\),expected=\{icon:await hex\(icon\),logo:await hex\(logo\)\};result\.upload=await upload\(token,worker\(pages,csps,b64\(icon\),b64\(logo\),widget,i18n,b64\(cl\),brandRuntime\)\);")
 replacement = "const [icon,logo]=await Promise.all([bytes(`${RAW}/assets/cloudsales-app-icon-official-v4.png`),bytes(`${RAW}/assets/cloudsales-logo-official-v2.png`)]),widget=await txt(`${RAW}/webchat.js`),i18n=await txt(`${RAW}/cloudsales-i18n-v1.js`),brandRuntime=(await txt(`${RAW}/commercial-brand-runtime-v2.js`)).replace('/assets/cloudsales-logo-official-v2.png','/cloudsales-logo-official-v2.png'),staticI18n=await txt(`${RAW}/cloudsales-static-i18n-v2.js`),catalogs=await loadI18nCatalogs(RAW,'commercial'),cl=await bytes('https://cloudsales.app/cloudco-assets/cloudco-logo-official.webp'),expected={icon:await hex(icon),logo:await hex(logo)};result.upload=await upload(token,worker(pages,csps,b64(icon),b64(logo),widget,i18n,b64(cl),brandRuntime,staticI18n,catalogs));"
