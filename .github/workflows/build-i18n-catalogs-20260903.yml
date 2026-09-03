@@ -11,7 +11,7 @@ permissions:
   contents: write
   id-token: write
 concurrency:
-  group: cloudsales-i18n-static-catalog-v4
+  group: cloudsales-i18n-static-catalog-v5
   cancel-in-progress: true
 jobs:
   localize:
@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 90
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 11
       matrix:
         locale: [es, en, fr, it, pt-BR, de, ar-AE, ru, he, zh-CN, ja]
     steps:
