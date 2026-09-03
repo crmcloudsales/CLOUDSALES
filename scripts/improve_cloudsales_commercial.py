@@ -1,7 +1,9 @@
 from pathlib import Path
+import re
 
 ROOT = Path(__file__).resolve().parents[1]
 P = ROOT / "web" / "commercial.html"
+RUNTIME = ROOT / "web" / "commercial-sales-story-v1.js"
 s = P.read_text(encoding="utf-8")
 
 css = """
@@ -29,10 +31,18 @@ pricing_new = pricing_lead + '<div class="pricingProof"><span>Basic $47/mo</span
 if 'class="pricingProof"' not in s:
     s = s.replace(pricing_lead, pricing_new, 1)
 
-# Conversion narrative: one lightweight runtime, no duplicate page rebuild.
-story_tag = '<script src="/commercial-sales-story-v1.js?v=2026090201" defer></script>'
-if 'commercial-sales-story-v1.js' not in s:
-    s = s.replace('</body>', story_tag + '</body>', 1)
+# Canonical trial is seven days everywhere. Remove stale legacy copy.
+s = re.sub(r'14\s+d[ií]as\s+gratis\s+para\s+comenzar', '7 días gratis para comenzar', s, flags=re.I)
+s = re.sub(r'14\s+days\s+free\s+to\s+start', '7 days free to start', s, flags=re.I)
+
+# Inline the conversion narrative into commercial.html. The production Cloudflare
+# commercial worker serves one self-contained HTML document, so external runtime
+# dependencies are deliberately avoided here.
+runtime = RUNTIME.read_text(encoding="utf-8").replace('</script>', '<\\/script>')
+inline_tag = '<script id="cs-commercial-sales-story-v1">' + runtime + '</script>'
+s = re.sub(r'<script\s+src="/commercial-sales-story-v1\.js[^>]*></script>', '', s, flags=re.I)
+s = re.sub(r'<script\s+id="cs-commercial-sales-story-v1">[\s\S]*?</script>', '', s, flags=re.I)
+s = s.replace('</body>', inline_tag + '</body>', 1)
 
 # Keep the canonical 7-day trial explicit for search engines and no-JS visitors.
 if 'data-cs-trial-seo="1"' not in s:
@@ -40,4 +50,4 @@ if 'data-cs-trial-seo="1"' not in s:
     s = s.replace('</body>', seo + '</body>', 1)
 
 P.write_text(s, encoding="utf-8")
-print("CloudSales commercial UX + Cloudy sales-story patch applied")
+print("CloudSales commercial UX + inline Cloudy sales-story patch applied")
