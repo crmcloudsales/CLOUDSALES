@@ -1,0 +1,55 @@
+name: CloudSales Block 4 Commercial Functionality Audit
+on:
+  push:
+    branches: [cloudsales-site-finish-20260903]
+    paths:
+      - '.github/workflows/block4-commercial-functionality-audit-20260903.yml'
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudsales-site-finish-20260903
+      - name: Audit checkout, plans, trial and CTA wiring
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          h=Path('web/commercial.html').read_text(encoding='utf-8')
+          i=Path('web/cloudsales-i18n-v1.js').read_text(encoding='utf-8')
+          a=Path('web/auth-runtime-v2.js').read_text(encoding='utf-8')
+          m=Path('supabase/migrations/20260902043000_sync_cloudsales_trial_7_days.sql').read_text(encoding='utf-8')
+          # Product truth
+          assert '$47 <small>USD / mes</small>' in h
+          assert '$97 <small>USD / mes</small>' in h
+          assert '$147 <small>USD / mes</small>' in h
+          assert 'Premium $147/mes · Incluye 2 usuarios' in h
+          assert h.count('data-item="plan_basic"')==1
+          assert h.count('data-item="plan_pro"')==1
+          assert h.count('data-item="plan_premium"')==1
+          # Trial truth
+          assert "'{trial_days}','7'" in m and "'{free_trial}','true'" in m
+          bad=[r'14\s*d[ií]as',r'14\s*days',r'14[-\s]day']
+          joined='\n'.join([h,i,a])
+          assert not any(re.search(p,joined,re.I) for p in bad)
+          # Checkout start + hosted/embedded fallback + referral propagation
+          for x in ['stripe-checkout-start','affiliate_code:ref','d.checkout_url','d.client_secret','d.publishable_key','patchHostedCheckout()','checkoutReturnBridge()']:
+              assert x in i,x
+          assert 'https://js.stripe.com/v3/' in h
+          # App activation bridge and locked paid/trial plan
+          for x in ['checkout-status','claim-checkout','plan_basic:\'basic\'','plan_pro:\'pro\'','plan_premium:\'premium\'','checkout_email_mismatch','prepareCheckoutUi','claimCheckoutIfReady']:
+              assert x in a,x
+          # Required destinations
+          for x in ['href="/domains"','https://app.cloudsales.app/','/academy','/services','/affiliate','/terms','/privacy','/usage-pricing']:
+              assert x in h,x
+          assert '/subscribe?plan=' not in h
+          print('BLOCK4_COMMERCIAL_FUNCTIONALITY_OK')
+          PY
+      - name: JavaScript syntax
+        run: |
+          node --check web/cloudsales-i18n-v1.js
+          node --check web/auth-runtime-v2.js
+          node --check web/commercial-brand-runtime-v2.js
