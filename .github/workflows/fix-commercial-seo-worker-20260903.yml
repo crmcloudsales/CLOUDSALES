@@ -1,0 +1,30 @@
+name: Fix Commercial SEO Worker 2026-09-03
+on:
+  push:
+    paths:
+      - '.github/scripts/fix_commercial_seo_worker_20260903.py'
+      - '.github/triggers/fix-commercial-seo-worker-20260903.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix generated SEO worker
+        run: python3 .github/scripts/fix_commercial_seo_worker_20260903.py
+      - name: Validate source markers
+        run: |
+          grep -q 'VERSION="2026.09.03.3"' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q "SITEMAP=${JSON.stringify(sitemap)}" supabase/functions/cloudflare-site-brand-release/index.ts || true
+          grep -q "if(p==='/sitemap.xml')return r(SITEMAP" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q "sitemapLive.status===200" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q "ROUTES=\['/','/crm'" supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          if git diff --cached --quiet; then echo 'No changes'; exit 0; fi
+          git commit -m 'fix(commercial): make CRM sitemap and robots valid and smoke-tested'
+          git push
