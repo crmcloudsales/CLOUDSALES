@@ -41,12 +41,12 @@ s = s.replace('Compara lead quality, costo por lead calificado', 'Compara calida
 story.write_text(s, encoding='utf-8')
 
 # Guards: fail rather than silently shipping a partial branding change.
-assert '#2D0A4A' in runtime
-assert '#F955B6' in runtime
-assert '#F3F4F8' in runtime
-assert "csLanguageIntegrity='strict'" in runtime
-assert 'CLOUDSALES_CANONICAL_BRAND_LANGUAGE_GUARD_START' in runtime
-assert 'PARTE 1 · SETUP + PROTECCIÓN' not in story
-assert 'Atención y troubleshooting' not in story
-assert '<meta name="theme-color" content="#08070D">' in commercial
-assert 'Better leads. Less junk. More appointments.' in commercial
+assert '#2D0A4A' in r
+assert '#F955B6' in r
+assert '#F3F4F8' in r
+assert "csLanguageIntegrity='strict'" in r
+assert 'CLOUDSALES_CANONICAL_BRAND_LANGUAGE_GUARD_START' in r
+assert 'PARTE 1 · SETUP + PROTECCIÓN' not in s
+assert 'Atención y troubleshooting' not in s
+assert '<meta name="theme-color" content="#08070D">' in h
+assert 'Better leads. Less junk. More appointments.' in h
