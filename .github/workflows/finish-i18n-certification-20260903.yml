@@ -1,0 +1,161 @@
+name: Finish CloudSales 11-Language Certification
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finish-i18n-certification-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+  id-token: write
+concurrency:
+  group: cloudsales-i18n-final-certification-v1
+  cancel-in-progress: false
+jobs:
+  localize-missing:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        locale: [fr, it, ar-AE, he, zh-CN, ja]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Harden localization builder
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.github/scripts/build_i18n_catalog_locale_20260903.mjs')
+          s=p.read_text()
+
+          old="function numbers(s){return [...s.matchAll(/(?:[$€£¥]\\s*)?\\d+(?:[.,]\\d+)?\\s*%?/g)].map(m=>m[0].replace(/\\s+/g,'')).sort()}\nfunction validatePreservation(source,target){const a=numbers(source),b=numbers(target);if(JSON.stringify(a)!==JSON.stringify(b))throw new Error('numeric_preservation_failed: '+source.slice(0,80)+' => '+target.slice(0,80));for(const brand of ['CloudSales','Cloudy','AgentCloud','CloudCo','LISTIA','Stripe','PayPal','Binance'])if(source.includes(brand)&&!target.includes(brand))throw new Error('brand_preservation_failed_'+brand)}"
+          new="function numericValues(s){return [...s.matchAll(/\\d+(?:[.,]\\d+)?/g)].map(m=>m[0].replace(',','.')).sort()}\nfunction commercialNumericContext(s){return /[$€£¥%]|\\b(?:USD|MXN|CAD|EUR|GBP|JPY|CNY|RMB|BRL|AED|ILS|RUB)\\b|(?:×|x)\\s*\\d|24\\s*\\/\\s*7|\\b(?:basic|pro|premium|price|pricing|precio|precios|cost|costo|coste|markup|trial|prueba|day|days|día|días|month|months|mes|meses|year|years|año|años|user|users|usuario|usuarios|seat|seats|asiento|asientos|domain|domains|dominio|dominios|renewal|renovación|language|languages|idioma|idiomas|hour|hours|hora|horas|minute|minutes|minuto|minutos|second|seconds|segundo|segundos)\\b/i.test(s)}\nfunction validatePreservation(source,target){if(commercialNumericContext(source)){const a=numericValues(source),b=numericValues(target);for(const n of a)if(!b.includes(n))throw new Error('commercial_numeric_preservation_failed: '+source.slice(0,100)+' => '+target.slice(0,100))}const pa=(source.match(/%/g)||[]).length,pb=(target.match(/%/g)||[]).length;if(pa!==pb)throw new Error('percent_preservation_failed: '+source.slice(0,100)+' => '+target.slice(0,100));for(const term of ['CloudSales','Cloudy','AgentCloud','CloudCo','LISTIA','Stripe','PayPal','Binance','USD','MXN','EUR','GBP','AED'])if(source.includes(term)&&!target.includes(term))throw new Error('protected_term_missing_'+term);for(const m of source.matchAll(/https?:\\/\\/[^\\s<>'\\\"]+/g))if(!target.includes(m[0]))throw new Error('url_preservation_failed')}"
+          if old not in s: raise SystemExit('numeric guard marker not found')
+          s=s.replace(old,new,1)
+
+          old_oidc="let oidc={token:'',at:0};async function oidcToken(){if(oidc.token&&Date.now()-oidc.at<240000)return oidc.token;const base=process.env.ACTIONS_ID_TOKEN_REQUEST_URL,req=process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;if(!base||!req)throw new Error('github_oidc_unavailable');const u=new URL(base);u.searchParams.set('audience','cloudsales-i18n-build');const r=await fetch(u,{headers:{Authorization:'Bearer '+req}});if(!r.ok)throw new Error('oidc_'+r.status);const j=await r.json();oidc={token:j.value,at:Date.now()};return oidc.token}"
+          new_oidc="let oidc={token:'',at:0};async function oidcToken(){if(oidc.token&&Date.now()-oidc.at<210000)return oidc.token;const base=process.env.ACTIONS_ID_TOKEN_REQUEST_URL,req=process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN;if(!base||!req)throw new Error('github_oidc_unavailable');let last='oidc_unavailable';for(let attempt=1;attempt<=7;attempt++){try{const u=new URL(base);u.searchParams.set('audience','cloudsales-i18n-build');const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),18000);let r;try{r=await fetch(u,{headers:{Authorization:'Bearer '+req},signal:ctl.signal})}finally{clearTimeout(timer)}if(r.ok){const j=await r.json();if(j?.value){oidc={token:j.value,at:Date.now()};return oidc.token}}last='oidc_'+r.status}catch(e){last='oidc_'+String(e?.name||e)}await new Promise(r=>setTimeout(r,800*Math.min(attempt,5)))}throw new Error(last)}"
+          if old_oidc not in s: raise SystemExit('oidc marker not found')
+          s=s.replace(old_oidc,new_oidc,1)
+
+          s=s.replace("async function translateBatch(items,surface,depth=0){if(!items.length)return{};const token=await oidcToken();const system=", "async function translateBatch(items,surface,depth=0){if(!items.length)return{};const system=",1)
+          old_fetch="for(let attempt=1;attempt<=3;attempt++)try{const r=await fetch(ENDPOINT,{method:'POST',headers:{Authorization:'Bearer '+token,'x-cloudsales-build':'i18n','content-type':'application/json'},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));"
+          new_fetch="for(let attempt=1;attempt<=6;attempt++)try{const token=await oidcToken();const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),105000);let r;try{r=await fetch(ENDPOINT,{method:'POST',headers:{Authorization:'Bearer '+token,'x-cloudsales-build':'i18n','content-type':'application/json'},body:JSON.stringify(body),signal:ctl.signal})}finally{clearTimeout(timer)}const j=await r.json().catch(()=>({}));"
+          if old_fetch not in s: raise SystemExit('gateway fetch marker not found')
+          s=s.replace(old_fetch,new_fetch,1)
+
+          old_parse="const obj=parseJson(j?.choices?.[0]?.message?.content||'');const tr=obj?.translations;if(!tr||typeof tr!=='object')throw new Error('invalid_json_shape');"
+          new_parse="const raw=String(j?.choices?.[0]?.message?.content||'').trim();let tr=null;try{const obj=parseJson(raw);tr=obj?.translations}catch{}if((!tr||typeof tr!=='object')&&items.length===1&&raw){let plain=raw.replace(/^```(?:json)?\\s*/i,'').replace(/\\s*```$/,'').trim();if(!plain.startsWith('{')){plain=plain.replace(/^['\\\"]|['\\\"]$/g,'').trim();if(plain)tr={[items[0].id]:plain}}}if(!tr||typeof tr!=='object')throw new Error('invalid_json_shape');"
+          if old_parse not in s: raise SystemExit('parse marker not found')
+          s=s.replace(old_parse,new_parse,1)
+
+          old_catch="}catch(e){if(attempt===3){if(items.length>1&&depth<5){const mid=Math.ceil(items.length/2);return Object.assign({},await translateBatch(items.slice(0,mid),surface,depth+1),await translateBatch(items.slice(mid),surface,depth+1))}throw e}await new Promise(r=>setTimeout(r,700*attempt))}return{}}"
+          new_catch="}catch(e){const msg=String(e?.message||e);if(msg.includes('401')||msg.startsWith('oidc_'))oidc={token:'',at:0};if(attempt===6){if(items.length>1&&depth<9){const mid=Math.ceil(items.length/2);return Object.assign({},await translateBatch(items.slice(0,mid),surface,depth+1),await translateBatch(items.slice(mid),surface,depth+1))}throw e}await new Promise(r=>setTimeout(r,900*Math.min(attempt,5)))}return{}}"
+          if old_catch not in s: raise SystemExit('retry marker not found')
+          s=s.replace(old_catch,new_catch,1)
+
+          old_batches="function batches(items){const out=[];let cur=[],chars=0;for(const x of items){const n=x.text.length;if(cur.length&&(cur.length>=28||chars+n>11500)){out.push(cur);cur=[];chars=0}cur.push(x);chars+=n}if(cur.length)out.push(cur);return out}"
+          new_batches="function batches(items){const out=[];let cur=[],chars=0;for(const x of items){const n=x.text.length;if(cur.length&&(cur.length>=18||chars+n>7000)){out.push(cur);cur=[];chars=0}cur.push(x);chars+=n}if(cur.length)out.push(cur);return out}"
+          if old_batches not in s: raise SystemExit('batch marker not found')
+          s=s.replace(old_batches,new_batches,1)
+
+          old_surface="async function translateSurface(list,surface){const result={},pending=[];for(const text of list){if(identityForTarget(text)){result[text]=text;continue}pending.push({id:idFor(text),text})}const bs=batches(pending);console.log(locale,surface,'sources',list.length,'identity',list.length-pending.length,'batches',bs.length);let done=0;for(const batch of bs){const tr=await translateBatch(batch,surface);for(const x of batch)result[x.text]=tr[x.id];done+=batch.length;console.log(locale,surface,'translated',done,'/',pending.length)}for(const s of list)if(typeof result[s]!=='string'||!result[s].trim())throw new Error('catalog_missing_'+surface+'_'+s.slice(0,60));return Object.fromEntries(Object.entries(result).sort(([a],[b])=>a.localeCompare(b)))}"
+          new_surface="async function translateSurface(list,surface){const result={},pending=[];for(const text of list){if(identityForTarget(text)){result[text]=text;continue}pending.push({id:idFor(text),text})}const bs=batches(pending);console.log(locale,surface,'sources',list.length,'identity',list.length-pending.length,'batches',bs.length);let done=0,cursor=0;async function worker(){while(true){const i=cursor++;if(i>=bs.length)return;const batch=bs[i],tr=await translateBatch(batch,surface);for(const x of batch)result[x.text]=tr[x.id];done+=batch.length;console.log(locale,surface,'translated',done,'/',pending.length)}}await Promise.all(Array.from({length:Math.min(3,bs.length)},()=>worker()));for(const s of list)if(typeof result[s]!=='string'||!result[s].trim())throw new Error('catalog_missing_'+surface+'_'+s.slice(0,60));return Object.fromEntries(Object.entries(result).sort(([a],[b])=>a.localeCompare(b)))}"
+          if old_surface not in s: raise SystemExit('surface marker not found')
+          s=s.replace(old_surface,new_surface,1)
+          s=s.replace("const VERSION='2026.09.03.1';","const VERSION='2026.09.03.3';",1)
+          p.write_text(s)
+          PY
+      - name: Generate ${{ matrix.locale }} certified catalog
+        env:
+          LOCALE: ${{ matrix.locale }}
+        run: node .github/scripts/build_i18n_catalog_locale_20260903.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: certified-${{ matrix.locale }}
+          path: build/i18n/${{ matrix.locale }}.json
+          if-no-files-found: error
+          retention-days: 1
+
+  certify-and-commit:
+    needs: localize-missing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Recover already certified ES/PT-BR/DE/RU
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 33753637240
+          pattern: i18n-*
+          path: web/i18n/catalog-v1
+          merge-multiple: true
+      - name: Recover certified EN
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 33747659985
+          name: i18n-en
+          path: web/i18n/catalog-v1
+      - name: Download newly certified locales
+        uses: actions/download-artifact@v4
+        with:
+          pattern: certified-*
+          path: web/i18n/catalog-v1
+          merge-multiple: true
+      - name: Certify exact 11-language source coverage
+        run: |
+          node <<'NODE'
+          const fs=require('fs'),crypto=require('crypto');
+          const locales=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
+          const rtl=new Set(['ar-AE','he']);
+          const manifest={version:'2026.09.03.3',certified:true,generated_at:new Date().toISOString(),commercial_surface:'cloudsales.app + www.cloudsales.app',pwa_surface:'app.cloudsales.app',locales:{}};
+          let expectedCommercial=null,expectedPwa=null;
+          for(const lc of locales){
+            const p=`web/i18n/catalog-v1/${lc}.json`;
+            if(!fs.existsSync(p))throw Error('missing_catalog_'+lc);
+            const raw=fs.readFileSync(p,'utf8'),j=JSON.parse(raw);
+            if(j.locale!==lc||!j.commercial||!j.pwa)throw Error('invalid_catalog_'+lc);
+            const ck=Object.keys(j.commercial),pk=Object.keys(j.pwa);
+            if(ck.length!==1139||pk.length!==756)throw Error(`coverage_count_${lc}_${ck.length}_${pk.length}`);
+            if(!expectedCommercial){expectedCommercial=new Set(ck);expectedPwa=new Set(pk)}else{
+              if(ck.some(k=>!expectedCommercial.has(k))||[...expectedCommercial].some(k=>!(k in j.commercial)))throw Error('commercial_keyset_mismatch_'+lc);
+              if(pk.some(k=>!expectedPwa.has(k))||[...expectedPwa].some(k=>!(k in j.pwa)))throw Error('pwa_keyset_mismatch_'+lc);
+            }
+            for(const [surface,obj] of [['commercial',j.commercial],['pwa',j.pwa]])for(const [k,v] of Object.entries(obj))if(!k.trim()||typeof v!=='string'||!v.trim())throw Error(`blank_${lc}_${surface}`);
+            const all=Object.values(j.commercial).join('\n')+'\n'+Object.values(j.pwa).join('\n');
+            const source=[...ck,...pk].join('\n');
+            const identical=[...ck.filter(k=>j.commercial[k]===k),...pk.filter(k=>j.pwa[k]===k)].length/(ck.length+pk.length);
+            if(!['es','en'].includes(lc)&&identical>.30)throw Error(`identity_ratio_too_high_${lc}_${identical.toFixed(3)}`);
+            const scriptChecks={
+              'ar-AE':/[\u0600-\u06FF]/,
+              he:/[\u0590-\u05FF]/,
+              ru:/[\u0400-\u04FF]/,
+              'zh-CN':/[\u3400-\u9FFF]/,
+              ja:/[\u3040-\u30FF\u3400-\u9FFF]/
+            };
+            if(scriptChecks[lc]&&!scriptChecks[lc].test(all))throw Error('target_script_missing_'+lc);
+            for(const critical of ['$47','$97','$147','7'])if(source.includes(critical)&&!all.includes(critical))throw Error(`critical_value_missing_${lc}_${critical}`);
+            for(const brand of ['CloudSales','Cloudy','AgentCloud'])if(source.includes(brand)&&!all.includes(brand))throw Error(`brand_missing_${lc}_${brand}`);
+            manifest.locales[lc]={commercial:ck.length,pwa:pk.length,rtl:rtl.has(lc),identity_ratio:Number(identical.toFixed(4)),sha256:crypto.createHash('sha256').update(raw).digest('hex')};
+          }
+          fs.writeFileSync('web/i18n/catalog-v1/manifest.json',JSON.stringify(manifest,null,2)+'\n');
+          fs.writeFileSync('web/i18n/catalog-v1/CERTIFIED','CloudSales 11-language commercial + PWA catalog set certified\n');
+          console.log(JSON.stringify(manifest,null,2));
+          NODE
+      - name: Commit certified 11-language catalogs
+        run: |
+          git config user.name 'CloudSales I18N Certification'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/i18n/catalog-v1
+          git commit -m 'feat(i18n): certify all 11 languages across web and PWA'
+          git push origin HEAD:main
