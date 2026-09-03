@@ -5,31 +5,31 @@
   "gate_slug": "acanto-main",
   "hostname": "acanto.cloudsales.app",
   "cloudflare_worker": "acanto-condo-gateway",
-  "site_version": "v4-visual-assets",
+  "site_version": "v5-mobile-brand-form-only",
   "source": {
     "landing": "web/clients/acanto/landing-v2.html",
     "edge_template": "web/clients/acanto/worker-edge-template.mjs",
     "contact": "web/clients/acanto/contact.json",
     "research": "web/clients/acanto/research-sources.md",
     "price_list": "ACANTO CONDOMINIUMS PRICELIST-1(1).xlsx",
-    "drive_root": "https://drive.google.com/drive/folders/1nmjCiP80kWNMj55Yq-iPuFct219hgZP8"
+    "drive_root": "https://drive.google.com/drive/folders/1nmjCiP80kWNMj55Yq-iPuFct219hgZP8",
+    "official_logo_source": "ACANTO Brochure 2024 Eng + Esp.pdf"
   },
   "visual_content": {
     "image_rich_layout": true,
-    "drive_image_collections": ["Courtyard", "1 Bedroom Villa 8", "3 Bedroom Villa 18"],
+    "drive_image_collections": ["Courtyard", "1 Bedroom Villa 8", "3 Bedroom Villa 18", "Aerial Property"],
     "image_delivery": "lh3.googleusercontent.com direct image/jpeg",
-    "production_gallery_items": 34,
-    "hero_image": true,
-    "hero_image_tiles": 3,
-    "visual_ribbon": 8,
+    "production_gallery_items": 16,
+    "gallery_curation": "maximum 4 representative images per category",
+    "gallery_dark_captions_removed": true,
+    "image_brightness_rebalanced": true,
+    "official_acanto_logo": true,
+    "official_logo_delivery": "/acanto-official-logo.png",
+    "official_logo_extracted_from_supplied_brochure": true,
+    "mobile_horizontal_overflow_fix": true,
     "filterable_gallery": true,
-    "gallery_categories": ["courtyard", "one-bedroom", "three-bedroom", "aerial-property"],
     "lightbox": true,
-    "residence_mini_galleries": true,
-    "location_lifestyle_gallery": true,
-    "lazy_loading": true,
-    "representative_asset_http_status": 200,
-    "representative_asset_content_type": "image/jpeg"
+    "lazy_loading": true
   },
   "inventory": {
     "verified_source_date": "2026-09-02",
@@ -46,26 +46,29 @@
     "villa_7_metric_conversion_withheld_pending_source_reconciliation": true
   },
   "conversion": {
-    "whatsapp": "+52 984 136 9378",
-    "phone": "+52 984 873 1252",
-    "sales_email": "Matt@acantohotels.com",
-    "reservations_email": "reservations@acantohotels.com",
-    "floating_whatsapp": true,
-    "mobile_sticky_cta": true,
-    "villa_specific_interest_options": true,
-    "brochure_link": true,
-    "rental_pool_document_link": true
+    "public_contact_mode": "landing_form_only",
+    "public_phone": false,
+    "public_whatsapp": false,
+    "public_email": false,
+    "floating_whatsapp": false,
+    "mobile_sticky_cta": "request_information_only",
+    "phone_field": "optional",
+    "email_field": "required",
+    "villa_specific_interest_options": true
   },
   "security": {
-    "turnstile": "active",
-    "proof_of_work": "hmac_sha256_prefix_000",
+    "turnstile": "active_interaction_only",
+    "proof_of_work": "signed_hmac_sha256_prefix_00",
     "honeypot": "active",
     "origin_validation": "active",
     "server_validation": "active",
     "hashed_ip_user_agent": "active",
+    "idempotency": "active",
     "lead_intake": "cloudsales_supabase",
+    "valid_lead_default_edge_score": 80,
     "min_accept_score": 60,
-    "challenge_score": 40
+    "challenge_score": 40,
+    "friction_policy": "security remains server-side; Turnstile appears only when interaction is required; lightweight PoW; phone is optional"
   },
   "seo": {
     "indexable": true,
@@ -78,23 +81,26 @@
   },
   "verification": {
     "cloudflare_custom_domain": "enabled",
-    "dns_record_verified": true,
-    "worker_bindings_verified": true,
+    "worker_runtime": "production service environment",
     "root_http_status": 200,
-    "production_marker": "acanto-condominiums-cloudsales-v4-visual-assets",
-    "googleusercontent_delivery_verified": true,
-    "gallery_count_verified": 34,
-    "whatsapp_marker_verified": true,
-    "turnstile_placeholder_leaked": false,
-    "html_length": 56327,
-    "verified_at": "2026-09-03T00:12:08Z"
+    "health_http_status": 200,
+    "official_logo_http_status": 200,
+    "official_logo_content_type": "image/png",
+    "production_marker": "acanto-condominiums-cloudsales-v5-mobile-brand",
+    "gallery_count_verified": 16,
+    "mobile_width_fix_verified": true,
+    "turnstile_interaction_only_verified": true,
+    "public_phone_string_present": false,
+    "public_whatsapp_string_present": false,
+    "public_email_string_present": false,
+    "verified_at": "2026-09-03T02:42:29Z"
   },
   "notes": [
-    "Drive image delivery was changed from drive.google.com/uc links to direct lh3.googleusercontent.com image/jpeg delivery after live verification.",
-    "The site now uses dozens of real supplied Acanto assets across hero, visual ribbon, residence cards, filtered gallery, ownership and location sections.",
-    "The prior incorrect published size-range minimum was corrected to 699 sq ft from the supplied inventory table.",
-    "Current pricing and availability remain marked subject to change.",
-    "Villa 7 uses the English-sheet area of 2,142 sq ft; the conflicting metric figure is not published.",
-    "Rental and investment language avoids guaranteed-return claims."
+    "The official Acanto logo is source-derived from the supplied 2024 Acanto brochure; no AI-generated logo is used in production.",
+    "The right-side mobile overflow seen in the user screenshot is addressed with hard viewport-width constraints and full-width mobile wrappers.",
+    "The property gallery was reduced from 34 repetitive/dark-captioned items to 16 curated representative images across four categories.",
+    "Public phone, WhatsApp and email contact methods were removed from the rendered landing; direct lead conversion is through the secure form only.",
+    "Security was tuned for lower legitimate-user friction while retaining Turnstile, signed HMAC challenge, lightweight proof-of-work, honeypot, origin checks, server validation, rate limiting, idempotency and lead scoring.",
+    "Current pricing and availability remain marked subject to change; rental and investment language avoids guaranteed-return claims."
   ]
 }
