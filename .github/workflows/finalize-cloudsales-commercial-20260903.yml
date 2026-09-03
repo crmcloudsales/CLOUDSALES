@@ -59,14 +59,18 @@ jobs:
           assert 'CONECTA TU CRM Y MIRA A CLOUDY TRABAJAR' in rel
           print('FINAL_VALIDATION_OK')
           PY
-      - name: Commit canonicalized sources
+      - name: Show historical files needing separate cleanup
         run: |
-          if git diff --quiet; then
-            echo 'CloudSales already canonical'
+          echo 'Historical .github files normalized locally (not staged by this restricted token):'
+          git diff --name-only -- .github ':!.github/scripts/finalize_cloudsales_commercial_20260903.py' ':!.github/workflows/finalize-cloudsales-commercial-20260903.yml' || true
+      - name: Commit production sources only
+        run: |
+          if git diff --quiet -- web docs supabase/functions; then
+            echo 'CloudSales production sources already canonical'
             exit 0
           fi
           git config user.name 'CloudSales Finalizer'
           git config user.email 'actions@users.noreply.github.com'
-          git add -A
+          git add web docs supabase/functions
           git commit -m 'fix(commercial): finalize branding, i18n and permanent 7-day trial'
           git push origin HEAD:main
