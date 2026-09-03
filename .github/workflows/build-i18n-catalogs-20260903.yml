@@ -11,7 +11,7 @@ permissions:
   contents: write
   id-token: write
 concurrency:
-  group: cloudsales-i18n-static-catalog-v1
+  group: cloudsales-i18n-static-catalog-v2
   cancel-in-progress: true
 jobs:
   localize:
