@@ -1,0 +1,47 @@
+name: CloudSales Secondary Checkout Block 5
+on:
+  push:
+    branches: [cloudsales-site-finish-20260903]
+    paths:
+      - '.github/scripts/block5_checkout_hardening_20260903.py'
+      - '.github/workflows/block5-secondary-checkout-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: cloudsales-secondary-checkout-block5
+  cancel-in-progress: false
+jobs:
+  checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudsales-site-finish-20260903
+          fetch-depth: 0
+      - name: Harden Academy and Services checkout
+        run: python3 .github/scripts/block5_checkout_hardening_20260903.py
+      - name: Validate checkout contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for f in ['web/academy.html','web/services.html']:
+              s=Path(f).read_text(encoding='utf-8')
+              assert 'id="cs-secondary-checkout-20260903"' in s
+              for x in ['stripe-checkout-start','d.checkout_url','d.publishable_key','d.client_secret','affiliate_code:affiliateRef()','/assets/cloudsales-app-icon-official-v4.png']:
+                  assert x in s,(f,x)
+              assert 'const F=' not in s
+          print('BLOCK5_SECONDARY_CHECKOUT_OK')
+          PY
+      - name: Commit hardened checkout sources
+        run: |
+          if git diff --quiet -- web/academy.html web/services.html; then
+            echo 'Secondary checkout already hardened'
+            exit 0
+          fi
+          git config user.name 'CloudSales Secondary Checkout Block 5'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/academy.html web/services.html
+          git commit -m 'fix(site): harden Academy and Services checkout'
+          git push origin HEAD:cloudsales-site-finish-20260903
