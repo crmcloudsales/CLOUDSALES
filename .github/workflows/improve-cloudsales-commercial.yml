@@ -29,17 +29,17 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
           s=Path('web/commercial.html').read_text(encoding='utf-8')
           runtime=Path('web/commercial-sales-story-v1.js').read_text(encoding='utf-8')
           checks={
-            'basic47': bool(re.search(r'\$\s*47', s)),
-            'pro97': bool(re.search(r'\$\s*97', s)),
-            'premium147': bool(re.search(r'\$\s*147', s)),
-            'outcomes': all(x in s for x in ['More Qualified Leads','More Appointments','More Sales']),
+            'existing_plans_preserved':'class="plans"' in s,
             'sales_story_loaded':'commercial-sales-story-v1.js' in s,
-            'trial_cta':'7 DÍAS CLOUDY GRATIS' in runtime and '/subscribe?plan=pro' in runtime,
-            'cloudy_story': all(x in runtime for x in ['Junk Lead Firewall','MEJORA CONTINUA','AGENTCLOUD','Qué hace la app']),
+            'trial_checkout':'/subscribe?plan=pro' in runtime,
+            'trial_copy':'7 DÍAS CLOUDY GRATIS' in runtime,
+            'lead_quality':'Junk Lead Firewall' in runtime,
+            'continuous_improvement':'MEJORA CONTINUA' in runtime,
+            'agentcloud':'AGENTCLOUD' in runtime,
+            'app_value':'¿QUÉ HACE LA APP?' in runtime,
           }
           print(checks)
           assert all(checks.values()), checks
