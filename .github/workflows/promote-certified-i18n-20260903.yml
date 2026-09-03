@@ -19,21 +19,44 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
-      - name: Require all 11 certified catalogs
+      - name: Require all 11 certified catalogs and linguistic coverage
         run: |
           node <<'NODE'
           const fs=require('fs');
           const locales=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
           const m=JSON.parse(fs.readFileSync('web/i18n/catalog-v1/manifest.json','utf8'));
+          const scripts={
+            'ar-AE':/[\u0600-\u06FF]/,
+            ru:/[\u0400-\u04FF]/,
+            he:/[\u0590-\u05FF]/,
+            'zh-CN':/[\u3400-\u9FFF]/,
+            ja:/[\u3040-\u30FF\u3400-\u9FFF]/
+          };
+          const technical=/^(?:CloudSales|Cloudy|AgentCloud|CloudCo|LISTIA|CRM|PWA|API|SEO|OAuth|Stripe|WhatsApp|Meta|Google|TikTok|LinkedIn|YouTube|HighLevel|Salesforce|HubSpot|Zoho CRM|Microsoft Dynamics 365|Pipedrive|monday CRM|Freshsales|Close|Copper|Twenty|PayPal|Binance|Basic|Pro|Premium|USD|WAF|AI CHAT|Conversion API|Web Events|CRM Events|Data Signals|Conversion Signals)$/i;
           for(const lc of locales){
             const p=`web/i18n/catalog-v1/${lc}.json`;
             if(!fs.existsSync(p))throw Error(`missing_${lc}`);
             const j=JSON.parse(fs.readFileSync(p,'utf8'));
             if(j.locale!==lc||!j.commercial||!j.pwa)throw Error(`invalid_${lc}`);
-            if(Object.keys(j.commercial).length<250||Object.keys(j.pwa).length<100)throw Error(`coverage_${lc}`);
+            const c=Object.keys(j.commercial).length,w=Object.keys(j.pwa).length;
+            if(c<250||w<100)throw Error(`coverage_${lc}_${c}_${w}`);
             if(!m.locales?.[lc])throw Error(`manifest_${lc}`);
+            for(const [surface,obj] of [['commercial',j.commercial],['pwa',j.pwa]]){
+              const pairs=Object.entries(obj).filter(([k,v])=>k.trim()&&String(v).trim()&&!technical.test(k.trim()));
+              if(!pairs.length)throw Error(`empty_surface_${lc}_${surface}`);
+              const changed=pairs.filter(([k,v])=>k.trim()!==String(v).trim()).length/pairs.length;
+              if(!['es','en'].includes(lc)&&changed<0.60)throw Error(`translation_change_ratio_${lc}_${surface}_${changed.toFixed(3)}`);
+              if(scripts[lc]){
+                const meaningful=pairs.filter(([k,v])=>String(v).trim().split(/\s+/).length>1||String(v).trim().length>12);
+                const scripted=meaningful.filter(([k,v])=>scripts[lc].test(String(v))).length/Math.max(1,meaningful.length);
+                if(scripted<0.55)throw Error(`script_coverage_${lc}_${surface}_${scripted.toFixed(3)}`);
+              }
+            }
+            if(!j.pwa['Crear cuenta'])throw Error(`missing_anchor_${lc}_pwa_create_account`);
+            if(lc!=='es'&&j.pwa['Crear cuenta'].trim()==='Crear cuenta')throw Error(`untranslated_anchor_${lc}_pwa_create_account`);
+            if(j.commercial['La IA trabaja por ti.']&&lc!=='es'&&j.commercial['La IA trabaja por ti.'].trim()==='La IA trabaja por ti.')throw Error(`untranslated_anchor_${lc}_hero`);
           }
-          console.log('11 certified catalogs present');
+          console.log('11 certified catalogs: structural and linguistic gates passed');
           NODE
       - name: Wire certified catalogs into both surfaces
         run: python3 .github/scripts/promote_certified_i18n_20260903.py
@@ -44,6 +67,8 @@ jobs:
           grep -Fq "loadI18nCatalogs(RAW,'commercial')" supabase/functions/cloudflare-site-brand-release/index.ts
           grep -Fq 'const catalogs=await loadI18nCatalogs(RAW);' supabase/functions/cloudflare-pwa-brand-release/index.ts
           ! grep -Fq "return (L[lc]||{})[text]||EN[text]||text" web/pwa-i18n-runtime-v1.js
+          grep -Fq '/i18n/catalog-v1/manifest.json' web/sw.js
+          for lc in es en fr it pt-BR de ar-AE ru he zh-CN ja; do grep -Fq "/i18n/catalog-v1/$lc.json" web/sw.js || grep -Fq "...LOCALES.map" web/sw.js; done
       - name: Commit atomic localization promotion
         run: |
           git config user.name 'CloudSales I18N Promotion'
