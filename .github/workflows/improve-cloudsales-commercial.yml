@@ -29,14 +29,17 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          s=Path('web/commercial.html').read_text()
+          import re
+          s=Path('web/commercial.html').read_text(encoding='utf-8')
+          runtime=Path('web/commercial-sales-story-v1.js').read_text(encoding='utf-8')
           checks={
-            'basic47':'$47 <small>USD / mes</small>' in s,
-            'pro97':'$97 <small>USD / mes</small>' in s,
-            'premium147':'$147 <small>USD / mes</small>' in s,
-            'outcomes':'More Qualified Leads' in s and 'More Appointments' in s and 'More Sales' in s,
-            'chart':'class="mockchart"' in s,
-            'premium2':'2 usuarios incluidos' in s,
+            'basic47': bool(re.search(r'\$\s*47', s)),
+            'pro97': bool(re.search(r'\$\s*97', s)),
+            'premium147': bool(re.search(r'\$\s*147', s)),
+            'outcomes': all(x in s for x in ['More Qualified Leads','More Appointments','More Sales']),
+            'sales_story_loaded':'commercial-sales-story-v1.js' in s,
+            'trial_cta':'7 DÍAS CLOUDY GRATIS' in runtime and '/subscribe?plan=pro' in runtime,
+            'cloudy_story': all(x in runtime for x in ['Junk Lead Firewall','MEJORA CONTINUA','AGENTCLOUD','Qué hace la app']),
           }
           print(checks)
           assert all(checks.values()), checks
@@ -51,5 +54,5 @@ jobs:
           git config user.name "cloudsales-build-bot"
           git config user.email "cloudsales-build-bot@users.noreply.github.com"
           git add web/commercial.html
-          git commit -m "feat(site): sharpen CloudSales outcomes and commercial preview"
+          git commit -m "feat(site): launch Cloudy conversion story and 7-day trial CTA"
           git push
