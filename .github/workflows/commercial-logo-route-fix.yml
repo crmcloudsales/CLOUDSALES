@@ -1,0 +1,27 @@
+name: CloudSales Commercial Logo Route Fix
+on:
+  push:
+    paths:
+      - '.github/scripts/commercial_logo_route_fix_20260902.py'
+      - '.github/triggers/commercial-logo-route-fix.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix canonical commercial logo route
+        run: python3 .github/scripts/commercial_logo_route_fix_20260902.py
+      - name: Validate runtime
+        run: |
+          node --check web/commercial-brand-runtime-v2.js
+          grep -q "const LOGO='/cloudsales-logo-official-v2.png?v=2026090206';" web/commercial-brand-runtime-v2.js
+      - name: Commit logo route fix
+        run: |
+          if git diff --quiet; then echo 'No changes'; exit 0; fi
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/commercial-brand-runtime-v2.js
+          git commit -m 'fix(commercial): use canonical served CloudSales logo route'
+          git push origin HEAD:main
