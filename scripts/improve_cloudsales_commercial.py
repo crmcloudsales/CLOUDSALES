@@ -29,5 +29,15 @@ pricing_new = pricing_lead + '<div class="pricingProof"><span>Basic $47/mo</span
 if 'class="pricingProof"' not in s:
     s = s.replace(pricing_lead, pricing_new, 1)
 
+# Conversion narrative: one lightweight runtime, no duplicate page rebuild.
+story_tag = '<script src="/commercial-sales-story-v1.js?v=2026090201" defer></script>'
+if 'commercial-sales-story-v1.js' not in s:
+    s = s.replace('</body>', story_tag + '</body>', 1)
+
+# Keep the canonical 7-day trial explicit for search engines and no-JS visitors.
+if 'data-cs-trial-seo="1"' not in s:
+    seo = '<div data-cs-trial-seo="1" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">CloudSales includes a 7-day free trial. Cloudy coordinates CRM, lead-quality protection, marketing, follow-up, appointments and business operations through authorized connections.</div>'
+    s = s.replace('</body>', seo + '</body>', 1)
+
 P.write_text(s, encoding="utf-8")
-print("CloudSales commercial UX patch applied")
+print("CloudSales commercial UX + Cloudy sales-story patch applied")
