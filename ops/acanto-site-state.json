@@ -5,7 +5,7 @@
   "gate_slug": "acanto-main",
   "hostname": "acanto.cloudsales.app",
   "cloudflare_worker": "acanto-condo-gateway",
-  "site_version": "v5-mobile-brand-form-only",
+  "site_version": "v7-gallery-video-contextual-pricing",
   "source": {
     "landing": "web/clients/acanto/landing-v2.html",
     "edge_template": "web/clients/acanto/worker-edge-template.mjs",
@@ -17,19 +17,30 @@
   },
   "visual_content": {
     "image_rich_layout": true,
-    "drive_image_collections": ["Courtyard", "1 Bedroom Villa 8", "3 Bedroom Villa 18", "Aerial Property"],
+    "drive_image_collections": [
+      "Courtyard",
+      "1 Bedroom Villa 8",
+      "3 Bedroom Villa 18",
+      "Aerial Property"
+    ],
     "image_delivery": "lh3.googleusercontent.com direct image/jpeg",
-    "production_gallery_items": 16,
-    "gallery_curation": "maximum 4 representative images per category",
+    "production_gallery_items": 9,
+    "gallery_curation": "nine-item curated real-property gallery",
     "gallery_dark_captions_removed": true,
     "image_brightness_rebalanced": true,
     "official_acanto_logo": true,
     "official_logo_delivery": "/acanto-official-logo.png",
     "official_logo_extracted_from_supplied_brochure": true,
     "mobile_horizontal_overflow_fix": true,
-    "filterable_gallery": true,
+    "filterable_gallery": false,
     "lightbox": true,
-    "lazy_loading": true
+    "lazy_loading": true,
+    "video_section": {
+      "enabled": true,
+      "campaign_film_slots": 3,
+      "status": "final_edit_pending_master_urls",
+      "fabricated_video_urls": false
+    }
   },
   "inventory": {
     "verified_source_date": "2026-09-02",
@@ -41,7 +52,19 @@
     "published_size_range_sqft": "699-2142",
     "all_condominiums_include_furniture": true,
     "all_condominiums_have_long_rental_history": true,
-    "published_units": [1,4,5,6,7,8,11,13,17,18,19],
+    "published_units": [
+      1,
+      4,
+      5,
+      6,
+      7,
+      8,
+      11,
+      13,
+      17,
+      18,
+      19
+    ],
     "villa_7_sqft": 2142,
     "villa_7_metric_conversion_withheld_pending_source_reconciliation": true,
     "cloudsales_canonical_inventory_synced": true,
@@ -85,7 +108,17 @@
       "location_id": "RgdSeRJ2dNmeDNmOKAWJ",
       "pipeline_id": "3KZSZkqUZyRwlmOZz5cS",
       "pipeline_name": "CloudSales | Sales",
-      "pipeline_stages": ["New Lead", "Contacted", "Qualified", "Appointment", "Visited / Presented", "Offer / Negotiation", "Reservation / Deposit", "Won", "Lost / Nurture"],
+      "pipeline_stages": [
+        "New Lead",
+        "Contacted",
+        "Qualified",
+        "Appointment",
+        "Visited / Presented",
+        "Offer / Negotiation",
+        "Reservation / Deposit",
+        "Won",
+        "Lost / Nurture"
+      ],
       "custom_fields_created": 24,
       "gclid_field": "pending_google_connection",
       "primary_sales_user_id": "2KKrZcpKm1hDkZcB9DFC",
@@ -104,11 +137,44 @@
     "cloudy": {
       "status": "configured",
       "language_mode": "auto English/Spanish",
-      "roles": ["Lead Qualifier", "Appointment Agent", "Follow-up Agent", "Marketing Agent"],
-      "guardrails": ["no invented inventory", "no guaranteed ROI or rental income", "no unverified promotions or financing", "respect opt-outs", "optimize for qualified leads and appointments"]
+      "roles": [
+        "Lead Qualifier",
+        "Appointment Agent",
+        "Follow-up Agent",
+        "Marketing Agent"
+      ],
+      "guardrails": [
+        "no invented inventory",
+        "no guaranteed ROI or rental income",
+        "no unverified promotions or financing",
+        "respect opt-outs",
+        "optimize for qualified leads and appointments"
+      ]
     },
-    "onboarding_completed": ["connect_crm", "crm_connect", "domain_edge", "deploy_firewall", "turnstile_waf", "validation", "lead_capture", "configure_ai_agents"],
-    "onboarding_pending_real_dependencies": ["accept_legal", "connect_meta", "meta_capi", "connect_google", "connect_whatsapp", "connect_linkedin", "connect_tiktok", "crm_feedback", "attribution", "activate_events", "activate_conversion_signals", "qa"]
+    "onboarding_completed": [
+      "connect_crm",
+      "crm_connect",
+      "domain_edge",
+      "deploy_firewall",
+      "turnstile_waf",
+      "validation",
+      "lead_capture",
+      "configure_ai_agents"
+    ],
+    "onboarding_pending_real_dependencies": [
+      "accept_legal",
+      "connect_meta",
+      "meta_capi",
+      "connect_google",
+      "connect_whatsapp",
+      "connect_linkedin",
+      "connect_tiktok",
+      "crm_feedback",
+      "attribution",
+      "activate_events",
+      "activate_conversion_signals",
+      "qa"
+    ]
   },
   "seo": {
     "indexable": true,
@@ -126,8 +192,8 @@
     "health_http_status": 200,
     "official_logo_http_status": 200,
     "official_logo_content_type": "image/png",
-    "production_marker": "acanto-condominiums-cloudsales-v5-mobile-brand",
-    "gallery_count_verified": 16,
+    "production_marker": "acanto-condominiums-cloudsales-v7-gallery-video",
+    "gallery_count_verified": 9,
     "mobile_width_fix_verified": true,
     "turnstile_interaction_only_verified": true,
     "public_phone_string_present": false,
@@ -135,7 +201,9 @@
     "public_email_string_present": false,
     "site_verified_at": "2026-09-03T02:42:29Z",
     "highlevel_provision_verified_at": "2026-09-03T03:03:46Z",
-    "workspace_sync_verified_at": "2026-09-03T03:09:00Z"
+    "workspace_sync_verified_at": "2026-09-03T03:09:00Z",
+    "price_list_section_removed_source": true,
+    "video_section_source_ready": true
   },
   "notes": [
     "The official Acanto logo is source-derived from the supplied 2024 Acanto brochure; no AI-generated logo is used in production.",
@@ -143,6 +211,15 @@
     "Security is tuned for lower legitimate-user friction while retaining Turnstile, signed HMAC challenge, lightweight proof-of-work, honeypot, origin checks, server validation, rate limiting, idempotency and lead scoring.",
     "Current pricing and availability remain marked subject to change; rental and investment language avoids guaranteed-return claims.",
     "No ads or outbound campaigns are active from this configuration pass. External advertising and messaging connections remain pending until explicitly connected and verified.",
-    "Final QA remains pending because ACANTO has not yet recorded a controlled or real accepted lead through the current production form-to-CRM path."
-  ]
+    "Final QA remains pending because ACANTO has not yet recorded a controlled or real accepted lead through the current production form-to-CRM path.",
+    "The public site no longer publishes the supplied 11-unit price list as a standalone section; contextual starting prices remain permitted in residence merchandising.",
+    "The public unit-interest selector no longer reproduces per-villa prices.",
+    "A dedicated Acanto video section is present; campaign video URLs are intentionally not fabricated while final edits are pending."
+  ],
+  "pricing_presentation": {
+    "direct_price_list_published": false,
+    "contextual_from_prices_allowed": true,
+    "unit_selector_prices_removed": true,
+    "availability_cta": "secure_form"
+  }
 }
