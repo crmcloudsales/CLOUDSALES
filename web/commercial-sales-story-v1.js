@@ -10,7 +10,7 @@ const COPY={
     hookKicker:'NO NECESITAS OTRA HERRAMIENTA',
     hookTitle:'Necesitas que tu operación comercial trabaje todos los días.',
     hookLead:'CloudSales convierte sistemas dispersos en una operación coordinada por inteligencia artificial: primero configura, después protege tu inversión publicitaria, luego ejecuta y finalmente aprende de los resultados para mejorar.',
-    setupKicker:'PARTE 1 · SETUP + PROTECCIÓN',
+    setupKicker:'PARTE 1 · CONFIGURACIÓN + PROTECCIÓN',
     setupTitle:'Cloudy prepara la máquina antes de pedirte que gastes más.',
     setupLead:'Conecta lo que ya usas. Cloudy organiza la estructura, configura el flujo comercial y activa protección de calidad de leads antes de escalar campañas.',
     setupCards:[
@@ -37,7 +37,7 @@ const COPY={
       ['1','Blog + SEO','Publica contenido útil y mantiene el sitio actualizado con información aprobada, productos, servicios, inventario y nuevas oportunidades.'],
       ['2','Redes sociales','Adapta el contenido a los canales conectados y prepara o publica piezas de forma recurrente según la cadencia autorizada.'],
       ['3','Campañas','Convierte los mejores ángulos en variaciones publicitarias y coordina pruebas sin confundir clics baratos con resultados reales.'],
-      ['4','Calidad','Compara lead quality, costo por lead calificado, citas y avance del pipeline para saber qué campaña merece más presupuesto y cuál debe corregirse.'],
+      ['4','Calidad','Compara calidad de prospectos, costo por prospecto calificado, citas y avance del pipeline para saber qué campaña merece más presupuesto y cuál debe corregirse.'],
       ['5','Aprendizaje','Devuelve señales de conversión, actualiza prioridades y usa los resultados para que el siguiente ciclo empiece con más información que el anterior.']
     ],
     agentsKicker:'PARTE 4 · AGENTCLOUD',
@@ -47,7 +47,7 @@ const COPY={
       ['Calificación','Responde rápido, entiende la necesidad, recopila datos útiles, identifica intención y separa conversaciones reales de oportunidades que todavía no están listas.'],
       ['Ventas y seguimiento','Mantiene contexto, responde preguntas, maneja objeciones con información aprobada, envía materiales permitidos y ejecuta seguimiento autorizado sin perder el hilo.'],
       ['Citas','Consulta disponibilidad real, propone horarios, agenda en calendarios conectados, confirma datos y ayuda a mover la oportunidad a la etapa correcta.'],
-      ['Atención y troubleshooting','Resuelve dudas frecuentes, guía al usuario paso a paso, utiliza la base de conocimiento disponible y escala a una persona únicamente cuando hace falta.']
+      ['Atención y resolución de problemas','Resuelve dudas frecuentes, guía al usuario paso a paso, utiliza la base de conocimiento disponible y escala a una persona únicamente cuando hace falta.']
     ],
     appKicker:'¿QUÉ HACE LA APP?',
     appTitle:'Te devuelve el control de tu negocio.',
