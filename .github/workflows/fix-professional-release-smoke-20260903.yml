@@ -1,4 +1,5 @@
 name: Fix Professional CloudSales Release Smoke 2026-09-03
+# Trigger after workflow registration.
 on:
   push:
     branches: [main]
