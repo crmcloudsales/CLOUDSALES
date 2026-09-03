@@ -1,14 +1,25 @@
 const fs=require('fs'),vm=require('vm');
-function between(src,start,end){const a=src.indexOf(start);if(a<0)throw Error('missing '+start);const b=src.indexOf(end,a+start.length);if(b<0)throw Error('missing '+end);return src.slice(a+start.length,b).trim()}
+function literalAfter(src,marker){
+  const m=src.indexOf(marker);if(m<0)throw Error('missing '+marker);
+  const start=src.indexOf('{',m+marker.length);if(start<0)throw Error('missing object after '+marker);
+  let depth=0,quote=null,esc=false;
+  for(let i=start;i<src.length;i++){
+    const ch=src[i];
+    if(quote){if(esc){esc=false;continue}if(ch==='\\'){esc=true;continue}if(ch===quote)quote=null;continue}
+    if(ch==='"'||ch==="'"||ch==='`'){quote=ch;continue}
+    if(ch==='{')depth++;else if(ch==='}'&&--depth===0)return src.slice(start,i+1);
+  }
+  throw Error('unterminated object after '+marker);
+}
 function obj(code){return vm.runInNewContext('('+code+')')}
 const c=fs.readFileSync('web/cloudsales-i18n-v1.js','utf8');
-const T=obj(between(c,'const T=',';\n/* CS_FINAL_TRANSLATIONS_20260903_START */'));
-const FINAL=obj(between(c,'const CS_FINAL_TRANSLATIONS=',';\n/* CS_FINAL_TRANSLATIONS_20260903_END */'));
+const T=obj(literalAfter(c,'const T='));
+const FINAL=obj(literalAfter(c,'const CS_FINAL_TRANSLATIONS='));
 for(const [lc,map] of Object.entries(FINAL))T[lc]=Object.assign(T[lc]||{},map);
-const EN_FULL=obj(between(c,'const EN_FULL=',';\n\nconst TRIAL_COPY='));
+const EN_FULL=obj(literalAfter(c,'const EN_FULL='));
 const p=fs.readFileSync('web/pwa-i18n-runtime-v1.js','utf8');
-const EN=obj(between(p,'const EN=',';\nconst L='));
-const L=obj(between(p,'const L=',';\nfunction locale'));
+const EN=obj(literalAfter(p,'const EN='));
+const L=obj(literalAfter(p,'const L='));
 const locales=['fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
 let fail=0;
 console.log('COMMERCIAL_BASE_KEYS',Object.keys(EN_FULL).length);
