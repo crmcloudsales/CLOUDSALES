@@ -31,7 +31,7 @@ pricing_new = pricing_lead + '<div class="pricingProof"><span>Basic $47/mo</span
 if 'class="pricingProof"' not in s:
     s = s.replace(pricing_lead, pricing_new, 1)
 
-# Canonical trial is seven days everywhere. Remove stale legacy copy.
+# Canonical trial is seven days everywhere. Remove stale legacy copy from HTML.
 s = re.sub(r'14\s+d[ií]as\s+gratis\s+para\s+comenzar', '7 días gratis para comenzar', s, flags=re.I)
 s = re.sub(r'14\s+days\s+free\s+to\s+start', '7 days free to start', s, flags=re.I)
 
@@ -50,4 +50,36 @@ if 'data-cs-trial-seo="1"' not in s:
     s = s.replace('</body>', seo + '</body>', 1)
 
 P.write_text(s, encoding="utf-8")
-print("CloudSales commercial UX + inline Cloudy sales-story patch applied")
+
+# Normalize all supported locale/runtime trial copy to the canonical seven-day trial.
+# This intentionally touches only exact legacy trial-duration phrases.
+TRIAL_REPLACEMENTS = {
+    '14 días': '7 días',
+    '14 dias': '7 dias',
+    '14 days': '7 days',
+    '14 jours': '7 jours',
+    '14 giorni': '7 giorni',
+    '14 Tage': '7 Tage',
+    '14 يوماً': '7 أيام',
+    '14 يومًا': '7 أيام',
+    '14 дней': '7 дней',
+    '14 ימים': '7 ימים',
+    '14 天': '7 天',
+    '14日間': '7日間',
+}
+for path in [
+    ROOT / 'web' / 'cloudsales-i18n-v1.js',
+    ROOT / 'web' / 'commercial-brand-runtime-v2.js',
+    ROOT / 'web' / 'commercial' / 'conversion-v1.js',
+]:
+    if not path.exists():
+        continue
+    text = path.read_text(encoding='utf-8')
+    original = text
+    for old, new in TRIAL_REPLACEMENTS.items():
+        text = text.replace(old, new)
+    text = re.sub(r'14\s+d[ií]as\s+gratis\s+para\s+comenzar', '7 días gratis para comenzar', text, flags=re.I)
+    if text != original:
+        path.write_text(text, encoding='utf-8')
+
+print("CloudSales commercial UX + Cloudy story + canonical 7-day trial patch applied")
