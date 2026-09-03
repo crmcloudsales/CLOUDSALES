@@ -1,0 +1,164 @@
+name: CloudSales Live Full Certification
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/live-certification-trigger.txt'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloudsales-live-full-certification
+  cancel-in-progress: true
+jobs:
+  certify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Certify commercial site, 11 locales and PWA
+        run: |
+          node <<'NODE'
+          const {chromium}=require('playwright');
+          const assert=require('assert');
+          const locales=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
+          const rtl=new Set(['ar-AE','he']);
+          const routes=['/','/domains','/usage-pricing','/services','/academy','/affiliate','/cloudco','/terms','/privacy'];
+          const expectedCommercialRelease='2026.09.03.11';
+          const expectedPwaRelease='2026.09.03.3';
+          const browser=await chromium.launch({headless:true});
+          const ctx=await browser.newContext({viewport:{width:1365,height:900}});
+          const page=await ctx.newPage();
+          const failures=[];
+          const record=(ok,msg)=>{if(!ok)failures.push(msg)};
+          async function goto(url){
+            const errors=[];
+            const onErr=e=>errors.push(String(e));
+            page.on('pageerror',onErr);
+            const r=await page.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
+            page.off('pageerror',onErr);
+            return {r,errors};
+          }
+          async function waitI18n(locale){
+            await page.waitForFunction(l=>document.documentElement.dataset.csI18nCertified==='1'&&document.documentElement.lang===l,locale,{timeout:20000});
+          }
+
+          // Infrastructure and SEO first.
+          let r=await ctx.request.get('https://cloudsales.app/__version',{maxRedirects:0});
+          record((await r.text()).trim()===expectedCommercialRelease,'commercial release mismatch');
+          r=await ctx.request.get('https://app.cloudsales.app/__version',{maxRedirects:0});
+          record((await r.text()).trim()===expectedPwaRelease,'PWA release mismatch');
+          r=await ctx.request.get('https://www.cloudsales.app/',{maxRedirects:0});
+          record(r.status()===301&&String(r.headers().location||'').startsWith('https://cloudsales.app'),'www is not canonical 301');
+          r=await ctx.request.get('https://cloudsales.app/__certification_missing_page__',{maxRedirects:0});
+          record(r.status()===404,'missing page is not real 404');
+          const robots=await (await ctx.request.get('https://cloudsales.app/robots.txt')).text();
+          record(robots.includes('Sitemap: https://cloudsales.app/sitemap.xml'),'robots sitemap missing');
+          const sitemap=await (await ctx.request.get('https://cloudsales.app/sitemap.xml')).text();
+          for(const p of routes.filter(x=>x!=='/')) record(sitemap.includes(`<loc>https://cloudsales.app${p}</loc>`),`sitemap missing ${p}`);
+          record(!sitemap.includes('<loc>https://cloudsales.app/crm</loc>'),'crm alias incorrectly indexed');
+
+          // Catalog endpoints must be exact and live on BOTH hosts.
+          for(const host of ['https://cloudsales.app','https://app.cloudsales.app']){
+            for(const lc of locales){
+              const q=await ctx.request.get(`${host}/i18n/catalog-v1/${encodeURIComponent(lc)}.json?qa=${Date.now()}`);
+              record(q.status()===200,`${host} catalog ${lc} HTTP ${q.status()}`);
+              if(q.status()===200){
+                const j=await q.json();
+                record(j.locale===lc,`${host} catalog ${lc} locale mismatch`);
+                record(Object.keys(j.commercial||{}).length===1139,`${host} catalog ${lc} commercial count`);
+                record(Object.keys(j.pwa||{}).length===756,`${host} catalog ${lc} pwa count`);
+              }
+            }
+          }
+
+          // Every commercial page in every locale must complete localization.
+          for(const lc of locales){
+            for(const path of routes){
+              const {r:resp,errors}=await goto(`https://cloudsales.app${path}?lang=${encodeURIComponent(lc)}&qa=${Date.now()}`);
+              record(resp&&resp.status()===200,`${path} ${lc} status`);
+              try{await waitI18n(lc)}catch(e){record(false,`${path} ${lc} i18n did not certify`);continue}
+              const state=await page.evaluate(()=>({
+                lang:document.documentElement.lang,
+                dir:document.documentElement.dir,
+                ready:document.documentElement.dataset.csI18nStatus,
+                text:(document.body.innerText||'').trim().length,
+                missing:document.querySelectorAll('[data-cs-i18n-missing],[data-cs-untranslated]:not([hidden])').length,
+                badImages:[...document.images].filter(i=>i.complete&&i.naturalWidth===0).map(i=>i.getAttribute('src')),
+                subscribe:[...document.querySelectorAll('a[href],button')].filter(x=>String(x.getAttribute?.('href')||'').includes('/subscribe?plan=pro')).length,
+                colorScheme:!!document.querySelector('meta[name="color-scheme"][content="light dark"]')
+              }));
+              record(state.lang===lc,`${path} ${lc} html lang`);
+              record(state.dir===(rtl.has(lc)?'rtl':'ltr'),`${path} ${lc} dir`);
+              record(state.ready==='ready',`${path} ${lc} i18n status ${state.ready}`);
+              record(state.text>250,`${path} ${lc} suspiciously empty`);
+              record(state.missing===0,`${path} ${lc} has ${state.missing} untranslated markers`);
+              record(state.badImages.length===0,`${path} ${lc} broken images ${state.badImages.join(',')}`);
+              record(state.subscribe===0,`${path} ${lc} dead subscribe CTA remains`);
+              record(state.colorScheme,`${path} ${lc} color-scheme missing`);
+              record(errors.length===0,`${path} ${lc} page errors: ${errors.join(' | ')}`);
+            }
+          }
+
+          // Root conversion UX: pricing buttons must open the accessible Stripe modal.
+          await goto('https://cloudsales.app/?lang=en&qa=conversion');
+          await waitI18n('en');
+          await page.locator('[data-item="plan_pro"]').scrollIntoViewIfNeeded();
+          await page.locator('[data-item="plan_pro"]').click();
+          record(await page.locator('#checkout.open[role="dialog"][aria-modal="true"]').count()===1,'Pro checkout modal did not open');
+          record(await page.locator('label[for="cemail"]').count()===1,'checkout email label missing');
+          record(await page.locator('#cstart').count()===1,'checkout continue missing');
+
+          // Mobile layout and navigation across every commercial route.
+          await page.setViewportSize({width:390,height:844});
+          for(const path of routes){
+            await goto(`https://cloudsales.app${path}?lang=en&qa=mobile`);
+            await waitI18n('en');
+            const dims=await page.evaluate(()=>({w:innerWidth,sw:document.documentElement.scrollWidth,bw:document.body.scrollWidth}));
+            record(Math.max(dims.sw,dims.bw)<=dims.w+4,`${path} mobile horizontal overflow ${Math.max(dims.sw,dims.bw)}>${dims.w}`);
+          }
+          await goto('https://cloudsales.app/?lang=en&qa=mobilemenu');
+          await waitI18n('en');
+          const menu=page.locator('#csMobileMenuBtn');
+          record(await menu.count()===1,'mobile menu button missing');
+          if(await menu.count()){await menu.click();record(await page.locator('#csMobileNav.open').count()===1,'mobile menu did not open')}
+
+          // PWA: each locale must activate same certified static layer and correct RTL.
+          for(const lc of locales){
+            const {r:resp,errors}=await goto(`https://app.cloudsales.app/?lang=${encodeURIComponent(lc)}&qa=${Date.now()}`);
+            record(resp&&resp.status()===200,`PWA ${lc} status`);
+            try{await waitI18n(lc)}catch(e){record(false,`PWA ${lc} i18n did not certify`);continue}
+            const st=await page.evaluate(()=>({
+              lang:document.documentElement.lang,
+              dir:document.documentElement.dir,
+              ready:document.documentElement.dataset.csI18nStatus,
+              text:(document.body.innerText||'').trim().length,
+              missing:document.querySelectorAll('[data-cs-i18n-missing],[data-cs-untranslated]:not([hidden])').length,
+              brand:!!document.getElementById('cs-pwa-brand-canonical-20260903'),
+              old:/#8d5cff|#8d47ff|#bd2cff|#ff2b9b/i.test(document.documentElement.innerHTML)
+            }));
+            record(st.lang===lc,`PWA ${lc} lang`);
+            record(st.dir===(rtl.has(lc)?'rtl':'ltr'),`PWA ${lc} dir`);
+            record(st.ready==='ready',`PWA ${lc} i18n status`);
+            record(st.text>120,`PWA ${lc} empty auth shell`);
+            record(st.missing===0,`PWA ${lc} untranslated markers ${st.missing}`);
+            record(st.brand,`PWA ${lc} canonical brand marker missing`);
+            record(!st.old,`PWA ${lc} legacy colors found`);
+            record(errors.length===0,`PWA ${lc} page errors: ${errors.join(' | ')}`);
+          }
+          const sw=await (await ctx.request.get('https://app.cloudsales.app/sw.js?qa='+Date.now())).text();
+          record(sw.includes('cloudsales-pwa-2026.09.03.3-i18n-certified'),'PWA certified cache namespace missing');
+          for(const lc of locales)record(sw.includes(`/i18n/catalog-v1/${lc}.json`),`PWA SW missing ${lc} catalog`);
+
+          await browser.close();
+          if(failures.length){console.error('\nCERTIFICATION FAILURES ('+failures.length+'):\n- '+failures.join('\n- '));process.exit(1)}
+          console.log('CLOUDSALES FULL LIVE CERTIFICATION: PASS');
+          console.log(`Commercial routes: ${routes.length}; locales: ${locales.length}; localized page checks: ${routes.length*locales.length}; PWA locales: ${locales.length}`);
+          NODE
