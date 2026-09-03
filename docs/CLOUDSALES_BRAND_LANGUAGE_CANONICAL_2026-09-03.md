@@ -28,6 +28,21 @@ The commercial screenshots supplied on 2026-09-03 use a near-black application c
 
 The visual hierarchy must be: near-black canvas + controlled deep-purple fields/glows + CloudSales pink as the primary action/accent + off-white typography. Do not turn the entire product into flat black and do not flood the interface with purple. Pink remains the dominant action color.
 
+### Sampled character/material reference palette
+The following colors were sampled from the user-supplied Cloudy and AgentCloud artwork. They are **visual/material references**, not new corporate core colors. They may be used for highlights, illustration harmony and UI accents that visually connect to the characters:
+
+- Cloudy Electric Cyan: `#23B3F4` — visor/light reference
+- Cloudy Electric Blue: `#274ED3` — visor/light reference
+- Cloudy Luminous Magenta: `#EB4EC2` — neon/reflection reference
+- Cloudy Deep Magenta: `#AF127E` — metallic/shadow reference
+- Cloudy Pearl: `#F9F4FB` — white shell highlight
+- Cloudy Soft Lilac: `#D7C9EE` — shell/shading reference
+- AgentCloud Graphite: `#242434` — suit/headset dark reference
+- AgentCloud Charcoal Violet: `#3D3B50` — suit/shadow reference
+- AgentCloud Warm Rose: `#CF98A1` — character skin/lighting reference only; never use as a corporate action color
+
+These sampled character colors must never override the official CloudSales core trio (`#2D0A4A`, `#F955B6`, `#F3F4F8`).
+
 ## 4. Distribution rules
 - Official CloudSales logo: never redraw, recolor, distort, crop, retype or approximate.
 - Official Cloudy and AgentCloud characters: never redraw, recolor, reshape or replace without explicit approval.
