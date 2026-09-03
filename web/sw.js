@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.09.03.1-i18n';
+const CACHE='cloudsales-pwa-2026.09.03.2-brand';
 const LOCALES=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
 const I18N=[
   '/cloudsales-static-i18n-v2.js',
