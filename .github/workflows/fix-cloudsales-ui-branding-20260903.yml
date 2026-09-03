@@ -1,0 +1,48 @@
+name: Fix CloudSales UI Branding 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/fix_cloudsales_ui_branding_20260903.py'
+      - '.github/workflows/fix-cloudsales-ui-branding-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: fix-cloudsales-ui-branding-20260903
+  cancel-in-progress: false
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Apply canonical CloudSales UI branding
+        run: python3 .github/scripts/fix_cloudsales_ui_branding_20260903.py
+      - name: Validate active commercial source
+        run: |
+          grep -Fq 'id="cs-brand-ui-canonical-20260903"' web/commercial.html
+          grep -Fq 'id="cs-brand-ui-bootstrap-20260903"' web/commercial.html
+          grep -Fq '<meta name="color-scheme" content="light dark">' web/commercial.html
+          grep -Fq '#2D0A4A' web/commercial.html
+          grep -Fq '#F955B6' web/commercial.html
+          grep -Fq '#F3F4F8' web/commercial.html
+          grep -Fq 'cs-samsung-internet' web/commercial.html
+          grep -Fq 'La IA trabaja por ti.' web/commercial.html
+          grep -Fq 'Tú mantienes el control.' web/commercial.html
+          grep -Fq 'cloudsales-logo-official-v2.png' web/commercial.html
+          ! grep -Fq '<script src="/commercial-brand-runtime-v2.js' web/commercial.html
+      - name: Commit active canonical source
+        run: |
+          if git diff --quiet -- web/commercial.html; then
+            echo 'Canonical CloudSales UI already installed'
+            exit 0
+          fi
+          git config user.name 'CloudSales Brand Finalizer'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/commercial.html
+          git commit -m 'fix(commercial): enforce canonical CloudSales UI and Samsung rendering'
+          git push origin HEAD:main
