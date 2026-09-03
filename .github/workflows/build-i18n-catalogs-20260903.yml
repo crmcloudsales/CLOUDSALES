@@ -1,4 +1,5 @@
 name: Build CloudSales 11-Language Catalogs
+# Certified static localization build. No runtime machine translation.
 on:
   workflow_dispatch:
   push:
