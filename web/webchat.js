@@ -3,7 +3,7 @@
 if(window.CloudSalesWebChatLoaded)return;window.CloudSalesWebChatLoaded=true;
 const API='https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/public-landing-data';
 const script=document.currentScript;
-const cfg={hostname:(script?.dataset?.hostname||location.hostname).toLowerCase(),title:script?.dataset?.title||'¿Necesitas ayuda?',welcome:script?.dataset?.welcome||'Hola. ¿En qué podemos ayudarte?',position:script?.dataset?.position||'right',accent:script?.dataset?.accent||'#ff2b9b'};
+const cfg={hostname:(script?.dataset?.hostname||location.hostname).toLowerCase(),title:script?.dataset?.title||'¿Necesitas ayuda?',welcome:script?.dataset?.welcome||'Hola. ¿En qué podemos ayudarte?',position:script?.dataset?.position||'right',accent:script?.dataset?.accent||'#F955B6'};
 const key=`cloudsales_webchat_${cfg.hostname}`;let sessionToken=localStorage.getItem(key)||'',last='',poller=null,startedAt=Date.now(),opened=false,polling=false,history=[];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(body){const r=await fetch(API,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}),d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||`request_${r.status}`);return d}
