@@ -1,11 +1,11 @@
-# CloudSales — Canonical Brand & Language System
+# CloudSales — Canonical Brand, Language & Commercial System
 
 Status: CANONICAL
 Date locked: 2026-09-03
 Scope: CloudSales only
 
 ## 1. Purpose
-This file is the source of truth for CloudSales commercial branding and language integrity. Functional/product copy may evolve, but the brand system must not drift without an explicit brand decision.
+This file is the source of truth for CloudSales commercial branding, language integrity and commercial truth. Functional/product copy may evolve, but the brand system, trial policy and active plan truth must not drift without an explicit documented decision.
 
 ## 2. Official core colors
 These three colors were sampled directly from the user-supplied official CloudSales wordmark/isotype assets on 2026-09-03 and are the canonical brand anchors:
@@ -52,6 +52,7 @@ These sampled character colors must never override the official CloudSales core 
 - CRM logos retain their own official colors. Do not recolor third-party CRM marks into CloudSales colors.
 - The moving CRM band/marquee is part of the preferred commercial presentation and should remain unless explicitly removed.
 - Cards should be visibly separated from the canvas; avoid black-on-black loss of hierarchy.
+- Dark commercial pages must explicitly declare dark color-scheme behavior and must not rely on browser auto-darkening.
 
 ## 5. Product positioning that branding must reinforce
 CloudSales is not another CRM and should not be presented as another app the customer has to administer.
@@ -102,10 +103,29 @@ Every new commercial runtime or content module must either:
 1. provide complete copy for every locale it renders, or
 2. explicitly restrict itself to the locales for which complete copy exists.
 
-## 9. Change-control rule
-Automated deploys, SEO fixes, CRM integration changes, authentication work, checkout changes, security changes, copy updates and feature releases must not silently alter the canonical brand anchors, official character identity, official logo or language-integrity rule.
+## 9. Canonical commercial truth — GLOBAL
+- CloudSales trial duration is **7 days** globally. No alternate legacy trial duration is permitted in active pages, legal copy, checkout copy, email copy, localized copy, release code, plan metadata or customer-facing configuration.
+- Current subscription plans: Basic **US$47/month**, Pro **US$97/month**, Premium **US$147/month**.
+- Premium includes **2 users** in the current active plan definition.
+- The old additional-seat product is deprecated/inactive and must not be advertised as an active public offer.
+- `/crm` and `/` must share the same canonical CloudSales commercial truth rather than diverging into separate pricing/copy versions.
+- All production commercial routes must be generated from canonical GitHub sources; a release must never republish an already-live page as its own source of truth.
 
-Any intentional change to the three core colors or official character/logo treatment requires an explicit brand decision and a documented update to this canonical file.
+## 10. Permanent release guards
+A production commercial release must fail rather than publish if any of the following is detected:
+- an obsolete trial-duration phrase;
+- obsolete individual-subscription or extra-seat public copy;
+- loss of the canonical CloudSales core palette on the root commercial page;
+- loss of the canonical AI-working-for-you message;
+- loss of the Premium two-user truth;
+- an unbranded commercial route;
+- incorrect official logo or icon assets;
+- a broken `www` canonical redirect.
 
-## 10. Separation rule
+## 11. Change-control rule
+Automated deploys, SEO fixes, CRM integration changes, authentication work, checkout changes, security changes, copy updates and feature releases must not silently alter the canonical brand anchors, official character identity, official logo, language-integrity rule, trial policy or active plan truth.
+
+Any intentional change to core colors, trial policy, active plan entitlements or official character/logo treatment requires an explicit decision and a documented update to this canonical file.
+
+## 12. Separation rule
 This source of truth belongs to CloudSales. CloudSales commercial branding, commercial copy and release logic should live in the CloudSales repository and CloudSales-specific infrastructure. Do not make CloudSales commercial branding depend on another product's repository, assets or release pipeline.
