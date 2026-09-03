@@ -1,0 +1,1 @@
+trigger remove Dynamics 365 from commercial site
