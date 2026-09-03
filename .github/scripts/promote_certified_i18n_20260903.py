@@ -20,10 +20,17 @@ def inject_html(path, pwa=False):
         s = s.replace('<meta name="theme-color" content="#08080f"<meta name="color-scheme" content="dark">>', '<meta name="theme-color" content="#08070D"><meta name="color-scheme" content="light dark">')
         s = s.replace('<meta name="theme-color" content="#08080f"><meta name="color-scheme" content="dark">', '<meta name="theme-color" content="#08070D"><meta name="color-scheme" content="light dark">')
     if '/cloudsales-static-i18n-v2.js' not in s:
-        if '</body>' not in s.lower():
-            raise RuntimeError(f'no body close in {path}')
-        idx = s.lower().rfind('</body>')
-        s = s[:idx] + SCRIPT + s[idx:]
+        anchor = '/pwa-i18n-runtime-v1.js' if pwa else '/cloudsales-i18n-v1.js'
+        if anchor in s:
+            pos = s.rfind('<script', 0, s.find(anchor))
+            if pos < 0:
+                raise RuntimeError(f'i18n anchor malformed in {path}')
+            s = s[:pos] + SCRIPT + s[pos:]
+        else:
+            if '</body>' not in s.lower():
+                raise RuntimeError(f'no body close in {path}')
+            idx = s.lower().rfind('</body>')
+            s = s[:idx] + SCRIPT + s[idx:]
     else:
         s = re.sub(r'<script src="/cloudsales-static-i18n-v2\.js\?v=[^"]+"(?: defer)?></script>', SCRIPT, s)
     p.write_text(s, encoding='utf-8')
