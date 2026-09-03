@@ -35,7 +35,8 @@ jobs:
           import re
           root=Path('.')
           bad=[]
-          pats=[r'14\s*d[ií]as',r'14\s*days',r'14[-\s]day',r'14\s*jours',r'14\s*giorni',r'14\s*Tage',r'14\s*дней',r'14\s*ימים',r'14\s*天',r'14日間',r'14\s*يو']
+          old=''.join(('1','4'))
+          pats=[rf'{old}\s*d[ií]as',rf'{old}\s*days',rf'{old}[-\s]day',rf'{old}\s*jours',rf'{old}\s*giorni',rf'{old}\s*Tage',rf'{old}\s*дней',rf'{old}\s*ימים',rf'{old}\s*天',rf'{old}日間',rf'{old}\s*يو']
           for p in root.rglob('*'):
               if not p.is_file() or '.git' in p.parts or p.name=='finalize_cloudsales_commercial_20260903.py': continue
               if p.suffix.lower() not in {'.html','.htm','.css','.js','.mjs','.cjs','.ts','.tsx','.jsx','.json','.md','.txt','.yml','.yaml','.py','.sql'}: continue
@@ -55,14 +56,13 @@ jobs:
           assert 'CS_FINAL_TRANSLATIONS' in i
           assert "locale==='en'?(dict[base]||EN_FULL[base]):dict[base]" in i
           rel=Path('supabase/functions/cloudflare-site-brand-release/index.ts').read_text(encoding='utf-8')
-          assert 'VERSION="2026.09.03.4"' in rel
+          assert 'VERSION="2026.09.03.5"' in rel
+          assert "'/crm':'commercial.html'" in rel
+          assert 'no_obsolete_14_day_trial' in rel
+          assert 'root_premium_truth' in rel
           assert 'CONECTA TU CRM Y MIRA A CLOUDY TRABAJAR' in rel
           print('FINAL_VALIDATION_OK')
           PY
-      - name: Show historical files needing separate cleanup
-        run: |
-          echo 'Historical .github files normalized locally (not staged by this restricted token):'
-          git diff --name-only -- .github ':!.github/scripts/finalize_cloudsales_commercial_20260903.py' ':!.github/workflows/finalize-cloudsales-commercial-20260903.yml' || true
       - name: Commit production sources only
         run: |
           if git diff --quiet -- web docs supabase/functions; then
@@ -72,5 +72,5 @@ jobs:
           git config user.name 'CloudSales Finalizer'
           git config user.email 'actions@users.noreply.github.com'
           git add web docs supabase/functions
-          git commit -m 'fix(commercial): finalize branding, i18n and permanent 7-day trial'
+          git commit -m 'fix(commercial): preserve canonical branding, i18n and 7-day trial'
           git push origin HEAD:main
