@@ -1,0 +1,37 @@
+name: Validate Certified I18N Promotion Patch
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/promote_certified_i18n_20260903.py'
+      - '.github/workflows/validate-i18n-promotion-patch-20260903.yml'
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply patch in validation workspace
+        run: python3 .github/scripts/promote_certified_i18n_20260903.py
+      - name: Validate localization runtime syntax
+        run: node --check web/cloudsales-static-i18n-v2.js
+      - name: Validate canonical HTML wiring
+        run: |
+          for f in web/commercial.html web/cloudco.html web/academy.html web/services.html web/affiliate.html web/terms.html web/privacy.html web/commercial/domains-v2.html web/usage-pricing.html web/pwa.html; do
+            grep -Fq '/cloudsales-static-i18n-v2.js' "$f"
+          done
+          grep -Fq '<meta name="theme-color" content="#08070D"><meta name="color-scheme" content="light dark">' web/pwa.html
+      - name: Validate commercial release wiring
+        run: |
+          grep -Fq 'VERSION="2026.09.03.11"' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq "loadI18nCatalogs(RAW,'commercial')" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq "if(p==='/cloudsales-static-i18n-v2.js')" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq 'all_routes_static_i18n' supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Validate PWA release wiring
+        run: |
+          grep -Fq 'const VERSION="2026.09.03.1";' supabase/functions/cloudflare-pwa-brand-release/index.ts
+          grep -Fq 'const catalogs=await loadI18nCatalogs(RAW);' supabase/functions/cloudflare-pwa-brand-release/index.ts
+          grep -Fq '"/cloudsales-static-i18n-v2.js"' supabase/functions/cloudflare-pwa-brand-release/index.ts
+          grep -Fq 'root_static_i18n' supabase/functions/cloudflare-pwa-brand-release/index.ts
