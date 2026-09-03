@@ -1,0 +1,26 @@
+name: CloudSales Commercial Logo Alias
+on:
+  push:
+    paths:
+      - '.github/scripts/commercial_logo_alias_20260902.py'
+      - '.github/triggers/commercial-logo-alias-20260902.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add official logo alias
+        run: python3 .github/scripts/commercial_logo_alias_20260902.py
+      - name: Validate alias
+        run: |
+          grep -q "'/assets/cloudsales-logo-official-v2.png'" supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit alias
+        run: |
+          if git diff --quiet; then echo 'No changes'; exit 0; fi
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'fix(commercial): serve official CloudSales logo on canonical and asset routes'
+          git push origin HEAD:main
