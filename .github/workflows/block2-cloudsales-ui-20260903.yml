@@ -1,0 +1,58 @@
+name: CloudSales Commercial UI Block 2
+on:
+  push:
+    branches: [cloudsales-site-finish-20260903]
+    paths:
+      - 'web/commercial-brand-runtime-v2.js'
+      - '.github/scripts/block2_cloudsales_ui_20260903.py'
+      - '.github/workflows/block2-cloudsales-ui-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: cloudsales-commercial-ui-block2
+  cancel-in-progress: false
+jobs:
+  block2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudsales-site-finish-20260903
+          fetch-depth: 0
+      - name: Apply Block 2 source changes
+        run: python3 .github/scripts/block2_cloudsales_ui_20260903.py
+      - name: Validate runtime syntax
+        run: node --check web/commercial-brand-runtime-v2.js
+      - name: Validate premium UI contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          h=Path('web/commercial.html').read_text(encoding='utf-8')
+          r=Path('web/commercial-brand-runtime-v2.js').read_text(encoding='utf-8')
+          rel=Path('supabase/functions/cloudflare-site-brand-release/index.ts').read_text(encoding='utf-8')
+          assert '/commercial-brand-runtime-v2.js?v=20260903-block2' in h
+          assert '/assets/marketing/cloudy-official.webp' in h
+          assert '/assets/marketing/agentcloud-official.webp' in h
+          assert '<meta name="color-scheme" content="dark">' in h
+          assert "const VERSION='2026.09.03.8'" in r
+          assert 'cs-ui-block2' in r
+          assert 'grid-template-columns:minmax(0,1.08fr)' in r
+          assert '.plan.featured' in r and '.faq details' in r and '.fire' in r
+          assert 'Microsoft Dynamics 365' not in rel
+          assert "'microsoft.com'" not in rel
+          assert 'VERSION="2026.09.03.11"' in rel
+          print('BLOCK2_UI_VALIDATION_OK')
+          PY
+      - name: Commit transformed production sources
+        run: |
+          if git diff --quiet -- web/commercial.html supabase/functions/cloudflare-site-brand-release/index.ts; then
+            echo 'Block 2 source already applied'
+            exit 0
+          fi
+          git config user.name 'CloudSales UI Block 2'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/commercial.html supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'feat(site): apply premium CloudSales commercial UI block 2'
+          git push origin HEAD:cloudsales-site-finish-20260903
