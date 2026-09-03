@@ -21,17 +21,22 @@ jobs:
           fetch-depth: 0
       - name: Activate certified catalog layer
         run: python3 .github/scripts/activate_certified_i18n_v3_20260903.py
+      - name: Add PWA same-origin CRM logo proxy
+        run: python3 .github/scripts/add_pwa_crm_logo_proxy_20260903.py
       - name: Validate commercial and PWA release source
         run: |
           grep -Fq '/cloudsales-static-i18n-v2.js' web/commercial.html
           grep -Fq '/cloudsales-static-i18n-v2.js' web/pwa.html
           ! grep -R -Fq '/subscribe?plan=pro' web/commercial.html web/commercial-sales-story-v1.js
+          ! grep -Fq 'logo.clearbit.com' web/pwa-polish-runtime-v1.js
+          grep -Fq '/crm-logo?domain=' web/pwa-polish-runtime-v1.js
           grep -Fq "cloudsales-pwa-2026.09.03.3-i18n-certified" web/sw.js
           grep -Fq 'VERSION="2026.09.03.11"' supabase/functions/cloudflare-site-brand-release/index.ts
           grep -Fq 'i18n_all_11' supabase/functions/cloudflare-site-brand-release/index.ts
           grep -Fq 'agentcloud_asset' supabase/functions/cloudflare-site-brand-release/index.ts
           grep -Fq 'VERSION="2026.09.03.3"' supabase/functions/cloudflare-pwa-brand-release/index.ts
           grep -Fq 'i18n_all_11' supabase/functions/cloudflare-pwa-brand-release/index.ts
+          grep -Fq 'crm_logo_proxy' supabase/functions/cloudflare-pwa-brand-release/index.ts
           test -f web/i18n/catalog-v1/manifest.json
           test -f web/i18n/catalog-v1/CERTIFIED
           for l in es en fr it pt-BR de ar-AE ru he zh-CN ja; do test -f "web/i18n/catalog-v1/$l.json"; done
