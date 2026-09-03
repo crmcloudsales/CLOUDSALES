@@ -1,0 +1,44 @@
+name: Remove Legacy Commercial Runtime 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/remove_legacy_commercial_runtime_20260903.py'
+      - '.github/workflows/remove-legacy-commercial-runtime-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: remove-legacy-commercial-runtime-20260903
+  cancel-in-progress: false
+jobs:
+  clean:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Remove legacy active runtime dependency
+        run: python3 .github/scripts/remove_legacy_commercial_runtime_20260903.py
+      - name: Validate canonical source
+        run: |
+          ! grep -Fq '<script src="/commercial-brand-runtime-v2.js' web/commercial.html
+          ! grep -Fq "if(!h.includes('/commercial-brand-runtime-v2.js'))" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq "if(p==='/commercial-brand-runtime-v2.js')" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq '#2D0A4A' web/commercial.html
+          grep -Fq '#F955B6' web/commercial.html
+          grep -Fq '#F3F4F8' web/commercial.html
+          grep -Fq '7 días gratis' web/commercial.html
+      - name: Commit final source cleanup
+        run: |
+          if git diff --quiet -- web/commercial.html supabase/functions/cloudflare-site-brand-release/index.ts; then
+            echo 'Legacy runtime already absent from active pages'
+            exit 0
+          fi
+          git config user.name 'CloudSales Finalizer'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/commercial.html supabase/functions/cloudflare-site-brand-release/index.ts
+          git commit -m 'refactor(commercial): remove legacy runtime from active pages'
+          git push origin HEAD:main
