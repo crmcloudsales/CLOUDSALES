@@ -250,7 +250,7 @@ write(bp,b)
 rp=ROOT/'supabase/functions/cloudflare-site-brand-release/index.ts'
 r=txt(rp) or ''
 r=canonical_colors(replace_trial_phrases(r))
-r=r.replace('VERSION="2026.09.03.3"','VERSION="2026.09.03.4"')
+r=r.replace('VERSION="2026.09.03.3"','VERSION="2026.09.03.5"').replace('VERSION="2026.09.03.4"','VERSION="2026.09.03.5"')
 r=r.replace('CONNECT YOUR CRM AND WATCH CLOUDY WORK','CONECTA TU CRM Y MIRA A CLOUDY TRABAJAR')
 # solid readable CRM call text; prevents Samsung/forced-dark from blackening gradient text
 r=r.replace('.cs-crm-call strong{background:linear-gradient(90deg,#F955B6,#C13BE4,#63a8ff);-webkit-background-clip:text;color:transparent}', '.cs-crm-call strong{background:none;color:#F955B6;-webkit-text-fill-color:#F955B6;text-shadow:0 0 22px #F955B644}')
