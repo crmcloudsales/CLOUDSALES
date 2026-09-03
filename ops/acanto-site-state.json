@@ -43,7 +43,9 @@
     "all_condominiums_have_long_rental_history": true,
     "published_units": [1,4,5,6,7,8,11,13,17,18,19],
     "villa_7_sqft": 2142,
-    "villa_7_metric_conversion_withheld_pending_source_reconciliation": true
+    "villa_7_metric_conversion_withheld_pending_source_reconciliation": true,
+    "cloudsales_canonical_inventory_synced": true,
+    "cloudsales_canonical_inventory_items": 11
   },
   "conversion": {
     "public_contact_mode": "landing_form_only",
@@ -54,7 +56,9 @@
     "mobile_sticky_cta": "request_information_only",
     "phone_field": "optional",
     "email_field": "required",
-    "villa_specific_interest_options": true
+    "villa_specific_interest_options": true,
+    "canonical_lead_form_key": "acanto_inquiry",
+    "canonical_lead_form_id": "39eacab0-b728-4f61-8842-99bbf0d9b08f"
   },
   "security": {
     "turnstile": "active_interaction_only",
@@ -69,6 +73,42 @@
     "min_accept_score": 60,
     "challenge_score": 40,
     "friction_policy": "security remains server-side; Turnstile appears only when interaction is required; lightweight PoW; phone is optional"
+  },
+  "cloudsales_workspace": {
+    "plan": "pro",
+    "timezone": "America/Cancun",
+    "blueprint": "cs_real_estate_v1",
+    "highlevel": {
+      "status": "connected",
+      "auth_mode": "private_integration",
+      "connection_id": "b8dd9210-20bc-4546-9101-7af87a986a3c",
+      "location_id": "RgdSeRJ2dNmeDNmOKAWJ",
+      "pipeline_id": "3KZSZkqUZyRwlmOZz5cS",
+      "pipeline_name": "CloudSales | Sales",
+      "pipeline_stages": ["New Lead", "Contacted", "Qualified", "Appointment", "Visited / Presented", "Offer / Negotiation", "Reservation / Deposit", "Won", "Lost / Nurture"],
+      "custom_fields_created": 24,
+      "gclid_field": "pending_google_connection",
+      "primary_sales_user_id": "2KKrZcpKm1hDkZcB9DFC",
+      "primary_sales_name": "Matthew Schilowits",
+      "primary_sales_email": "matt@acantohotels.com",
+      "sales_calendar_id": "wTqmiZkJwM0DAopunuRE",
+      "sales_calendar_name": "Matthew Schilowits's Personal Calendar",
+      "fallback_sales_user_id": "8IdUPHh1eVisSToDs7ME",
+      "fallback_sales_email": "info@acantohotels.com"
+    },
+    "lead_routing": {
+      "accepted": "Cloudy first response + HighLevel sync + opportunity in New Lead + Matthew operational alert",
+      "blocked_or_junk": "do not sync to CRM",
+      "appointment_calendar_id": "wTqmiZkJwM0DAopunuRE"
+    },
+    "cloudy": {
+      "status": "configured",
+      "language_mode": "auto English/Spanish",
+      "roles": ["Lead Qualifier", "Appointment Agent", "Follow-up Agent", "Marketing Agent"],
+      "guardrails": ["no invented inventory", "no guaranteed ROI or rental income", "no unverified promotions or financing", "respect opt-outs", "optimize for qualified leads and appointments"]
+    },
+    "onboarding_completed": ["connect_crm", "crm_connect", "domain_edge", "deploy_firewall", "turnstile_waf", "validation", "lead_capture", "configure_ai_agents"],
+    "onboarding_pending_real_dependencies": ["accept_legal", "connect_meta", "meta_capi", "connect_google", "connect_whatsapp", "connect_linkedin", "connect_tiktok", "crm_feedback", "attribution", "activate_events", "activate_conversion_signals", "qa"]
   },
   "seo": {
     "indexable": true,
@@ -93,14 +133,16 @@
     "public_phone_string_present": false,
     "public_whatsapp_string_present": false,
     "public_email_string_present": false,
-    "verified_at": "2026-09-03T02:42:29Z"
+    "site_verified_at": "2026-09-03T02:42:29Z",
+    "highlevel_provision_verified_at": "2026-09-03T03:03:46Z",
+    "workspace_sync_verified_at": "2026-09-03T03:09:00Z"
   },
   "notes": [
     "The official Acanto logo is source-derived from the supplied 2024 Acanto brochure; no AI-generated logo is used in production.",
-    "The right-side mobile overflow seen in the user screenshot is addressed with hard viewport-width constraints and full-width mobile wrappers.",
-    "The property gallery was reduced from 34 repetitive/dark-captioned items to 16 curated representative images across four categories.",
-    "Public phone, WhatsApp and email contact methods were removed from the rendered landing; direct lead conversion is through the secure form only.",
-    "Security was tuned for lower legitimate-user friction while retaining Turnstile, signed HMAC challenge, lightweight proof-of-work, honeypot, origin checks, server validation, rate limiting, idempotency and lead scoring.",
-    "Current pricing and availability remain marked subject to change; rental and investment language avoids guaranteed-return claims."
+    "Public phone, WhatsApp and email contact methods are removed from the rendered production landing; direct lead conversion is through the secure form only.",
+    "Security is tuned for lower legitimate-user friction while retaining Turnstile, signed HMAC challenge, lightweight proof-of-work, honeypot, origin checks, server validation, rate limiting, idempotency and lead scoring.",
+    "Current pricing and availability remain marked subject to change; rental and investment language avoids guaranteed-return claims.",
+    "No ads or outbound campaigns are active from this configuration pass. External advertising and messaging connections remain pending until explicitly connected and verified.",
+    "Final QA remains pending because ACANTO has not yet recorded a controlled or real accepted lead through the current production form-to-CRM path."
   ]
 }
