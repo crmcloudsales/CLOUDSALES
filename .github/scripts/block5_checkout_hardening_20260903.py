@@ -35,7 +35,7 @@ for f in FILES:
     p=ROOT/f;s=p.read_text(encoding='utf-8')
     # Replace the legacy id-global checkout script, preserving the rest of the page verbatim.
     pattern=r'<script>const F=[\s\S]*?</script>(?=</body>)'
-    if re.search(pattern,s): s=re.sub(pattern,SCRIPT,s,count=1)
+    if re.search(pattern,s): s=re.sub(pattern,lambda _m:SCRIPT,s,count=1)
     elif 'cs-secondary-checkout-20260903' not in s: raise SystemExit('checkout script marker missing in '+f)
     s=s.replace('<link rel="icon" href="/icon.svg">','<link rel="icon" type="image/png" href="/assets/cloudsales-app-icon-official-v4.png">')
     p.write_text(s,encoding='utf-8')
