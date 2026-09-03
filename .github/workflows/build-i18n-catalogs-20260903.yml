@@ -11,12 +11,12 @@ permissions:
   contents: write
   id-token: write
 concurrency:
-  group: cloudsales-i18n-static-catalog-v2
+  group: cloudsales-i18n-static-catalog-v3
   cancel-in-progress: true
 jobs:
   localize:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -37,6 +37,26 @@ jobs:
           new="function numericValues(s){return [...s.matchAll(/\\d+(?:[.,]\\d+)?/g)].map(m=>m[0].replace(',','.')).sort()}\nfunction currencyCodes(s){return [...s.matchAll(/\\b(?:USD|MXN|CAD|EUR|GBP|JPY|CNY|RMB|BRL|AED|ILS|RUB)\\b/gi)].map(m=>m[0].toUpperCase()).sort()}\nfunction validatePreservation(source,target){const a=numericValues(source),b=numericValues(target);if(JSON.stringify(a)!==JSON.stringify(b))throw new Error('numeric_preservation_failed: '+source.slice(0,80)+' => '+target.slice(0,80));const ca=currencyCodes(source),cb=currencyCodes(target);if(JSON.stringify(ca)!==JSON.stringify(cb))throw new Error('currency_preservation_failed: '+source.slice(0,80)+' => '+target.slice(0,80));const pa=(source.match(/%/g)||[]).length,pb=(target.match(/%/g)||[]).length;if(pa!==pb)throw new Error('percent_preservation_failed: '+source.slice(0,80)+' => '+target.slice(0,80));if(!ca.length&&/[$€£¥]/.test(source)&&!/[$€£¥]/.test(target))throw new Error('currency_symbol_missing: '+source.slice(0,80)+' => '+target.slice(0,80));for(const brand of ['CloudSales','Cloudy','AgentCloud','CloudCo','LISTIA','Stripe','PayPal','Binance'])if(source.includes(brand)&&!target.includes(brand))throw new Error('brand_preservation_failed_'+brand)}"
           if old not in s: raise SystemExit('money guard marker not found')
           p.write_text(s.replace(old,new,1))
+          PY
+      - name: Bound translation network calls and parallelize batches
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('.github/scripts/build_i18n_catalog_locale_20260903.mjs')
+          s=p.read_text()
+          old_fetch="for(let attempt=1;attempt<=3;attempt++)try{const r=await fetch(ENDPOINT,{method:'POST',headers:{Authorization:'Bearer '+token,'x-cloudsales-build':'i18n','content-type':'application/json'},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));"
+          new_fetch="for(let attempt=1;attempt<=3;attempt++)try{const ctl=new AbortController(),timer=setTimeout(()=>ctl.abort(),110000);let r;try{r=await fetch(ENDPOINT,{method:'POST',headers:{Authorization:'Bearer '+token,'x-cloudsales-build':'i18n','content-type':'application/json'},body:JSON.stringify(body),signal:ctl.signal})}finally{clearTimeout(timer)}const j=await r.json().catch(()=>({}));"
+          if old_fetch not in s: raise SystemExit('fetch timeout marker not found')
+          s=s.replace(old_fetch,new_fetch,1)
+          old_batches="function batches(items){const out=[];let cur=[],chars=0;for(const x of items){const n=x.text.length;if(cur.length&&(cur.length>=28||chars+n>11500)){out.push(cur);cur=[];chars=0}cur.push(x);chars+=n}if(cur.length)out.push(cur);return out}"
+          new_batches="function batches(items){const out=[];let cur=[],chars=0;for(const x of items){const n=x.text.length;if(cur.length&&(cur.length>=20||chars+n>8000)){out.push(cur);cur=[];chars=0}cur.push(x);chars+=n}if(cur.length)out.push(cur);return out}"
+          if old_batches not in s: raise SystemExit('batch sizing marker not found')
+          s=s.replace(old_batches,new_batches,1)
+          old_surface="async function translateSurface(list,surface){const result={},pending=[];for(const text of list){if(identityForTarget(text)){result[text]=text;continue}pending.push({id:idFor(text),text})}const bs=batches(pending);console.log(locale,surface,'sources',list.length,'identity',list.length-pending.length,'batches',bs.length);let done=0;for(const batch of bs){const tr=await translateBatch(batch,surface);for(const x of batch)result[x.text]=tr[x.id];done+=batch.length;console.log(locale,surface,'translated',done,'/',pending.length)}for(const s of list)if(typeof result[s]!=='string'||!result[s].trim())throw new Error('catalog_missing_'+surface+'_'+s.slice(0,60));return Object.fromEntries(Object.entries(result).sort(([a],[b])=>a.localeCompare(b)))}"
+          new_surface="async function translateSurface(list,surface){const result={},pending=[];for(const text of list){if(identityForTarget(text)){result[text]=text;continue}pending.push({id:idFor(text),text})}const bs=batches(pending);console.log(locale,surface,'sources',list.length,'identity',list.length-pending.length,'batches',bs.length);let done=0,cursor=0;async function worker(){while(true){const i=cursor++;if(i>=bs.length)return;const batch=bs[i],tr=await translateBatch(batch,surface);for(const x of batch)result[x.text]=tr[x.id];done+=batch.length;console.log(locale,surface,'translated',done,'/',pending.length)}}await Promise.all(Array.from({length:Math.min(2,bs.length)},()=>worker()));for(const s of list)if(typeof result[s]!=='string'||!result[s].trim())throw new Error('catalog_missing_'+surface+'_'+s.slice(0,60));return Object.fromEntries(Object.entries(result).sort(([a],[b])=>a.localeCompare(b)))}"
+          if old_surface not in s: raise SystemExit('surface parallelism marker not found')
+          s=s.replace(old_surface,new_surface,1)
+          p.write_text(s)
           PY
       - name: Generate ${{ matrix.locale }} static catalog
         env:
