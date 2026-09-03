@@ -1,0 +1,38 @@
+name: CloudSales Block 3 I18N Certification
+on:
+  push:
+    branches: [cloudsales-site-finish-20260903]
+    paths:
+      - '.github/workflows/block3-i18n-certification-20260903.yml'
+  workflow_dispatch:
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudsales-site-finish-20260903
+      - name: Syntax
+        run: |
+          node --check web/cloudsales-i18n-v1.js
+          node --check web/commercial-brand-runtime-v2.js
+          node --check web/commercial-sales-story-v1.js
+          node --check web/commercial-crm-bmp-v3.js
+      - name: Strict catalog coverage
+        run: node .github/scripts/i18n_strict_coverage_audit.js
+      - name: Visible commercial coverage report
+        run: node .github/scripts/i18n_visible_commercial_audit_20260903.js
+      - name: Core language invariants
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          i=Path('web/cloudsales-i18n-v1.js').read_text(encoding='utf-8')
+          r=Path('web/commercial-brand-runtime-v2.js').read_text(encoding='utf-8')
+          assert "const RTL=new Set(['ar-AE','he'])" in i
+          assert "const DEFAULT='en'" in i
+          assert '[data-cs-untranslated]{display:none!important}' not in i
+          assert 'dataset.csWritingMode' in i
+          assert '[dir="rtl"] .heroGrid' in r
+          print('BLOCK3_CERTIFIED_INVARIANTS_OK')
+          PY
