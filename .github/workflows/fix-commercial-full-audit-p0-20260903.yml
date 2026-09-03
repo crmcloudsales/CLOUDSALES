@@ -1,0 +1,42 @@
+name: Fix CloudSales Commercial Full Audit P0
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/fix_commercial_full_audit_p0_20260903.py'
+      - '.github/workflows/fix-commercial-full-audit-p0-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: cloudsales-commercial-full-audit-p0
+  cancel-in-progress: false
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Apply full-audit P0 corrections
+        run: python3 .github/scripts/fix_commercial_full_audit_p0_20260903.py
+      - name: Validate corrected source
+        run: |
+          ! grep -R -Fq '/subscribe?plan=pro' web/commercial.html web/commercial-sales-story-v1.js
+          grep -Fq 'href="#pricing"' web/commercial.html
+          for f in web/cloudco.html web/academy.html web/services.html web/affiliate.html web/terms.html web/privacy.html web/usage-pricing.html web/commercial/domains-v2.html; do
+            grep -Fq '<meta name="color-scheme" content="light dark">' "$f"
+          done
+      - name: Commit corrections
+        run: |
+          if git diff --quiet -- web; then
+            echo 'Already corrected'
+            exit 0
+          fi
+          git config user.name 'CloudSales Full Audit'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/commercial.html web/commercial-sales-story-v1.js web/cloudco.html web/academy.html web/services.html web/affiliate.html web/terms.html web/privacy.html web/usage-pricing.html web/commercial/domains-v2.html
+          git commit -m 'fix(site): close commercial audit P0 findings'
+          git push origin HEAD:main
