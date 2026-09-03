@@ -1,0 +1,54 @@
+name: Promote Certified CloudSales I18N
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/i18n/catalog-v1/manifest.json'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: cloudsales-certified-i18n-promotion-v1
+  cancel-in-progress: true
+jobs:
+  promote:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Require all 11 certified catalogs
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const locales=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
+          const m=JSON.parse(fs.readFileSync('web/i18n/catalog-v1/manifest.json','utf8'));
+          for(const lc of locales){
+            const p=`web/i18n/catalog-v1/${lc}.json`;
+            if(!fs.existsSync(p))throw Error(`missing_${lc}`);
+            const j=JSON.parse(fs.readFileSync(p,'utf8'));
+            if(j.locale!==lc||!j.commercial||!j.pwa)throw Error(`invalid_${lc}`);
+            if(Object.keys(j.commercial).length<250||Object.keys(j.pwa).length<100)throw Error(`coverage_${lc}`);
+            if(!m.locales?.[lc])throw Error(`manifest_${lc}`);
+          }
+          console.log('11 certified catalogs present');
+          NODE
+      - name: Wire certified catalogs into both surfaces
+        run: python3 .github/scripts/promote_certified_i18n_20260903.py
+      - name: Validate runtime and canonical wiring
+        run: |
+          node --check web/cloudsales-static-i18n-v2.js
+          for f in web/commercial.html web/cloudco.html web/academy.html web/services.html web/affiliate.html web/terms.html web/privacy.html web/commercial/domains-v2.html web/usage-pricing.html web/pwa.html; do grep -Fq '/cloudsales-static-i18n-v2.js' "$f"; done
+          grep -Fq "loadI18nCatalogs(RAW,'commercial')" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq 'const catalogs=await loadI18nCatalogs(RAW);' supabase/functions/cloudflare-pwa-brand-release/index.ts
+          ! grep -Fq "return (L[lc]||{})[text]||EN[text]||text" web/pwa-i18n-runtime-v1.js
+      - name: Commit atomic localization promotion
+        run: |
+          git config user.name 'CloudSales I18N Promotion'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web supabase/functions/cloudflare-site-brand-release/index.ts supabase/functions/cloudflare-pwa-brand-release/index.ts
+          if git diff --cached --quiet; then echo 'Promotion already current'; exit 0; fi
+          git commit -m 'feat(i18n): wire certified 11-language catalogs into web and PWA'
+          git push origin HEAD:main
