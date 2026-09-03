@@ -1,0 +1,28 @@
+name: Remove Dynamics Commercial 2026-09-03
+on:
+  push:
+    paths:
+      - '.github/scripts/remove_dynamics_commercial_20260903.py'
+      - '.github/triggers/remove-dynamics-commercial-20260903.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove Dynamics 365 from commercial sources
+        run: python3 .github/scripts/remove_dynamics_commercial_20260903.py
+      - name: Validate
+        run: |
+          node --check web/commercial-brand-runtime-v2.js
+          ! grep -q 'Dynamics 365' web/commercial-brand-runtime-v2.js
+          ! grep -q "'Dynamics 365':'microsoft.com'" web/commercial.html
+      - name: Commit
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/commercial.html web/commercial-brand-runtime-v2.js
+          if git diff --cached --quiet; then echo 'No changes'; exit 0; fi
+          git commit -m 'fix(commercial): remove Dynamics 365 everywhere'
+          git push
