@@ -1,0 +1,46 @@
+name: Fix CloudSales I18N Numeric Preservation
+on:
+  push:
+    branches: [cloudsales-site-finish-20260903]
+    paths:
+      - '.github/scripts/fix_i18n_builder_numeric_preservation_20260903.py'
+      - '.github/workflows/fix-i18n-builder-numeric-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: cloudsales-i18n-numeric-preservation
+  cancel-in-progress: false
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudsales-site-finish-20260903
+          fetch-depth: 0
+      - name: Patch catalog builder
+        run: python3 .github/scripts/fix_i18n_builder_numeric_preservation_20260903.py
+      - name: Validate builder syntax
+        run: node --check .github/scripts/build_i18n_catalog_locale_20260903.mjs
+      - name: Validate deterministic preservation markers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          s=Path('.github/scripts/build_i18n_catalog_locale_20260903.mjs').read_text(encoding='utf-8')
+          for x in ['function protectSensitive(text)','function restoreSensitive(text,tokens)','const protectedItems=items.map','const protectedById=new Map','numeric_placeholder_missing_']:
+              assert x in s,x
+          print('NUMERIC_PRESERVATION_BUILDER_OK')
+          PY
+      - name: Commit builder fix
+        run: |
+          if git diff --quiet -- .github/scripts/build_i18n_catalog_locale_20260903.mjs; then
+            echo 'Builder already patched'
+            exit 0
+          fi
+          git config user.name 'CloudSales I18N Builder Fix'
+          git config user.email 'actions@users.noreply.github.com'
+          git add .github/scripts/build_i18n_catalog_locale_20260903.mjs
+          git commit -m 'fix(i18n): preserve exact prices and numeric tokens'
+          git push origin HEAD:cloudsales-site-finish-20260903
