@@ -5,7 +5,7 @@ on:
       - '.github/workflows/i18n-strict-coverage-audit.yml'
 permissions:
   contents: read
-# trigger 2026-09-02 retry
+# professional commercial release audit 2026-09-03
 jobs:
   audit:
     runs-on: ubuntu-latest
