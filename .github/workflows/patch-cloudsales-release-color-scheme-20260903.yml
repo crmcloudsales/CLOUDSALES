@@ -1,0 +1,41 @@
+name: Patch CloudSales Release Color Scheme 2026-09-03
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/patch_cloudsales_release_color_scheme_20260903.py'
+      - '.github/workflows/patch-cloudsales-release-color-scheme-20260903.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: patch-cloudsales-release-color-scheme-20260903
+  cancel-in-progress: false
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Align release smoke guard
+        run: python3 .github/scripts/patch_cloudsales_release_color_scheme_20260903.py
+      - name: Validate guardrails
+        run: |
+          grep -Fq '<meta name=\"color-scheme\" content=\"light dark\">' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq '<meta name="color-scheme" content="light dark">' .github/workflows/finalize-cloudsales-commercial-20260903.yml
+          grep -Fq 'VERSION="2026.09.03.7"' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -Fq 'cloudsales_site_official_brand_v16' supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit release guard only
+        run: |
+          if git diff --quiet -- supabase/functions/cloudflare-site-brand-release/index.ts .github/workflows/finalize-cloudsales-commercial-20260903.yml; then
+            echo 'CloudSales release guard already aligned'
+            exit 0
+          fi
+          git config user.name 'CloudSales Release Guard'
+          git config user.email 'actions@users.noreply.github.com'
+          git add supabase/functions/cloudflare-site-brand-release/index.ts .github/workflows/finalize-cloudsales-commercial-20260903.yml
+          git commit -m 'fix(release): preserve Samsung-safe canonical color scheme'
+          git push origin HEAD:main
