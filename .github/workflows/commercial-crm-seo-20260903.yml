@@ -1,0 +1,28 @@
+name: Commercial CRM SEO 2026-09-03
+on:
+  push:
+    paths:
+      - '.github/scripts/commercial_crm_seo_20260903.py'
+      - '.github/triggers/commercial-crm-seo-20260903.txt'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add CRM SEO routes
+        run: python3 .github/scripts/commercial_crm_seo_20260903.py
+      - name: Validate
+        run: |
+          grep -q "p==='/sitemap.xml'" supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q 'https://cloudsales.app/crm</loc>' supabase/functions/cloudflare-site-brand-release/index.ts
+          grep -q "p==='/robots.txt'" supabase/functions/cloudflare-site-brand-release/index.ts
+      - name: Commit
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add supabase/functions/cloudflare-site-brand-release/index.ts
+          if git diff --cached --quiet; then echo 'No changes'; exit 0; fi
+          git commit -m 'feat(commercial): make CRM landing discoverable in sitemap'
+          git push
