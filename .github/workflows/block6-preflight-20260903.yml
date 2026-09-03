@@ -1,0 +1,39 @@
+name: CloudSales Block 6 Preflight
+on:
+  push:
+    branches: [cloudsales-site-finish-20260903]
+    paths:
+      - '.github/scripts/block6_preflight_20260903.py'
+      - '.github/workflows/block6-preflight-20260903.yml'
+      - 'web/**'
+      - 'supabase/functions/cloudflare-site-brand-release/**'
+  workflow_dispatch:
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cloudsales-site-finish-20260903
+      - name: Validate source contract
+        run: python3 .github/scripts/block6_preflight_20260903.py
+      - name: Validate JavaScript syntax
+        run: |
+          node --check web/cloudsales-i18n-v1.js
+          node --check web/commercial-brand-runtime-v2.js
+          node --check web/commercial-sales-story-v1.js
+          node --check web/commercial-crm-bmp-v3.js
+          node --check web/auth-runtime-v2.js
+          node --check web/cloudsales-static-i18n-v2.js
+      - name: Validate no conflict markers
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          bad=[]
+          for p in [Path('web/commercial.html'),Path('web/academy.html'),Path('web/services.html'),Path('web/affiliate.html'),Path('web/terms.html'),Path('web/privacy.html'),Path('web/usage-pricing.html'),Path('web/commercial/domains-v2.html')]:
+              s=p.read_text(encoding='utf-8')
+              if any(x in s for x in ['<<<<<<<','=======\n','>>>>>>>']): bad.append(str(p))
+          assert not bad,bad
+          print('NO_CONFLICT_MARKERS_OK')
+          PY
