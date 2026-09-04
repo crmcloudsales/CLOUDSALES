@@ -81,6 +81,7 @@ s=s.replace('while(n<900000)','while(n<100000)')
 s=s.replace('prefix:"000"','prefix:"00"')
 s=s.replace('startsWith("000")','startsWith("00")')
 s=s.replace('challenge:"pow-hmac"','challenge:"light-pow-hmac"')
+s=s.replace('challenge:"light-pow-hmac",inventory:','challenge:"light-pow-hmac+turnstile",turnstile:"cloudflare-managed",inventory:')
 p.write_text(s)
 
 # Make the provisioner enforce the browser/server contract before future publishes.
@@ -107,6 +108,12 @@ if 'turnstile_client_submit_missing' not in s:
     s=s.replace(needle,"if(!rawTmpl.includes('turnstile_token:turnstileToken'))throw new Error('turnstile_client_submit_missing');\n  const code=rawTmpl.split('__HTML_JSON__').join(JSON.stringify(html)),challengeSecret=crypto.randomUUID()+crypto.randomUUID()+crypto.randomUUID();",1)
     s=s.replace("anti_bot:'turnstile_pow_hmac_honeypot_rate_limit_server_validation'","anti_bot:'turnstile_honeypot_rate_limit_server_validation_light_pow'")
 
+# Handle both the old and the current lightweight challenge names in health diagnostics.
+old_health="x=x.replace('challenge:\"pow-hmac\",inventory:','challenge:\"pow-hmac+turnstile\",turnstile:\"cloudflare-managed\",inventory:');return x}"
+new_health="x=x.replace('challenge:\"pow-hmac\",inventory:','challenge:\"pow-hmac+turnstile\",turnstile:\"cloudflare-managed\",inventory:').replace('challenge:\"light-pow-hmac\",inventory:','challenge:\"light-pow-hmac+turnstile\",turnstile:\"cloudflare-managed\",inventory:');return x}"
+if old_health in s:
+    s=s.replace(old_health,new_health,1)
+
 if "turnstile_lifecycle_missing" not in s:
     needle="if(!rawTmpl.includes('turnstile_token:turnstileToken'))throw new Error('turnstile_client_submit_missing');"
     if needle not in s:
@@ -122,8 +129,10 @@ assert 'pennyworth_turnstile_lifecycle_v2' in worker
 assert 'remountTurnstile' in worker
 assert 'host.appendChild(card);remountTurnstile();' in worker
 assert "send.classList.remove('chat','whatsapp');remountTurnstile()" in worker
+assert 'turnstile:"cloudflare-managed"' in worker
 assert 'prefix:"00"' in worker
 assert 'while(n<900000)' not in worker
 prov=Path('supabase/functions/pennyworth-provision/index.ts').read_text()
 assert 'turnstile_client_submit_missing' in prov
 assert 'turnstile_lifecycle_missing' in prov
+assert 'light-pow-hmac+turnstile' in prov
