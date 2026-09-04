@@ -53,6 +53,7 @@ Deno.serve(async req=>{
   if(!html.includes('pennyworth-i18n-v1')||!html.includes('pennyworth-cloudsales-v1')||html.includes('content="noindex'))throw new Error('live_contract_failed');
   if(!rawTmpl.includes('__HTML_JSON__'))throw new Error('template_placeholder_missing');
   if(!rawTmpl.includes('turnstile_token:turnstileToken'))throw new Error('turnstile_client_submit_missing');
+  if(!rawTmpl.includes('pennyworth_turnstile_lifecycle_v2')||!rawTmpl.includes('remountTurnstile'))throw new Error('turnstile_lifecycle_missing');
   const code=rawTmpl.split('__HTML_JSON__').join(JSON.stringify(html)),challengeSecret=crypto.randomUUID()+crypto.randomUUID()+crypto.randomUUID();
   const up=await upload(token,code,edgeToken,challengeSecret,turnstileSecret);result.steps.worker_upload={ok:up.ok,status:up.status,errors:up.data?.errors||[]};if(!up.ok)throw new Error(`worker_upload_failed_${up.status}`);
   const at=await attach(token);result.steps.domain_attach=at;if(!at.ok)throw new Error(`domain_attach_failed_${at.status}`);
