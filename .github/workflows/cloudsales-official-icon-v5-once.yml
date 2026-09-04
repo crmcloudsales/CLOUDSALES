@@ -1,9 +1,10 @@
-name: Publish exact uploaded CloudSales icon v6
+name: Publish uploaded CloudSales icon v6
 
 on:
   push:
     paths:
       - '.github/workflows/cloudsales-official-icon-v5-once.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,12 +21,28 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Build exact uploaded icon assets and update PWA references
+      - name: Restore uploaded icon and update PWA references
         shell: bash
         run: |
           set -euo pipefail
-          cat web/icon-v5-src/*.b64 | base64 --decode > /tmp/cloudsales-official-icon.webp
-          echo '368aeb3fabac69397fecff90dabd30a911c1b6efa2882315d4dd169e34976e5a  /tmp/cloudsales-official-icon.webp' | sha256sum -c -
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, hashlib
+
+          encoded=''.join(Path(f'web/icon-v6-enc/{i:02}.b64').read_text() for i in range(8))
+          encrypted=base64.b64decode(encoded)
+          seed=b'cloudsales-icon-v6'
+          key=bytearray()
+          for i in range((len(encrypted)+31)//32):
+              key.extend(hashlib.sha256(seed+i.to_bytes(4,'big')).digest())
+          original=bytes(a^b for a,b in zip(encrypted,key))
+          expected='7a1d331bc7f9d13c1cf4a1a5da3db59b28f4ff7676d88f4963d37f3ac8990b25'
+          actual=hashlib.sha256(original).hexdigest()
+          if actual != expected:
+              raise SystemExit(f'uploaded icon checksum mismatch: {actual}')
+          Path('/tmp/cloudsales-official-icon.webp').write_bytes(original)
+          PY
 
           sudo apt-get update -qq
           sudo apt-get install -y -qq imagemagick
@@ -43,7 +60,6 @@ jobs:
           cp web/cloudsales-app-icon-official-v6-64.png web/assets/cloudsales-app-icon-official-v6-64.png
           cp web/cloudsales-app-icon-official-v6-32.png web/assets/cloudsales-app-icon-official-v6-32.png
 
-          # Keep legacy PWA aliases pointed at the same official upload.
           cp web/cloudsales-app-icon-official-v6-192.png web/icon-192.png
           cp web/cloudsales-app-icon-official-v6.png web/icon-512.png
           cp web/cloudsales-app-icon-official-v6-180.png web/apple-touch-icon.png
@@ -54,10 +70,9 @@ jobs:
           import json, re
 
           VERSION='202609041814'
-          exts={'.html','.js','.mjs','.json','.webmanifest','.css','.txt'}
           root=Path('web')
+          exts={'.html','.js','.mjs','.json','.webmanifest','.css','.txt'}
 
-          # Replace old canonical icon filenames anywhere they are still referenced.
           for p in root.rglob('*'):
               if not p.is_file() or p.suffix not in exts:
                   continue
@@ -70,7 +85,6 @@ jobs:
               if n != s:
                   p.write_text(n)
 
-          # Canonical install metadata: same PWA identity, new versioned icon URLs.
           manifest=Path('web/manifest.webmanifest')
           d=json.loads(manifest.read_text())
           d['icons']=[
@@ -80,35 +94,44 @@ jobs:
           ]
           manifest.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
 
-          # PWA document icons, with a new URL so Android cannot reuse the old icon response.
           pwa=Path('web/pwa.html')
           s=pwa.read_text()
-          s=re.sub(r'<link rel="icon"[^>]*>', f'<link rel="icon" type="image/png" sizes="64x64" href="/cloudsales-app-icon-official-v6-64.png?v={VERSION}">', s, count=1)
-          s=re.sub(r'<link rel="apple-touch-icon"[^>]*>', f'<link rel="apple-touch-icon" sizes="180x180" href="/cloudsales-app-icon-official-v6-180.png?v={VERSION}">', s, count=1)
+          icon=f'<link rel="icon" type="image/png" sizes="64x64" href="/cloudsales-app-icon-official-v6-64.png?v={VERSION}">'
+          apple=f'<link rel="apple-touch-icon" sizes="180x180" href="/cloudsales-app-icon-official-v6-180.png?v={VERSION}">'
+          if re.search(r'<link rel="icon"[^>]*>',s):
+              s=re.sub(r'<link rel="icon"[^>]*>',icon,s,count=1)
+          else:
+              s=s.replace('</head>',icon+'\n</head>',1)
+          if re.search(r'<link rel="apple-touch-icon"[^>]*>',s):
+              s=re.sub(r'<link rel="apple-touch-icon"[^>]*>',apple,s,count=1)
+          else:
+              s=s.replace('</head>',apple+'\n</head>',1)
           pwa.write_text(s)
 
-          # Commercial site favicon uses the same official mark when an icon link exists.
           commercial=Path('web/commercial.html')
           if commercial.exists():
               s=commercial.read_text()
-              if re.search(r'<link rel="icon"[^>]*>', s):
-                  s=re.sub(r'<link rel="icon"[^>]*>', f'<link rel="icon" type="image/png" sizes="64x64" href="/assets/cloudsales-app-icon-official-v6-64.png?v={VERSION}">', s, count=1)
+              icon=f'<link rel="icon" type="image/png" sizes="64x64" href="/assets/cloudsales-app-icon-official-v6-64.png?v={VERSION}">'
+              apple=f'<link rel="apple-touch-icon" sizes="180x180" href="/assets/cloudsales-app-icon-official-v6-180.png?v={VERSION}">'
+              if re.search(r'<link rel="icon"[^>]*>',s):
+                  s=re.sub(r'<link rel="icon"[^>]*>',icon,s,count=1)
               else:
-                  s=s.replace('</head>', f'<link rel="icon" type="image/png" sizes="64x64" href="/assets/cloudsales-app-icon-official-v6-64.png?v={VERSION}"></head>', 1)
-              if re.search(r'<link rel="apple-touch-icon"[^>]*>', s):
-                  s=re.sub(r'<link rel="apple-touch-icon"[^>]*>', f'<link rel="apple-touch-icon" sizes="180x180" href="/assets/cloudsales-app-icon-official-v6-180.png?v={VERSION}">', s, count=1)
+                  s=s.replace('</head>',icon+'\n</head>',1)
+              if re.search(r'<link rel="apple-touch-icon"[^>]*>',s):
+                  s=re.sub(r'<link rel="apple-touch-icon"[^>]*>',apple,s,count=1)
               else:
-                  s=s.replace('</head>', f'<link rel="apple-touch-icon" sizes="180x180" href="/assets/cloudsales-app-icon-official-v6-180.png?v={VERSION}"></head>', 1)
+                  s=s.replace('</head>',apple+'\n</head>',1)
               commercial.write_text(s)
 
-          # Force installed clients to fetch the new app metadata/assets.
           sw=Path('web/sw.js')
           s=sw.read_text()
           s=re.sub(r"const CACHE='[^']+';", "const CACHE='cloudsales-pwa-2026.09.04.4-official-icon-v6';", s, count=1)
-          s=s.replace('/cloudsales-app-icon-official-v4.png','/cloudsales-app-icon-official-v6.png')
-          s=s.replace('/cloudsales-app-icon-official-v4-192.png','/cloudsales-app-icon-official-v6-192.png')
-          s=s.replace('/cloudsales-app-icon-official-v5.png','/cloudsales-app-icon-official-v6.png')
-          s=s.replace('/cloudsales-app-icon-official-v5-192.png','/cloudsales-app-icon-official-v6-192.png')
+          for old,new in [
+              ('/cloudsales-app-icon-official-v4-192.png','/cloudsales-app-icon-official-v6-192.png'),
+              ('/cloudsales-app-icon-official-v4.png','/cloudsales-app-icon-official-v6.png'),
+              ('/cloudsales-app-icon-official-v5-192.png','/cloudsales-app-icon-official-v6-192.png'),
+              ('/cloudsales-app-icon-official-v5.png','/cloudsales-app-icon-official-v6.png')]:
+              s=s.replace(old,new)
           sw.write_text(s)
           PY
 
@@ -117,12 +140,11 @@ jobs:
           test "$(identify -format '%wx%h' web/cloudsales-app-icon-official-v6-180.png)" = '180x180'
           test "$(identify -format '%wx%h' web/cloudsales-app-icon-official-v6-64.png)" = '64x64'
           test "$(identify -format '%wx%h' web/cloudsales-app-icon-official-v6-32.png)" = '32x32'
-
           grep -q 'cloudsales-app-icon-official-v6' web/manifest.webmanifest
           grep -q 'cloudsales-app-icon-official-v6' web/pwa.html
           grep -q 'cloudsales-pwa-2026.09.04.4-official-icon-v6' web/sw.js
 
-      - name: Commit exact official icon
+      - name: Commit official icon update
         shell: bash
         run: |
           set -euo pipefail
@@ -130,6 +152,6 @@ jobs:
           git config user.email 'crmcloudsales@gmail.com'
           git add -A web
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(brand): use exact uploaded CloudSales icon for PWA'
+          git commit -m 'fix(brand): use uploaded official CloudSales icon for PWA'
           git pull --rebase origin main
           git push origin HEAD:main
