@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.09.04.3-billing-refresh';
+const CACHE='cloudsales-pwa-2026.09.04.4-official-icon-v6';
 const LOCALES=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
 const I18N=[
   '/cloudsales-static-i18n-v2.js',
@@ -7,8 +7,8 @@ const I18N=[
 ];
 const CORE=[
   '/',
-  '/cloudsales-app-icon-official-v4.png',
-  '/cloudsales-app-icon-official-v4-192.png',
+  '/cloudsales-app-icon-official-v6.png',
+  '/cloudsales-app-icon-official-v6-192.png',
   '/manifest.webmanifest',
   '/install.js',
   '/auth-runtime-v2.js',
