@@ -3,6 +3,11 @@
 Status: ACTIVE / CANONICAL
 Brand: CloudSales
 Owner: CloudCo Email Engine
+Parent standard: `docs/CLOUDCO_UNIVERSAL_CLEAN_DESIGN_STANDARD.md` (UCDS-1)
+
+## Universal design inheritance
+
+This email standard inherits the CloudCo Universal Clean Design & Communication Standard. Every CloudSales email must therefore remain clean, elegant, professional, simple and brand-first. One purpose, one dominant message, one real differentiator when relevant, and one primary CTA. Do not over-explain, over-sell, add visual noise or fill empty space with unnecessary content.
 
 ## Principle
 
