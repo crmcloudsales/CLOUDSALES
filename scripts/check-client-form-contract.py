@@ -20,9 +20,10 @@ def html_contract(client, path):
         must(text,'turnstile_token:token',f'{client}:{path.name}')
         must(text,'cf-turnstile',f'{client}:{path.name}')
     elif client=='pennyworth':
-        must(text,"cf-turnstile-response",f'{client}:{path.name}')
-        must(text,'turnstile_token:turnstileToken',f'{client}:{path.name}')
+        must(text,'turnstile_token:',f'{client}:{path.name}')
         must(text,'cf-turnstile',f'{client}:{path.name}')
+        must(text,"fetch('/challenge?id=",f'{client}:{path.name}')
+        must(text,'challenge:',f'{client}:{path.name}')
         if 'while(n<900000)' in text:
             fail.append(f'{client}:{path.name}: heavy proof-of-work is forbidden')
 
