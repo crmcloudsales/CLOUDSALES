@@ -7,9 +7,47 @@ Date: 2026-09-04
 
 CloudSales must behave like an application, not like a long website trapped inside a fixed viewport.
 
-The document/body must not become the navigation mechanism. Tapping a primary action changes the current app window/view. Long information is split into focused internal windows, lists or sheets. Internal lists may scroll when needed; the app document itself must not require vertical page scrolling for primary navigation.
+The document/body must never become the navigation mechanism. Tapping a primary action changes the current app window/view.
+
+### ZERO-SCROLL RULE — CANONICAL
+
+CloudSales should not require vertical or horizontal scrolling anywhere in the normal app experience.
+
+This applies to:
+- primary pages;
+- secondary pages;
+- lists;
+- cards;
+- dashboards;
+- chats;
+- pipeline;
+- inventory;
+- files;
+- settings;
+- modals and sheets.
+
+When information does not fit in one viewport, DO NOT make the user scroll. Split the information into focused windows and let the user move between those windows using tabs, next/previous controls, paging, contextual buttons, drill-down views or a dedicated detail window.
+
+One viewport = one understandable decision surface.
+
+Scrolling is not navigation in CloudSales.
 
 CloudSales reduces software complexity. It does not reproduce HighLevel's entire navigation tree.
+
+## CloudCo product philosophy inherited by CloudSales
+
+Every CloudSales experience must follow the CloudCo operating philosophy:
+
+1. Minimum friction.
+2. Minimum complexity.
+3. Clean, elegant and professional UI.
+4. The user should see decisions, priorities and outcomes — not software complexity.
+5. Cloudy and AgentCloud do the operational work; the user decides, approves, rejects, corrects or gives direction.
+6. One screen should communicate one clear purpose.
+7. Do not expose provider terminology, implementation details or technical keys when a human label exists.
+8. Do not force users to hunt, scroll or study a dashboard to understand what matters.
+9. If information is secondary, move it to another window rather than stacking it below.
+10. Every design must work for an entrepreneur, a business and a company.
 
 ## User model
 
@@ -23,7 +61,7 @@ The user should understand the app without learning CRM terminology first.
 ## Five canonical bottom actions
 
 1. HOME — daily command center
-2. INVENTORY — what the business can sell and what is available
+2. INVENTORY — what the business can sell now
 3. CLOUDY — central AI assistant/operator, official Cloudy head, voice-first
 4. MARKETING — campaigns, content, spend, demand and performance
 5. MORE — eight simplified operational modules
@@ -32,9 +70,17 @@ The middle Cloudy action is visually dominant but still clean. It breathes/pulse
 
 ### Why Inventory remains primary
 
-Inventory is the second business priority after daily execution: what the business has, what is available, what is selling and what is not. CloudSales is service-commerce aware, so Inventory includes products, services and the public website/catalog representation of the offer.
+Inventory is the second business priority after daily execution: what the business has available to sell right now. CloudSales is service-commerce aware, so Inventory mirrors the products and services published on the user's website.
 
-AI Chat remains one tap away inside More. Usage telemetry may justify promoting AI Chat later without changing the data architecture.
+The default Inventory summary is intentionally minimal:
+- Title
+- Price
+- Description
+
+Inventory changes as the business sells, publishes, removes or replaces offers. CloudSales must support the cycle:
+publish -> sell -> update -> sell again -> repeat.
+
+AI Chat remains one tap away inside More.
 
 ## HOME — what matters today
 
@@ -62,28 +108,32 @@ Home internal windows:
 - AGENDA
 - APPROVALS
 
+If a window contains more records than fit on screen, paginate the records. Never extend the page downward.
+
 No fabricated metrics. Empty states must explain what connection/data is needed.
 
 ## INVENTORY — service-commerce offer control
 
-Inventory combines the business offer in one place:
-- Products
-- Services
-- Availability/status
-- Price/current offer metadata where relevant
-- Website/catalog visibility
-- Sales velocity / what is moving
-- What is not moving
-- Low/zero availability or stale offer warnings
-- Add/update item
+Inventory is the live sellable offer from the user's website.
 
-This is not the Marketing screen. Marketing creates demand; Inventory defines what can be sold.
+Default item summary:
+- Title
+- Price
+- Description
 
-Internal windows:
-- ALL
-- PRODUCTS
-- SERVICES
-- WEBSITE
+Do not clutter Inventory with provider metadata, technical statuses or unnecessary controls.
+
+If more products or services exist than fit in one viewport, show the next set through paging controls. Do not scroll.
+
+Cloudy should combine Inventory + Sales signals so it can identify:
+- what is selling;
+- what is not selling;
+- what should be promoted;
+- what should be replaced;
+- what demand is emerging;
+- what deserves less attention.
+
+This creates the repeating CloudSales cycle: sell, learn, adjust, sell again.
 
 ## CLOUDY — one-action AI operator
 
@@ -106,6 +156,8 @@ Interaction:
 
 Cloudy uses the official character/head and must never be shown as a cloud icon or generic robot.
 
+Conversation history must not turn into a long scrolling transcript. Show the active exchange and use history/detail navigation for older content.
+
 ## MARKETING — demand and growth control
 
 Marketing is a primary surface because CloudSales is intended to replace the complexity of coordinating agencies, freelancers and fragmented marketing tools.
@@ -126,6 +178,8 @@ Internal windows:
 - CONTENT
 - SPEND
 
+Each window must fit the viewport. Additional records use paging or drill-down windows, never scroll.
+
 ## MORE — HighLevel complexity collapsed into eight modules
 
 HighLevel exposes hundreds of routes and many product areas. CloudSales deliberately collapses the operational surface into eight understandable modules.
@@ -142,6 +196,8 @@ Display these in a 4 × 2 sheet/grid in this exact priority order, with BILLING 
 8. BILLING — subscription, usage, invoices/payment/account/security essentials
 
 The user should not need to know which underlying provider implements a capability.
+
+All eight modules inherit the zero-scroll rule. Records are paged or opened in dedicated windows.
 
 ## HighLevel simplification map
 
@@ -166,14 +222,20 @@ Inherit UCDS-1:
 - no overloaded dashboards;
 - no decorative feature walls;
 - no tiny text;
-- no important information hidden below an unscrollable viewport;
-- use internal windows instead of document scroll;
+- minimum operational font size: 12 px;
+- no important information hidden below the viewport;
+- no vertical or horizontal scroll in normal app use;
+- use windows, tabs, paging and drill-down views instead of scroll;
 - one dominant task per view;
 - minimum friction and minimum complexity;
 - mobile-first touch targets;
 - consistent icons and labels;
 - real data only.
 
+When in doubt between stacking more information onto the current screen or creating another focused window, create the focused window.
+
 ## Technical migration rule
 
 Do not solve this architecture by stacking new DOM-mutating patch runtimes indefinitely. Existing compatibility runtimes may be used during migration, but the target is a single canonical PWA source/shell. Every migrated feature should reduce, not increase, the number of competing navigation/layout layers.
+
+The migration is complete only when each page has a native fixed-window implementation and no hidden legacy content depends on scroll for access.
