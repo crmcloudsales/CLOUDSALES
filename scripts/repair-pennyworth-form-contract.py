@@ -43,6 +43,40 @@ if 'turnstile_token:turnstileToken' not in s:
     if catch not in s:
         raise SystemExit('worker client catch marker missing')
     s=s.replace(catch,repl,1)
+
+# Critical mobile/shared-form fix: an already-rendered Turnstile iframe becomes invalid when the
+# physical form card is moved into/out of the floating CHAT/WhatsApp panel. Own the lifecycle
+# explicitly and re-render a fresh widget every time the form changes DOM location.
+if 'pennyworth_turnstile_lifecycle_v2' not in s:
+    css='.pwFormHost .submit.chat{background:#635BFF;color:#fff}.pwFormHost .submit.whatsapp{background:#25D366;color:#fff}'
+    if css not in s:
+        raise SystemExit('worker turnstile css anchor missing')
+    s=s.replace(css,css+'.pwTurnstileMount{min-height:65px;margin-top:14px;display:flex;align-items:center}',1)
+
+    anchor="function show(t,ok){status.className='status '+(ok?'ok':'err');status.textContent=t}function clearStatus(){status.className='status';status.textContent=''}"
+    if anchor not in s:
+        raise SystemExit('worker turnstile lifecycle anchor missing')
+    lifecycle=anchor+"\nconst pennyworth_turnstile_lifecycle_v2='active',turnstileSeed=form.querySelector('.cf-turnstile'),TURNSTILE_SITEKEY=turnstileSeed?.dataset?.sitekey||'"+SITEKEY+"';let turnstileGeneration=0,turnstileWidget=null;function remountTurnstile(){const current=form.querySelector('.cf-turnstile,.pwTurnstileMount');if(!current)return;const fresh=document.createElement('div');fresh.className='pwTurnstileMount';fresh.dataset.pwTurnstile='1';current.replaceWith(fresh);const generation=++turnstileGeneration;turnstileWidget=null;const render=()=>{if(generation!==turnstileGeneration||!fresh.isConnected)return;if(!window.turnstile){setTimeout(render,120);return}try{turnstileWidget=window.turnstile.render(fresh,{sitekey:TURNSTILE_SITEKEY,theme:'dark',callback:()=>clearStatus(),'expired-callback':()=>show('La verificación expiró. Confirma nuevamente.',false),'error-callback':()=>show('No pudimos cargar la verificación de seguridad. Intenta nuevamente.',false)})}catch{setTimeout(render,180)}};render()}remountTurnstile();"
+    s=s.replace(anchor,lifecycle,1)
+
+    old_restore="function restoreForm(){if(anchor.parentNode)anchor.parentNode.insertBefore(card,anchor.nextSibling);card.style.display='';host.style.display='';chatBox.classList.remove('active');if(title)title.textContent=original.title;if(sub)sub.textContent=original.sub;send.textContent=original.button;send.classList.remove('chat','whatsapp')}"
+    new_restore="function restoreForm(){if(anchor.parentNode)anchor.parentNode.insertBefore(card,anchor.nextSibling);card.style.display='';host.style.display='';chatBox.classList.remove('active');if(title)title.textContent=original.title;if(sub)sub.textContent=original.sub;send.textContent=original.button;send.classList.remove('chat','whatsapp');remountTurnstile()}"
+    if old_restore not in s:
+        raise SystemExit('worker restore form anchor missing')
+    s=s.replace(old_restore,new_restore,1)
+
+    move='host.appendChild(card);host.style.display='
+    if move not in s:
+        raise SystemExit('worker modal move anchor missing')
+    s=s.replace(move,'host.appendChild(card);remountTurnstile();host.style.display=',1)
+
+    success="}else{form.reset();show('Gracias. Tu solicitud fue recibida correctamente.',true)}}catch(err){"
+    if success not in s:
+        raise SystemExit('worker landing success anchor missing')
+    s=s.replace(success,"}else{form.reset();remountTurnstile();show('Gracias. Tu solicitud fue recibida correctamente.',true)}}catch(err){",1)
+
+    s=s.replace(";if(window.turnstile)turnstile.reset()",";remountTurnstile()",1)
+
 s=s.replace('while(n<900000)','while(n<100000)')
 s=s.replace('prefix:"000"','prefix:"00"')
 s=s.replace('startsWith("000")','startsWith("00")')
@@ -72,12 +106,24 @@ if 'turnstile_client_submit_missing' not in s:
         raise SystemExit('provision code marker missing')
     s=s.replace(needle,"if(!rawTmpl.includes('turnstile_token:turnstileToken'))throw new Error('turnstile_client_submit_missing');\n  const code=rawTmpl.split('__HTML_JSON__').join(JSON.stringify(html)),challengeSecret=crypto.randomUUID()+crypto.randomUUID()+crypto.randomUUID();",1)
     s=s.replace("anti_bot:'turnstile_pow_hmac_honeypot_rate_limit_server_validation'","anti_bot:'turnstile_honeypot_rate_limit_server_validation_light_pow'")
+
+if "turnstile_lifecycle_missing" not in s:
+    needle="if(!rawTmpl.includes('turnstile_token:turnstileToken'))throw new Error('turnstile_client_submit_missing');"
+    if needle not in s:
+        raise SystemExit('provision lifecycle assertion anchor missing')
+    s=s.replace(needle,needle+"\n  if(!rawTmpl.includes('pennyworth_turnstile_lifecycle_v2')||!rawTmpl.includes('remountTurnstile'))throw new Error('turnstile_lifecycle_missing');",1)
 p.write_text(s)
 
 # Contract assertions: fail rather than silently publish a broken browser/server pair.
 assert 'turnstile_token:turnstileToken' in Path('web/clients/pennyworth/landing-edge.html').read_text()
 worker=Path('web/clients/pennyworth/worker-edge-template.mjs').read_text()
 assert 'turnstile_token:turnstileToken' in worker
+assert 'pennyworth_turnstile_lifecycle_v2' in worker
+assert 'remountTurnstile' in worker
+assert 'host.appendChild(card);remountTurnstile();' in worker
+assert "send.classList.remove('chat','whatsapp');remountTurnstile()" in worker
 assert 'prefix:"00"' in worker
 assert 'while(n<900000)' not in worker
-assert 'turnstile_client_submit_missing' in Path('supabase/functions/pennyworth-provision/index.ts').read_text()
+prov=Path('supabase/functions/pennyworth-provision/index.ts').read_text()
+assert 'turnstile_client_submit_missing' in prov
+assert 'turnstile_lifecycle_missing' in prov
