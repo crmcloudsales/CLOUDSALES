@@ -1,0 +1,81 @@
+name: Sync uploaded CloudSales icon to production aliases
+
+on:
+  push:
+    paths:
+      - '.github/workflows/cloudsales-icon-production-aliases-once.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Point all PWA icon aliases at the uploaded official icon
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f web/cloudsales-app-icon-official-v6.png
+          test -f web/cloudsales-app-icon-official-v6-192.png
+
+          mkdir -p web/assets
+          cp web/cloudsales-app-icon-official-v6.png web/assets/cloudsales-app-icon-official-v4.png
+          cp web/cloudsales-app-icon-official-v6-192.png web/assets/cloudsales-app-icon-official-v4-192.png
+          cp web/cloudsales-app-icon-official-v6.png web/cloudsales-app-icon-official-v4.png
+          cp web/cloudsales-app-icon-official-v6-192.png web/cloudsales-app-icon-official-v4-192.png
+          cp web/cloudsales-app-icon-official-v6.png web/cloudsales-favicon-official-v4.png
+          cp web/cloudsales-app-icon-official-v6.png web/icon-512.png
+          cp web/cloudsales-app-icon-official-v6-192.png web/icon-192.png
+          cp web/cloudsales-app-icon-official-v6-180.png web/apple-touch-icon.png
+          cp web/cloudsales-app-icon-official-v6-64.png web/favicon.png
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          V='202609041814'
+
+          m=Path('web/manifest.webmanifest')
+          d=json.loads(m.read_text())
+          d['icons']=[
+            {'src':f'/icon-192.png?v={V}','sizes':'192x192','type':'image/png','purpose':'any'},
+            {'src':f'/icon-512.png?v={V}','sizes':'512x512','type':'image/png','purpose':'any'},
+            {'src':f'/icon-512.png?v={V}','sizes':'512x512','type':'image/png','purpose':'maskable'}
+          ]
+          m.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
+
+          p=Path('web/pwa.html')
+          s=p.read_text()
+          s=re.sub(r'<link rel="icon"[^>]*>',f'<link rel="icon" type="image/png" sizes="64x64" href="/favicon.png?v={V}">',s,count=1)
+          s=re.sub(r'<link rel="apple-touch-icon"[^>]*>',f'<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v={V}">',s,count=1)
+          p.write_text(s)
+
+          sw=Path('web/sw.js')
+          s=sw.read_text()
+          s=s.replace('/cloudsales-app-icon-official-v6.png','/icon-512.png')
+          s=s.replace('/cloudsales-app-icon-official-v6-192.png','/icon-192.png')
+          sw.write_text(s)
+          PY
+
+          cmp web/cloudsales-app-icon-official-v6.png web/assets/cloudsales-app-icon-official-v4.png
+          cmp web/cloudsales-app-icon-official-v6-192.png web/assets/cloudsales-app-icon-official-v4-192.png
+          grep -q '/icon-512.png?v=202609041814' web/manifest.webmanifest
+          grep -q '/icon-192.png?v=202609041814' web/manifest.webmanifest
+
+      - name: Commit production alias sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'cloudsales-release-bot'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(brand): sync uploaded icon to production PWA aliases'
+          git pull --rebase origin main
+          git push origin HEAD:main
