@@ -1,0 +1,32 @@
+name: Activate Cloudy Voice Productivity Center
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/cloudy-productivity-runtime-v1.js'
+      - '.github/scripts/activate_cloudy_productivity_voice_20260904.py'
+      - '.github/workflows/activate-cloudy-productivity-voice-20260904.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  activate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch PWA
+        run: python .github/scripts/activate_cloudy_productivity_voice_20260904.py
+      - name: Commit activation
+        run: |
+          if git diff --quiet; then
+            echo 'No activation changes needed'
+            exit 0
+          fi
+          git config user.name 'crmcloudsales'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web/pwa.html
+          git commit -m 'feat(cloudy): activate voice-first productivity center in PWA'
+          git push
