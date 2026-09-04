@@ -7,8 +7,8 @@ const I18N=[
 ];
 const CORE=[
   '/',
-  '/cloudsales-app-icon-official-v6.png',
-  '/cloudsales-app-icon-official-v6-192.png',
+  '/icon-512.png',
+  '/icon-192.png',
   '/manifest.webmanifest',
   '/install.js',
   '/auth-runtime-v2.js',
