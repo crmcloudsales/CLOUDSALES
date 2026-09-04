@@ -1,0 +1,38 @@
+name: Form reliability contract
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/clients/pennyworth/**'
+      - 'web/clients/acanto/**'
+      - 'web/clients/meza/**'
+      - 'supabase/functions/pennyworth-provision/**'
+      - 'scripts/check-client-form-contract.py'
+  pull_request:
+    paths:
+      - 'web/clients/pennyworth/**'
+      - 'web/clients/acanto/**'
+      - 'web/clients/meza/**'
+      - 'supabase/functions/pennyworth-provision/**'
+      - 'scripts/check-client-form-contract.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Enforce form reliability and bot-protection contract
+        run: python3 scripts/check-client-form-contract.py
+      - name: Syntax check Workers
+        run: |
+          node --check web/clients/pennyworth/worker-edge-template.mjs
+          node --check web/clients/acanto/worker-edge-template.mjs
+          node --check web/clients/meza/worker-edge-template.mjs
