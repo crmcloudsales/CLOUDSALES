@@ -67,3 +67,4 @@ if fail:
         print(' -',item)
     raise SystemExit(1)
 print('FORM RELIABILITY CONTRACT PASSED: Pennyworth, Acanto, Meza')
+# CI canary: changing this file intentionally triggers the cross-client contract workflow.
