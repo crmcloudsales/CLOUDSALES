@@ -13,19 +13,23 @@ function json(b:unknown,s=200,o:string|null=null){return new Response(JSON.strin
 
 async function syncBufferInternalChannels(svc:any,org:string){
  const r=await listBufferChannels(svc,org); const wanted=new Set(['linkedin','tiktok','threads']); const synced:any[]=[];
+ const {data:c}=await svc.from('connections').select('id,metadata').eq('organization_id',org).eq('provider_key','buffer').maybeSingle();
+ if(!c?.id)throw new Error('buffer_connection_row_missing');
+ // A successful authenticated GraphQL channel read proves the stored credential is usable.
+ // Mark the organization-owned provider connection connected before any binding can become connected.
+ await svc.from('connections').update({status:'connected',external_account_name:'CloudSales Buffer account',metadata:{...(c.metadata||{}),setup_state:'backend_authorized_channel_sync_in_progress',expected_channels:['linkedin','tiktok','threads'],last_channel_sync_at:new Date().toISOString()},last_sync_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',c.id);
  for(const ch of r.channels||[]){
   const network=String(ch?.service||'').toLowerCase(); if(!wanted.has(network))continue;
   const providerChannelId=String(ch?.id||''); if(!providerChannelId)continue;
   const name=String(ch?.displayName||ch?.name||network);
-  await svc.from('channel_provider_bindings').upsert({organization_id:org,channel:network,provider_key:'buffer',provider_channel_id:providerChannelId,provider_account_id:String(ch?.serviceId||''),provider_channel_name:name,status:'connected',outbound_enabled:true,inbound_enabled:false,is_primary:true,capabilities:['social.publish','social.schedule','social.read'],metadata:{buffer_organization_id:String(ch?.organizationId||''),synced_at:new Date().toISOString()}},{onConflict:'organization_id,channel,provider_key,provider_channel_id'});
-  await svc.from('organization_channel_identities').update({status:'active',provider_identity_id:providerChannelId,metadata:{brand_key:'cloudsales',network,provider_side_connected:true,backend_auth_pending:false,buffer_organization_id:String(ch?.organizationId||''),service_id:String(ch?.serviceId||''),synced_at:new Date().toISOString()},updated_at:new Date().toISOString()}).eq('organization_id',org).eq('channel','social').eq('address',network);
+  // Remove the placeholder null-ID row before writing the verified provider channel binding.
+  await svc.from('channel_provider_bindings').delete().eq('organization_id',org).eq('channel',network).eq('provider_key','buffer').is('provider_channel_id',null);
+  await svc.from('channel_provider_bindings').upsert({organization_id:org,channel:network,provider_key:'buffer',connection_id:c.id,provider_channel_id:providerChannelId,provider_account_id:String(ch?.serviceId||''),provider_channel_name:name,status:'connected',outbound_enabled:true,inbound_enabled:false,is_primary:true,capabilities:['social.publish','social.schedule','social.read'],metadata:{buffer_organization_id:String(ch?.organizationId||''),synced_at:new Date().toISOString()}},{onConflict:'organization_id,channel,provider_key,provider_channel_id'});
+  await svc.from('organization_channel_identities').update({status:'active',connection_id:c.id,provider_identity_id:providerChannelId,metadata:{brand_key:'cloudsales',network,provider_side_connected:true,backend_auth_pending:false,buffer_organization_id:String(ch?.organizationId||''),service_id:String(ch?.serviceId||''),synced_at:new Date().toISOString()},updated_at:new Date().toISOString()}).eq('organization_id',org).eq('channel','social').eq('address',network);
   synced.push({network,provider_channel_id:providerChannelId,name});
  }
- if(synced.length){
-  const {data:c}=await svc.from('connections').select('id,metadata').eq('organization_id',org).eq('provider_key','buffer').maybeSingle();
-  if(c?.id)await svc.from('connections').update({status:'connected',external_account_name:'CloudSales Buffer account',metadata:{...(c.metadata||{}),setup_state:'connected_and_channels_synced',expected_channels:['linkedin','tiktok','threads'],synced_channels:synced,last_channel_sync_at:new Date().toISOString()},last_sync_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',c.id);
-  await svc.from('integration_readiness').update({status:'ready',next_action:'Run a controlled CloudSales test post to LinkedIn, TikTok and Threads.',notes:'Buffer backend credential verified and CloudSales channel IDs synchronized.',updated_at:new Date().toISOString()}).eq('provider_key','buffer');
- }
+ await svc.from('connections').update({metadata:{...(c.metadata||{}),setup_state:synced.length?'connected_and_channels_synced':'backend_authorized_no_expected_channels_found',expected_channels:['linkedin','tiktok','threads'],synced_channels:synced,last_channel_sync_at:new Date().toISOString()},last_sync_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',c.id);
+ if(synced.length)await svc.from('integration_readiness').update({status:'ready',next_action:'Run a controlled CloudSales test post to LinkedIn, TikTok and Threads.',notes:'Buffer backend credential verified and CloudSales channel IDs synchronized.',updated_at:new Date().toISOString()}).eq('provider_key','buffer');
  return {...r,synced};
 }
 
