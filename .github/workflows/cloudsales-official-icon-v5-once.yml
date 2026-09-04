@@ -19,11 +19,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cat web/icon-v5-src/*.b64 | base64 --decode > /tmp/cloudsales-official-icon.png
+          echo '8ad728550664fb0573b7dc1811bdd33e08f03ea86970c360da3aea010562c333  /tmp/cloudsales-official-icon.png' | sha256sum -c -
           sudo apt-get update -qq
           sudo apt-get install -y -qq imagemagick
-          SRC='web/cloudsales-official-icon-512.b64'
           OUT='web/cloudsales-app-icon-official-v5.png'
-          base64 --decode "$SRC" > "$OUT"
+          cp /tmp/cloudsales-official-icon.png "$OUT"
           convert "$OUT" -resize 192x192 web/cloudsales-app-icon-official-v5-192.png
           convert "$OUT" -resize 180x180 web/cloudsales-app-icon-official-v5-180.png
           convert "$OUT" -resize 64x64 web/cloudsales-app-icon-official-v5-64.png
@@ -36,6 +37,7 @@ jobs:
           cp web/cloudsales-app-icon-official-v5-32.png web/assets/cloudsales-app-icon-official-v5-32.png
           python3 - <<'PY'
           from pathlib import Path
+          import json,re
           exts={'.html','.js','.mjs','.json','.webmanifest','.css','.txt'}
           for p in Path('web').rglob('*'):
               if not p.is_file() or p.suffix not in exts: continue
@@ -43,40 +45,31 @@ jobs:
               except UnicodeDecodeError: continue
               n=s.replace('cloudsales-app-icon-official-v4','cloudsales-app-icon-official-v5')
               if n!=s: p.write_text(n)
-          # Force the exact official icon refs/cache bust on main public surfaces.
           manifest=Path('web/manifest.webmanifest')
-          s=manifest.read_text()
-          import json
-          d=json.loads(s)
+          d=json.loads(manifest.read_text())
           d['icons']=[
-            {'src':'/cloudsales-app-icon-official-v5-192.png?v=2026090417','sizes':'192x192','type':'image/png','purpose':'any'},
-            {'src':'/cloudsales-app-icon-official-v5.png?v=2026090417','sizes':'512x512','type':'image/png','purpose':'any'},
-            {'src':'/cloudsales-app-icon-official-v5.png?v=2026090417','sizes':'512x512','type':'image/png','purpose':'maskable'}
+            {'src':'/cloudsales-app-icon-official-v5-192.png?v=2026090418','sizes':'192x192','type':'image/png','purpose':'any'},
+            {'src':'/cloudsales-app-icon-official-v5.png?v=2026090418','sizes':'512x512','type':'image/png','purpose':'any'},
+            {'src':'/cloudsales-app-icon-official-v5.png?v=2026090418','sizes':'512x512','type':'image/png','purpose':'maskable'}
           ]
           manifest.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
-          # Commercial site favicon.
-          idx=Path('web/index.html')
-          x=idx.read_text()
-          import re
-          x=re.sub(r'<link rel="icon"[^>]*>', '<link rel="icon" type="image/png" sizes="32x32" href="/assets/cloudsales-app-icon-official-v5-32.png?v=2026090417"><link rel="icon" type="image/png" sizes="64x64" href="/assets/cloudsales-app-icon-official-v5-64.png?v=2026090417"><link rel="apple-touch-icon" sizes="180x180" href="/assets/cloudsales-app-icon-official-v5-180.png?v=2026090417">', x, count=1)
+          idx=Path('web/index.html'); x=idx.read_text()
+          x=re.sub(r'<link rel="icon"[^>]*>', '<link rel="icon" type="image/png" sizes="32x32" href="/assets/cloudsales-app-icon-official-v5-32.png?v=2026090418"><link rel="icon" type="image/png" sizes="64x64" href="/assets/cloudsales-app-icon-official-v5-64.png?v=2026090418"><link rel="apple-touch-icon" sizes="180x180" href="/assets/cloudsales-app-icon-official-v5-180.png?v=2026090418">', x, count=1)
           idx.write_text(x)
-          # App/PWA shell favicon + Apple home-screen icon.
-          app=Path('web/app.html')
-          a=app.read_text()
-          a=re.sub(r'<link rel="icon"[^>]*>', '<link rel="icon" type="image/png" sizes="32x32" href="/cloudsales-app-icon-official-v5-32.png?v=2026090417">', a, count=1)
-          a=re.sub(r'<link rel="apple-touch-icon"[^>]*>', '<link rel="apple-touch-icon" sizes="180x180" href="/cloudsales-app-icon-official-v5-180.png?v=2026090417">', a, count=1)
+          app=Path('web/app.html'); a=app.read_text()
+          a=re.sub(r'<link rel="icon"[^>]*>', '<link rel="icon" type="image/png" sizes="32x32" href="/cloudsales-app-icon-official-v5-32.png?v=2026090418">', a, count=1)
+          a=re.sub(r'<link rel="apple-touch-icon"[^>]*>', '<link rel="apple-touch-icon" sizes="180x180" href="/cloudsales-app-icon-official-v5-180.png?v=2026090418">', a, count=1)
           app.write_text(a)
           PY
-          file web/cloudsales-app-icon-official-v5.png
-          identify web/cloudsales-app-icon-official-v5.png web/cloudsales-app-icon-official-v5-192.png web/cloudsales-app-icon-official-v5-180.png web/cloudsales-app-icon-official-v5-64.png web/cloudsales-app-icon-official-v5-32.png
-          rm -f "$SRC"
+          identify "$OUT" web/cloudsales-app-icon-official-v5-192.png web/cloudsales-app-icon-official-v5-180.png web/cloudsales-app-icon-official-v5-64.png web/cloudsales-app-icon-official-v5-32.png
+          rm -rf web/icon-v5-src web/cloudsales-official-icon-512.b64
       - name: Commit official icon
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'cloudsales-release-bot'
           git config user.email 'crmcloudsales@gmail.com'
-          git add -A web .github/workflows/cloudsales-official-icon-v5-once.yml
+          git add -A web
           git diff --cached --quiet && exit 0
           git commit -m 'fix(brand): replace CloudSales PWA and favicon with official icon'
           git pull --rebase origin main
