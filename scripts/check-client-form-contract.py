@@ -39,6 +39,13 @@ def worker_contract(client, path):
         must(text,'siteverify',f'{client}:{path.name}')
     if client=='pennyworth':
         must(text,'turnstile_token:turnstileToken',f'{client}:{path.name}')
+        must(text,'pennyworth_turnstile_lifecycle_v2',f'{client}:{path.name}')
+        must(text,'remountTurnstile',f'{client}:{path.name}')
+        must(text,'host.appendChild(card);remountTurnstile();',f'{client}:{path.name}')
+        must(text,"send.classList.remove('chat','whatsapp');remountTurnstile()",f'{client}:{path.name}')
+        must(text,"formId='pennyworth_shared_'+channel+'_v2'",f'{client}:{path.name}')
+        must(text,"action:'chat.start'",f'{client}:{path.name}')
+        must(text,'chat_grant',f'{client}:{path.name}')
         if 'while(n<900000)' in text or 'prefix:"000"' in text:
             fail.append(f'{client}:{path.name}: heavy proof-of-work is forbidden')
 
@@ -58,6 +65,7 @@ if not prov.exists():
 else:
     text=prov.read_text()
     must(text,'turnstile_client_submit_missing','pennyworth-provision')
+    must(text,'turnstile_lifecycle_missing','pennyworth-provision')
     must(text,'TURNSTILE_SECRET','pennyworth-provision')
     must(text,'siteverify','pennyworth-provision')
     must(text,"replaceAll('while(n<900000)','while(n<100000)')",'pennyworth-provision')
@@ -68,4 +76,4 @@ if fail:
         print(' -',item)
     raise SystemExit(1)
 print('FORM RELIABILITY CONTRACT PASSED: Pennyworth, Acanto, Meza')
-# CI canary verified after repairing both current and legacy Pennyworth forms.
+# CI canary verifies current + legacy forms and Pennyworth shared CHAT/WhatsApp Turnstile lifecycle.
