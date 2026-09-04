@@ -32,11 +32,16 @@ async function gql(svc:any,organizationId:string,query:string,variables:Record<s
 export async function bufferConfigured(svc:any,organizationId:string){return Boolean(await token(svc,organizationId))}
 
 export async function listBufferChannels(svc:any,organizationId:string){
-  const q=`query CloudSalesChannels { account { organizations { id name channels { id name service } } } }`;
-  const data=await gql(svc,organizationId,q);
-  const orgs=Array.isArray(data?.account?.organizations)?data.account.organizations:[];
-  const channels=orgs.flatMap((o:any)=>(Array.isArray(o?.channels)?o.channels:[]).map((c:any)=>({...c,organizationId:o.id,organizationName:o.name})));
-  return {organizations:orgs.map((o:any)=>({id:o.id,name:o.name})),channels};
+  const orgData=await gql(svc,organizationId,`query CloudSalesOrganizations { account { organizations { id name } } }`);
+  const orgs=Array.isArray(orgData?.account?.organizations)?orgData.account.organizations:[];
+  const all:any[]=[];
+  for(const org of orgs){
+    const oid=String(org?.id||''); if(!oid)continue;
+    const data=await gql(svc,organizationId,`query CloudSalesChannels($organizationId: OrganizationId!) { channels(input:{ organizationId:$organizationId }) { id name displayName service serviceId organizationId isQueuePaused } }`,{organizationId:oid});
+    const channels=Array.isArray(data?.channels)?data.channels:[];
+    all.push(...channels.map((c:any)=>({...c,bufferOrganizationName:org.name})));
+  }
+  return {organizations:orgs.map((o:any)=>({id:o.id,name:o.name})),channels:all};
 }
 
 function assetsGraphQL(assets:any[]){
