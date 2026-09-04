@@ -7,6 +7,7 @@ on:
       - '.github/workflows/form-reliability-hotfix.yml'
       - 'scripts/repair-pennyworth-form-contract.py'
       - 'scripts/repair-pennyworth-legacy-form.py'
+      - 'scripts/patch-pennyworth-chat-ux-v3.py'
   workflow_dispatch:
 
 permissions:
@@ -26,6 +27,8 @@ jobs:
         run: python3 scripts/repair-pennyworth-form-contract.py
       - name: Repair legacy Pennyworth contract
         run: python3 scripts/repair-pennyworth-legacy-form.py
+      - name: Apply Pennyworth chat UX v3
+        run: python3 scripts/patch-pennyworth-chat-ux-v3.py
       - name: Syntax check Worker
         run: node --check web/clients/pennyworth/worker-edge-template.mjs
       - name: Commit repaired sources
