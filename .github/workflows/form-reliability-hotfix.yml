@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/form-reliability-hotfix.yml'
       - 'scripts/repair-pennyworth-form-contract.py'
+      - 'scripts/repair-pennyworth-legacy-form.py'
   workflow_dispatch:
 
 permissions:
@@ -21,8 +22,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Repair and validate public form contract
+      - name: Repair current Pennyworth contract
         run: python3 scripts/repair-pennyworth-form-contract.py
+      - name: Repair legacy Pennyworth contract
+        run: python3 scripts/repair-pennyworth-legacy-form.py
       - name: Syntax check Worker
         run: node --check web/clients/pennyworth/worker-edge-template.mjs
       - name: Commit repaired sources
@@ -31,7 +34,7 @@ jobs:
           set -euo pipefail
           git config user.name 'cloudsales-release-bot'
           git config user.email 'crmcloudsales@gmail.com'
-          git add web/clients/pennyworth/landing-edge.html web/clients/pennyworth/worker-edge-template.mjs supabase/functions/pennyworth-provision/index.ts
+          git add web/clients/pennyworth/landing.html web/clients/pennyworth/landing-edge.html web/clients/pennyworth/worker-edge-template.mjs supabase/functions/pennyworth-provision/index.ts
           git diff --cached --quiet && exit 0
           git commit -m 'fix(pennyworth): persist reliable bot-protected form contract'
           git pull --rebase origin main
