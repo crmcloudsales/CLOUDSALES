@@ -38,16 +38,25 @@ def worker_contract(client, path):
         must(text,'TURNSTILE_SECRET',f'{client}:{path.name}')
         must(text,'siteverify',f'{client}:{path.name}')
     if client=='pennyworth':
-        must(text,'turnstile_token:turnstileToken',f'{client}:{path.name}')
-        must(text,'pennyworth_turnstile_lifecycle_v2',f'{client}:{path.name}')
-        must(text,'remountTurnstile',f'{client}:{path.name}')
-        must(text,'host.appendChild(card);remountTurnstile();',f'{client}:{path.name}')
-        must(text,"send.classList.remove('chat','whatsapp');remountTurnstile()",f'{client}:{path.name}')
-        must(text,"formId='pennyworth_shared_'+channel+'_v2'",f'{client}:{path.name}')
-        must(text,"action:'chat.start'",f'{client}:{path.name}')
-        must(text,'chat_grant',f'{client}:{path.name}')
+        label=f'{client}:{path.name}'
+        must(text,'turnstile_token:turnstileToken',label)
+        must(text,'pennyworth_turnstile_lifecycle_v2',label)
+        must(text,'remountTurnstile',label)
+        must(text,'pennyworth_chat_ux_v3',label)
+        must(text,'ensureTurnstileToken',label)
+        must(text,"appearance:'always'",label)
+        must(text,'pwPanelNotice',label)
+        must(text,'pwChoiceButton',label)
+        must(text,'pwChoiceOption',label)
+        must(text,"top:12px;bottom:150px",label)
+        must(text,"sel.dispatchEvent(new Event('change',{bubbles:true}))",label)
+        must(text,'host.appendChild(card);remountTurnstile();',label)
+        must(text,"send.classList.remove('chat','whatsapp');remountTurnstile()",label)
+        must(text,"formId='pennyworth_shared_'+channel+'_v2'",label)
+        must(text,"action:'chat.start'",label)
+        must(text,'chat_grant',label)
         if 'while(n<900000)' in text or 'prefix:"000"' in text:
-            fail.append(f'{client}:{path.name}: heavy proof-of-work is forbidden')
+            fail.append(f'{label}: heavy proof-of-work is forbidden')
 
 for client in ('pennyworth','acanto','meza'):
     base=ROOT/client
@@ -66,6 +75,7 @@ else:
     text=prov.read_text()
     must(text,'turnstile_client_submit_missing','pennyworth-provision')
     must(text,'turnstile_lifecycle_missing','pennyworth-provision')
+    must(text,'chat_ux_v3_missing','pennyworth-provision')
     must(text,'TURNSTILE_SECRET','pennyworth-provision')
     must(text,'siteverify','pennyworth-provision')
     must(text,"replaceAll('while(n<900000)','while(n<100000)')",'pennyworth-provision')
@@ -76,4 +86,4 @@ if fail:
         print(' -',item)
     raise SystemExit(1)
 print('FORM RELIABILITY CONTRACT PASSED: Pennyworth, Acanto, Meza')
-# CI canary verifies current + legacy forms and Pennyworth shared CHAT/WhatsApp Turnstile lifecycle.
+# CI canary verifies current + legacy forms plus Pennyworth shared CHAT/WhatsApp Turnstile and mobile UX lifecycle.
