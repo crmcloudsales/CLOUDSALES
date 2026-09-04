@@ -20,10 +20,10 @@ if 'pennyworth_chat_ux_v3' not in s:
     if old_mobile in s:
         s=s.replace(old_mobile,new_mobile,1)
 
-    panel_anchor='<div class=\\"pwFormHost\\"></div>'
+    panel_anchor='<div class="pwFormHost"></div>'
     if panel_anchor not in s:
         raise SystemExit('panel form host anchor missing')
-    s=s.replace(panel_anchor,'<div id=\\"pwPanelNotice\\" class=\\"pwPanelNotice\\" role=\\"alert\\" aria-live=\\"assertive\\"></div>'+panel_anchor,1)
+    s=s.replace(panel_anchor,'<div id="pwPanelNotice" class="pwPanelNotice" role="alert" aria-live="assertive"></div>'+panel_anchor,1)
 
     var_anchor="waLaunch=document.getElementById('pwWaLaunch');"
     if var_anchor not in s:
