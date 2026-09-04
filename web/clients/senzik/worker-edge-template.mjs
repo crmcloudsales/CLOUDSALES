@@ -13,7 +13,7 @@ export default {
     if(req.method==='GET'&&path==='/health')return json({ok:true,service:'senzik-gateway-v1',version:'edge-2',security:'turnstile+honeypot+server-validation'});
     if(req.method==='GET'&&path==='/robots.txt')return new Response('User-agent: *\nAllow: /\nSitemap: https://senzikresidences.cloudsales.app/sitemap.xml\n',{headers:{'content-type':'text/plain;charset=utf-8','cache-control':'public,max-age=3600'}});
     if(req.method==='GET'&&path==='/sitemap.xml')return new Response('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://senzikresidences.cloudsales.app/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url></urlset>',{headers:{'content-type':'application/xml;charset=utf-8','cache-control':'public,max-age=3600'}});
-    if(req.method==='GET'&&path==='/challenge')return json({nonce:crypto.randomUUID(),ts:Date.now(),sig:'turnstile',prefix:''});
+    if(req.method==='GET'&&path==='/challenge')return json({nonce:crypto.randomUUID(),ts:Date.now(),sig:'turnstile',prefix:'0'});
     if(req.method==='GET'||req.method==='HEAD')return req.method==='HEAD'?new Response(null,{status:200}):page();
     if(req.method!=='POST'||path!=='/lead')return json({error:'not_found'},404);
     const origin=req.headers.get('Origin')||'';
