@@ -53,4 +53,25 @@ export async function verifyZernioConnect(svc:any,organizationId:string,input:an
   await svc.from('integration_aggregator_profiles').update({status:'ready',last_error:null,metadata,updated_at:new Date().toISOString()}).eq('id',p.id);
   return {verified:true,provider:'zernio',profile_id:p.external_profile_id,account:normalized,connected_accounts:next.length};
 }
+
+export async function publishZernio(svc:any,organizationId:string,input:any){
+  const platform=String(input?.network||input?.platform||'').toLowerCase();
+  if(!PLATFORMS.has(platform))throw new Error('unsupported_zernio_platform');
+  const {data:p}=await svc.from('integration_aggregator_profiles').select('status,external_profile_id,metadata').eq('organization_id',organizationId).eq('provider_key','zernio').maybeSingle();
+  if(p?.status!=='ready'||!p?.external_profile_id)throw new Error('zernio_profile_not_ready');
+  const accounts=Array.isArray(p?.metadata?.connected_accounts)?p.metadata.connected_accounts:[];
+  const account=accounts.find((a:any)=>String(a?.platform||'').toLowerCase()===platform);
+  const accountId=String(input?.provider_account_id||account?.account_id||'');
+  if(!accountId)throw new Error(`zernio_${platform}_account_not_connected`);
+  const mediaItems=(Array.isArray(input?.assets)?input.assets:[]).filter((a:any)=>['image','video'].includes(String(a?.type||''))&&String(a?.url||'').startsWith('https://')).map((a:any)=>({type:String(a.type),url:String(a.url)}));
+  const body:any={content:String(input?.text||''),platforms:[{platform,accountId}]};
+  if(mediaItems.length)body.mediaItems=mediaItems;
+  if(input?.scheduled_for){body.scheduledFor=String(input.scheduled_for);body.timezone=String(input?.timezone||'America/Cancun')}else body.publishNow=true;
+  const d=await call(svc,'/posts',{method:'POST',body:JSON.stringify(body)});
+  const post=d?.post||d;
+  const postId=String(post?._id||post?.id||'');
+  if(!postId)throw new Error('zernio_post_id_missing');
+  return {provider_key:'zernio',external_post_id:postId,status:input?.scheduled_for?'scheduled':'published',raw:post};
+}
+
 export async function zernioConfigured(svc:any){return Boolean(await key(svc))}
