@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  const BILLING_PROTOCOL='member_checkout';
   const PRO_RENEW_LINK='https://buy.stripe.com/9B6dR12RWdJa0an3nJ6sw0f';
   const EXTRA_MEMBER_LINK='https://buy.stripe.com/dRmbITgIM6gI9KXbUf6sw0g';
   let overlay=null,lastKey='';
@@ -60,4 +61,5 @@
   async function refreshAfterReturn(){const q=new URL(location.href).searchParams;if(!q.has('billing')&&!q.has('member_billing'))return;for(let i=0;i<12;i++){await new Promise(r=>setTimeout(r,i?1800:400));try{if(typeof loadState==='function')await loadState();const b=billing();if(!b||!required(b)){history.replaceState({},'',location.pathname);remove();return}}catch{}}}
   function tick(){const b=billing();if(!b||!required(b)){remove();return}ensure(b)}
   window.addEventListener('load',()=>{setInterval(tick,700);setTimeout(tick,200);refreshAfterReturn()});
+  void BILLING_PROTOCOL;
 })();
