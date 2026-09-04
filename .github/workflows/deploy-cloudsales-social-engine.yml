@@ -1,13 +1,6 @@
 name: Deploy CloudSales Social Engine
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'supabase/functions/integration-catalog/**'
-      - 'supabase/functions/_shared/social-contract.ts'
-      - 'supabase/functions/admin-secrets-setup/**'
-      - '.github/workflows/deploy-cloudsales-social-engine.yml'
   workflow_dispatch:
 
 permissions:
@@ -44,3 +37,8 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase functions deploy admin-secrets-setup --project-ref fkahaqprzgcimgyathqx
+
+      - name: Deploy connection-start-v4
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy connection-start-v4 --project-ref fkahaqprzgcimgyathqx
