@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/form-reliability-hotfix.yml'
+      - 'scripts/repair-pennyworth-form-contract.py'
   workflow_dispatch:
 
 permissions:
@@ -20,92 +21,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Repair Pennyworth public form contract
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          SITEKEY='0x4AAAAAAEiK97f4nFyAgMYx'
-
-          # 1) Persist Turnstile in the source landing page and make its fallback submit send the token.
-          p=Path('web/clients/pennyworth/landing-edge.html')
-          s=p.read_text()
-          if 'challenges.cloudflare.com/turnstile/v0/api.js' not in s:
-              s=s.replace('</head>',f'<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>\n</head>',1)
-          if 'class="cf-turnstile"' not in s:
-              marker='<button class="submit" id="send" type="submit">SOLICITAR INFORMACIÓN</button>'
-              widget=f'<div class="cf-turnstile" data-sitekey="{SITEKEY}" data-theme="dark" style="margin-top:14px"></div>'+marker
-              if marker not in s: raise SystemExit('landing submit marker missing')
-              s=s.replace(marker,widget,1)
-          if 'turnstile_token:turnstileToken' not in s:
-              old='const ch=await challenge(id),a=qp();'
-              new="const turnstileToken=String(new FormData(f).get('cf-turnstile-response')||'');if(!turnstileToken)throw Error('turnstile_required');const ch=await challenge(id),a=qp();"
-              if old not in s: raise SystemExit('landing challenge marker missing')
-              s=s.replace(old,new,1)
-              body='idempotency_key:id,challenge:ch,form_answers:'
-              if body not in s: raise SystemExit('landing payload marker missing')
-              s=s.replace(body,'idempotency_key:id,challenge:ch,turnstile_token:turnstileToken,form_answers:',1)
-              s=s.replace("}catch{show('No pudimos validar la solicitud. Intenta nuevamente.',false)}finally{", "}catch(err){show(err?.message==='turnstile_required'?'Completa la verificación de seguridad.':'No pudimos validar la solicitud. Intenta nuevamente.',false);if(window.turnstile)turnstile.reset()}finally{",1)
-          s=s.replace('while(n<900000)','while(n<100000)')
-          p.write_text(s)
-
-          # 2) Repair the Worker template used for present/future Pennyworth deployments.
-          p=Path('web/clients/pennyworth/worker-edge-template.mjs')
-          s=p.read_text()
-          if 'turnstile_token:turnstileToken' not in s:
-              old='const ch=await challenge(id),a=qp();'
-              new="const turnstileToken=String(new FormData(form).get('cf-turnstile-response')||'');if(!turnstileToken)throw new Error('turnstile_required');const ch=await challenge(id),a=qp();"
-              if old not in s: raise SystemExit('worker client challenge marker missing')
-              s=s.replace(old,new,1)
-              body='idempotency_key:id,challenge:ch,form_id:formId'
-              if body not in s: raise SystemExit('worker client payload marker missing')
-              s=s.replace(body,'idempotency_key:id,challenge:ch,turnstile_token:turnstileToken,form_id:formId',1)
-              catch="show(err?.message==='secure_chat_grant_missing'?'No pudimos iniciar el chat seguro. Intenta nuevamente.':'No pudimos validar la solicitud. Intenta nuevamente.',false)"
-              repl="show(err?.message==='secure_chat_grant_missing'?'No pudimos iniciar el chat seguro. Intenta nuevamente.':err?.message==='turnstile_required'?'Completa la verificación de seguridad.':'No pudimos validar la solicitud. Intenta nuevamente.',false);if(window.turnstile)turnstile.reset()"
-              if catch not in s: raise SystemExit('worker client catch marker missing')
-              s=s.replace(catch,repl,1)
-          s=s.replace('while(n<900000)','while(n<100000)')
-          s=s.replace('prefix:"000"','prefix:"00"')
-          s=s.replace('startsWith("000")','startsWith("00")')
-          s=s.replace('challenge:"pow-hmac"','challenge:"light-pow-hmac"')
-          p.write_text(s)
-
-          # 3) Make the provisioner self-heal the browser/server contract before every future publish.
-          p=Path('supabase/functions/pennyworth-provision/index.ts')
-          s=p.read_text()
-          anchor="function patchTurnstileTemplate(raw:string){let x=raw;"
-          if anchor not in s: raise SystemExit('provision patch function missing')
-          if 'turnstile_client_submit_missing' not in s:
-              inject="""function patchTurnstileTemplate(raw:string){let x=raw;
- // Browser contract: every public submit must carry the Cloudflare token that the server verifies.
- if(!x.includes('turnstile_token:turnstileToken')){
-   const clientChallenge='const ch=await challenge(id),a=qp();';
-   if(!x.includes(clientChallenge))throw new Error('turnstile_client_challenge_marker_missing');
-   x=x.replace(clientChallenge,\"const turnstileToken=String(new FormData(form).get('cf-turnstile-response')||'');if(!turnstileToken)throw new Error('turnstile_required');const ch=await challenge(id),a=qp();\");
-   const clientPayload='idempotency_key:id,challenge:ch,form_id:formId';
-   if(!x.includes(clientPayload))throw new Error('turnstile_client_payload_marker_missing');
-   x=x.replace(clientPayload,'idempotency_key:id,challenge:ch,turnstile_token:turnstileToken,form_id:formId');
- }
- // Keep proof-of-work only as a lightweight secondary signal; Turnstile is the primary bot gate.
- x=x.replaceAll('while(n<900000)','while(n<100000)').replace('prefix:\"000\"','prefix:\"00\"').replace('startsWith(\"000\")','startsWith(\"00\")');"""
-              s=s.replace(anchor,inject,1)
-              needle="const code=rawTmpl.split('__HTML_JSON__').join(JSON.stringify(html)),challengeSecret=crypto.randomUUID()+crypto.randomUUID()+crypto.randomUUID();"
-              repl="if(!rawTmpl.includes('turnstile_token:turnstileToken'))throw new Error('turnstile_client_submit_missing');\n  const code=rawTmpl.split('__HTML_JSON__').join(JSON.stringify(html)),challengeSecret=crypto.randomUUID()+crypto.randomUUID()+crypto.randomUUID();"
-              if needle not in s: raise SystemExit('provision code marker missing')
-              s=s.replace(needle,repl,1)
-              s=s.replace("anti_bot:'turnstile_pow_hmac_honeypot_rate_limit_server_validation'","anti_bot:'turnstile_honeypot_rate_limit_server_validation_light_pow'")
-          p.write_text(s)
-          PY
-
-          node --check web/clients/pennyworth/worker-edge-template.mjs
-          grep -q 'turnstile_token:turnstileToken' web/clients/pennyworth/landing-edge.html
-          grep -q 'turnstile_token:turnstileToken' web/clients/pennyworth/worker-edge-template.mjs
-          grep -q 'turnstile_client_submit_missing' supabase/functions/pennyworth-provision/index.ts
-          grep -q 'prefix:"00"' web/clients/pennyworth/worker-edge-template.mjs
-          if grep -q 'while(n<900000)' web/clients/pennyworth/worker-edge-template.mjs; then echo 'heavy PoW still present'; exit 1; fi
-      - name: Commit repaired contract
+      - name: Repair and validate public form contract
+        run: python3 scripts/repair-pennyworth-form-contract.py
+      - name: Syntax check Worker
+        run: node --check web/clients/pennyworth/worker-edge-template.mjs
+      - name: Commit repaired sources
         shell: bash
         run: |
           set -euo pipefail
@@ -113,6 +33,6 @@ jobs:
           git config user.email 'crmcloudsales@gmail.com'
           git add web/clients/pennyworth/landing-edge.html web/clients/pennyworth/worker-edge-template.mjs supabase/functions/pennyworth-provision/index.ts
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(pennyworth): restore Turnstile lead submissions and lighten PoW'
+          git commit -m 'fix(pennyworth): persist reliable bot-protected form contract'
           git pull --rebase origin main
           git push origin HEAD:main
