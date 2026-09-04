@@ -24,7 +24,7 @@ Deno.serve(async req=>{
   const {data:m}=await svc.from("organization_members").select("role,status").eq("organization_id",org).eq("user_id",user.id).maybeSingle();
   if(!m||m.status!=="active")return j({error:"forbidden"},403,o);
   const canWrite=["owner","admin","operator"].includes(m.role);
-  const readActions=new Set(["snapshot","works.snapshot"]);
+  const readActions=new Set(["snapshot","works.snapshot","inventory.snapshot"]);
   if(!readActions.has(action)&&!canWrite)return j({error:"read_only_role"},403,o);
 
   if(action==="snapshot"){
@@ -35,6 +35,16 @@ Deno.serve(async req=>{
       svc.from("commercial_events").select("id,contact_id,opportunity_id,appointment_id,event_type,source,occurred_at,value,currency,metadata").eq("organization_id",org).order("occurred_at",{ascending:false}).limit(50)
     ]);
     return j({contacts:c.data||[],opportunities:op.data||[],appointments:ap.data||[],events:ev.data||[]},200,o)
+  }
+
+  if(action==="inventory.snapshot"){
+    const {data,error}=await svc.from("inventory_items")
+      .select("id,item_type,sku,name,status,short_description,description,price_min,price_max,currency,public_slug,attributes,media,created_at,updated_at")
+      .eq("organization_id",org).order("updated_at",{ascending:false}).limit(500);
+    if(error)return j({error:"inventory_read_failed"},500,o);
+    const items=data||[],byType:Record<string,number>={},byStatus:Record<string,number>={};
+    for(const x of items){const ty=String(x.item_type||"other"),st=String(x.status||"unknown");byType[ty]=(byType[ty]||0)+1;byStatus[st]=(byStatus[st]||0)+1}
+    return j({generated_at:new Date().toISOString(),items,summary:{total:items.length,active:Number(byStatus.active||0),inactive:items.length-Number(byStatus.active||0),by_type:byType,by_status:byStatus}},200,o)
   }
 
   if(action==="works.snapshot"){
@@ -57,16 +67,28 @@ Deno.serve(async req=>{
       current.quantity+=Number(row.quantity||0);current.amount_usd+=Number(row.amount_usd||0);current.count+=1;groups.set(key,current);
     }
     const today=posted.filter((x:any)=>String(x.occurred_at)>=dayStart);
-    return j({
-      currency:"USD",
-      generated_at:new Date().toISOString(),
-      period:{month_start:monthStart,day_start:dayStart},
-      totals:{today_usd:money(today.reduce((a:number,x:any)=>a+Number(x.amount_usd||0),0)),month_usd:money(posted.reduce((a:number,x:any)=>a+Number(x.amount_usd||0),0)),posted_count:posted.length},
-      groups:[...groups.values()].map((x:any)=>({...x,quantity:money(x.quantity),amount_usd:money(x.amount_usd)})).sort((a:any,b:any)=>b.amount_usd-a.amount_usd),
-      recent:rows.slice(0,80).map((x:any)=>({...x,catalog:catalogMap.get(String(x.work_key))||null})),
-      catalog,
-      note:"Media spend is billed directly by advertising platforms and is not included in Works."
-    },200,o)
+    return j({currency:"USD",generated_at:new Date().toISOString(),period:{month_start:monthStart,day_start:dayStart},totals:{today_usd:money(today.reduce((a:number,x:any)=>a+Number(x.amount_usd||0),0)),month_usd:money(posted.reduce((a:number,x:any)=>a+Number(x.amount_usd||0),0)),posted_count:posted.length},groups:[...groups.values()].map((x:any)=>({...x,quantity:money(x.quantity),amount_usd:money(x.amount_usd)})).sort((a:any,b:any)=>b.amount_usd-a.amount_usd),recent:rows.slice(0,80).map((x:any)=>({...x,catalog:catalogMap.get(String(x.work_key))||null})),catalog,note:"Media spend is billed directly by advertising platforms and is not included in Works."},200,o)
+  }
+
+  if(action==="inventory.create"){
+    const input=b.input||{},name=text(input.name,180),itemType=text(input.item_type,60)||"product",status=text(input.status,60)||"active";
+    if(!name)return j({error:"inventory_name_required"},400,o);
+    const pmin=input.price_min==null||input.price_min===""?null:finite(input.price_min),pmax=input.price_max==null||input.price_max===""?null:finite(input.price_max);
+    if((input.price_min!==null&&input.price_min!==""&&pmin===null)||(input.price_max!==null&&input.price_max!==""&&pmax===null)||(pmin!==null&&pmin<0)||(pmax!==null&&pmax<0))return j({error:"invalid_inventory_price"},400,o);
+    const payload:any={organization_id:org,item_type:itemType,sku:text(input.sku,120),name,status,short_description:text(input.short_description,500),description:text(input.description,5000),price_min:pmin,price_max:pmax,currency:text(input.currency,3)?.toUpperCase()||"USD",public_slug:text(input.public_slug,180),attributes:input.attributes&&typeof input.attributes==='object'&&!Array.isArray(input.attributes)?input.attributes:{},media:Array.isArray(input.media)?input.media:[],created_by:user.id};
+    const {data,error}=await svc.from("inventory_items").insert(payload).select("*").single();if(error)return j({error:"inventory_create_failed"},500,o);
+    await svc.from("audit_log").insert({organization_id:org,actor_user_id:user.id,actor_type:"user",action:"inventory.created",entity_type:"inventory_item",entity_id:data.id,success:true});return j({item:data},201,o)
+  }
+
+  if(action==="inventory.update"){
+    const input=b.input||{},id=String(input.id||"");if(!id)return j({error:"inventory_id_required"},400,o);const patch:any={};
+    for(const [k,max] of [["item_type",60],["sku",120],["name",180],["status",60],["short_description",500],["description",5000],["currency",3],["public_slug",180]] as any[]){if(input[k]!==undefined)patch[k]=text(input[k],max)}
+    if(patch.currency)patch.currency=String(patch.currency).toUpperCase();
+    for(const k of ["price_min","price_max"]){if(input[k]!==undefined){if(input[k]===""||input[k]===null)patch[k]=null;else{const v=finite(input[k]);if(v===null||v<0)return j({error:"invalid_inventory_price"},400,o);patch[k]=v}}}
+    if(input.attributes&&typeof input.attributes==='object'&&!Array.isArray(input.attributes))patch.attributes=input.attributes;
+    if(Array.isArray(input.media))patch.media=input.media;
+    patch.updated_at=new Date().toISOString();const {data,error}=await svc.from("inventory_items").update(patch).eq("id",id).eq("organization_id",org).select("*").maybeSingle();if(error)return j({error:"inventory_update_failed"},500,o);if(!data)return j({error:"inventory_not_found"},404,o);
+    await svc.from("audit_log").insert({organization_id:org,actor_user_id:user.id,actor_type:"user",action:"inventory.updated",entity_type:"inventory_item",entity_id:id,success:true});return j({item:data},200,o)
   }
 
   if(action==="contact.create"){
@@ -121,5 +143,5 @@ Deno.serve(async req=>{
     const {data,error}=await svc.from("appointments").update(patch).eq("id",id).eq("organization_id",org).select("*").maybeSingle();if(error)return j({error:"appointment_update_failed"},500,o);await svc.from("audit_log").insert({organization_id:org,actor_user_id:user.id,actor_type:"user",action:"appointment.updated",entity_type:"appointment",entity_id:id,success:true,context:{provider_key:data?.provider_key||null,external_id:Boolean(data?.external_id)}});return j({appointment:data},200,o)
   }
 
-  return j({error:"unsupported_action",supported:["snapshot","works.snapshot","contact.create","contact.update","opportunity.create","opportunity.update","appointment.create","appointment.update"]},400,o)
+  return j({error:"unsupported_action",supported:["snapshot","inventory.snapshot","works.snapshot","inventory.create","inventory.update","contact.create","contact.update","opportunity.create","opportunity.update","appointment.create","appointment.update"]},400,o)
 });
