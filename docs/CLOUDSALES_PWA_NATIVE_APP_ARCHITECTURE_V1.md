@@ -5,139 +5,89 @@ Date: 2026-09-04
 
 ## Product principle
 
-CloudSales must behave like an application, not like a long website trapped inside a fixed viewport.
+CloudSales behaves like an application, never like a long website trapped inside a viewport.
 
-The document/body must never become the navigation mechanism. Tapping a primary action changes the current app window/view.
+The user should not learn software. Cloudy and AgentCloud do the operational work; the user sees priorities, chooses, approves, corrects and moves forward.
 
 ### ZERO-SCROLL RULE — CANONICAL
 
-CloudSales should not require vertical or horizontal scrolling anywhere in the normal app experience.
+CloudSales does not require vertical or horizontal scrolling in normal app use.
 
-This applies to:
-- primary pages;
-- secondary pages;
-- lists;
-- cards;
-- dashboards;
-- chats;
-- pipeline;
-- inventory;
-- files;
-- settings;
-- modals and sheets.
+This applies to primary pages, secondary pages, lists, cards, dashboards, chats, pipeline, inventory, files, contact profiles, settings, modals and sheets.
 
-When information does not fit in one viewport, DO NOT make the user scroll. Split the information into focused windows and let the user move between those windows using tabs, next/previous controls, paging, contextual buttons, drill-down views or a dedicated detail window.
+When information does not fit, split it into focused windows and use tabs, paging, next/previous controls, contextual actions or a dedicated detail window.
 
 One viewport = one understandable decision surface.
 
 Scrolling is not navigation in CloudSales.
 
-CloudSales reduces software complexity. It does not reproduce HighLevel's entire navigation tree.
+## CloudCo decision hierarchy
 
-## CloudCo product philosophy inherited by CloudSales
+Every PWA decision, menu position and information hierarchy must support these priorities in order:
 
-Every CloudSales experience must follow the CloudCo operating philosophy:
+1. GENERATE REVENUE.
+2. WORK LESS.
+3. FEEL LESS STRESS.
+4. SEE THE VALUE OF THE INVESTMENT CLEARLY.
 
-1. Minimum friction.
-2. Minimum complexity.
-3. Clean, elegant and professional UI.
-4. The user should see decisions, priorities and outcomes — not software complexity.
-5. Cloudy and AgentCloud do the operational work; the user decides, approves, rejects, corrects or gives direction.
-6. One screen should communicate one clear purpose.
-7. Do not expose provider terminology, implementation details or technical keys when a human label exists.
-8. Do not force users to hunt, scroll or study a dashboard to understand what matters.
-9. If information is secondary, move it to another window rather than stacking it below.
-10. Every design must work for an entrepreneur, a business and a company.
+The product journey must repeat this formula every day:
 
-## User model
+SEE WHAT MATTERS -> ACT ON REVENUE -> LET CLOUDY WORK -> GENERATE DEMAND -> REVIEW ONLY WHAT NEEDS ATTENTION -> REPEAT.
 
-Every decision must work for three customer types:
-1. Entrepreneur
-2. Business
-3. Company
-
-The user should understand the app without learning CRM terminology first.
+The experience must work for an entrepreneur, a business and a company.
 
 ## Five canonical bottom actions
 
-1. HOME — daily command center
-2. INVENTORY — what the business can sell now
-3. CLOUDY — central AI assistant/operator, official Cloudy head, voice-first
-4. MARKETING — campaigns, content, spend, demand and performance
-5. MORE — eight simplified operational modules
+The five permanent actions are:
 
-The middle Cloudy action is visually dominant but still clean. It breathes/pulses subtly and never uses a cloud glyph.
+1. HOME — what matters today; money, priorities, appointments, approvals and next best action.
+2. AI CHAT — conversations that can become revenue now.
+3. CLOUDY — the brain; central AI assistant/operator, voice-first, official Cloudy head.
+4. MARKETING — the heart; generate demand, control growth and understand what is working.
+5. MORE — lower-frequency operating surfaces.
 
-### Why Inventory remains primary
+Cloudy remains visually centered and subtly heartbeat/pulse animated. Cloudy is never represented by a cloud glyph.
 
-Inventory is the second business priority after daily execution: what the business has available to sell right now. CloudSales is service-commerce aware, so Inventory mirrors the products and services published on the user's website.
+Inventory is no longer a permanent bottom-navigation button. It remains essential, but moves to MORE because AI Chat is used more frequently in the revenue journey.
 
-The default Inventory summary is intentionally minimal:
-- Title
-- Price
-- Description
+## HOME — daily command center
 
-Inventory changes as the business sells, publishes, removes or replaces offers. CloudSales must support the cycle:
-publish -> sell -> update -> sell again -> repeat.
+Home answers: “What deserves my attention now?”
 
-AI Chat remains one tap away inside More.
+Using real workspace data only, Cloudy surfaces:
+- what changed while the user was away;
+- the highest-value priorities today;
+- leads/opportunities that deserve attention;
+- appointments and follow-up risk;
+- open pipeline value;
+- decisions/approvals waiting for the user;
+- what is selling and what is not;
+- what Cloudy recommends doing next.
 
-## HOME — what matters today
-
-Home is not a generic dashboard. It is the place the user opens every day.
-
-Cloudy should answer, using real workspace data only:
-- Welcome/back context.
-- What Cloudy completed while the user was away.
-- What changed since the last visit.
-- Today's highest-priority actions.
-- Approvals/authorizations waiting for the owner.
-- Leads and opportunities that deserve attention.
-- Appointments and follow-up risk.
-- Open pipeline value / money sitting in opportunities.
-- What is selling and what is not.
-- Demand/opportunity signals.
-- What Cloudy believes the user should stop wasting time on.
-- What Cloudy recommends doing next.
-
-The user should mainly decide, approve, reject, annotate, attach a document or ask Cloudy. Cloudy and AgentCloud do the operational work.
-
-Home internal windows:
+Home windows:
 - TODAY
 - SALES
 - AGENDA
 - APPROVALS
 
-If a window contains more records than fit on screen, paginate the records. Never extend the page downward.
+Records paginate. The page never extends downward.
 
-No fabricated metrics. Empty states must explain what connection/data is needed.
+## AI CHAT — revenue conversations
 
-## INVENTORY — service-commerce offer control
+AI Chat is a primary bottom-navigation surface.
 
-Inventory is the live sellable offer from the user's website.
+Its job is not to expose an inbox implementation. It answers:
+- who needs a response now;
+- which conversation has buying intent;
+- what Cloudy/AgentCloud already answered;
+- what requires human judgment;
+- what next action can move the conversation toward an appointment or sale.
 
-Default item summary:
-- Title
-- Price
-- Description
+Conversation history is paged or opened in a dedicated window. No endless transcript scrolling.
 
-Do not clutter Inventory with provider metadata, technical statuses or unnecessary controls.
+## CLOUDY — the brain
 
-If more products or services exist than fit in one viewport, show the next set through paging controls. Do not scroll.
-
-Cloudy should combine Inventory + Sales signals so it can identify:
-- what is selling;
-- what is not selling;
-- what should be promoted;
-- what should be replaced;
-- what demand is emerging;
-- what deserves less attention.
-
-This creates the repeating CloudSales cycle: sell, learn, adjust, sell again.
-
-## CLOUDY — one-action AI operator
-
-Cloudy must be conversational and voice-first, not a giant chat page.
+Cloudy is the personal AI business assistant/operator.
 
 Primary states:
 - Ready
@@ -148,72 +98,173 @@ Primary states:
 
 Interaction:
 - tap Cloudy once to start;
-- silence ends the user's turn;
-- Cloudy responds and speaks automatically;
-- session can continue hands-free;
-- wake word “Cloudy” when supported;
-- text is a fallback, not the dominant interaction.
+- silence ends the user turn;
+- Cloudy responds automatically;
+- wake word “Cloudy” where supported;
+- text is fallback, not the dominant experience.
 
-Cloudy uses the official character/head and must never be shown as a cloud icon or generic robot.
+Cloudy does the work and brings the user decisions, exceptions and recommendations.
 
-Conversation history must not turn into a long scrolling transcript. Show the active exchange and use history/detail navigation for older content.
+## MARKETING — the heart
 
-## MARKETING — demand and growth control
+Marketing is a permanent primary surface because demand generation is central to revenue.
 
-Marketing is a primary surface because CloudSales is intended to replace the complexity of coordinating agencies, freelancers and fragmented marketing tools.
+CloudSales replaces the complexity of coordinating agencies, freelancers and marketing teams with a decision layer operated by Cloudy.
 
-Show the decision layer, not provider complexity:
-- campaigns running / paused / needing approval;
-- spend and budget status;
-- leads and qualified leads;
-- cost per qualified lead where data exists;
-- channel performance;
-- social/content publishing status;
-- recommended next action;
-- approval of spend-sensitive changes.
+### When marketing has not started
 
-Internal windows:
-- OVERVIEW
-- CAMPAIGNS
-- CONTENT
-- SPEND
+Cloudy gathers only the information a competent marketing team actually needs:
+1. What are we selling?
+2. Who do we want to reach?
+3. What result counts as success?
+4. What is the budget/guardrail?
+5. Where do we want to sell?
+6. What assets/accounts/data already exist?
+7. What may Cloudy do automatically and what requires approval?
 
-Each window must fit the viewport. Additional records use paging or drill-down windows, never scroll.
+Then Cloudy prepares the plan and next actions. Spend-sensitive actions follow approval rules.
 
-## MORE — HighLevel complexity collapsed into eight modules
+### When marketing is already running
 
-HighLevel exposes hundreds of routes and many product areas. CloudSales deliberately collapses the operational surface into eight understandable modules.
+The user should be able to answer immediately:
+- Is it working?
+- What changed?
+- Which campaign/channel is producing qualified demand?
+- Where are we wasting money?
+- Are we on budget?
+- What should we stop, correct, maintain or scale?
+- What real sales feedback can improve ad optimization?
+- What needs my approval now?
+- What does Cloudy recommend next?
 
-Display these in a 4 × 2 sheet/grid in this exact priority order, with BILLING / ACCOUNT in the bottom-right position:
+Marketing windows:
+- TODAY — outcome pulse and Cloudy recommendation.
+- START — guided campaign brief.
+- CAMPAIGNS — active/paused/attention-required campaigns.
+- FEEDBACK — CRM outcomes returned as provider-safe conversion/quality signals.
 
-1. AI CHAT — omnichannel conversations/inbox and AI-assisted communication
-2. LEADS — contacts, qualification, source, notes and customer record
-3. PIPELINE — opportunities, stages, value and follow-up
-4. CALENDAR — appointments, availability and scheduling
-5. AUTOMATIONS — workflows, triggers, recurring/automatic work and execution status
-6. FILES — documents, media and workspace files
-7. CONNECT — CRM/provider/integration connections, essential settings and system health
-8. BILLING — subscription, usage, invoices/payment/account/security essentials
+Do not expose raw private notes or documents to advertising providers. Internal data may help Cloudy reason, but external feedback uses normalized, permitted commercial signals such as qualified lead, appointment, opportunity, won/lost outcome and revenue when supported and consent/policy allow it.
 
-The user should not need to know which underlying provider implements a capability.
+## MORE — eight lower-frequency modules
 
-All eight modules inherit the zero-scroll rule. Records are paged or opened in dedicated windows.
+Display in a 4 x 2 grid in this exact priority order:
+
+1. LEADS — who can become revenue; qualification, source and contact record.
+2. PIPELINE — opportunities and next sales action.
+3. INVENTORY — what can be sold now.
+4. CALENDAR — appointments and availability.
+5. FILES — business/contact documents and media.
+6. TEAM — what is happening with each member and what needs attention.
+7. CONNECT — providers, CRM and integration health.
+8. BILLING — subscription, usage, invoices, value and account essentials.
+
+BILLING remains bottom-right.
+
+AUTOMATIONS are deliberately not a primary user module. Cloudy should operate automation complexity and surface only exceptions, approvals and outcomes in the relevant business window.
+
+## LEADS
+
+Lead screens answer: “Who deserves attention and what should happen next?”
+
+A contact can contain:
+- documents;
+- notes;
+- tasks;
+- opportunities;
+- appointments;
+- quality and lifecycle information;
+- source and attribution context.
+
+Opening a contact uses fixed tabs/windows, never a long drawer.
+
+## PIPELINE
+
+Pipeline answers: “What do you want to do with this opportunity?”
+
+Every opportunity should expose a small set of business actions such as:
+- prepare/follow up;
+- open the contact context;
+- change stage when needed;
+- mark outcome;
+- ask Cloudy for next best action.
+
+Provider implementation details remain hidden.
+
+## INVENTORY
+
+Inventory is a live mirror of the sellable products/services/offers published by the business.
+
+Default summary for every item:
+- Title
+- Price
+- Description
+
+There is no three-item inventory limit. ALL relevant published items remain accessible. The number shown per viewport is only a presentation page size; paging indicates the visible range and total count.
+
+CloudSales is service-commerce first, not an ecommerce storefront. Inventory supports the repeating cycle:
+
+SELL -> LEARN -> UPDATE -> SELL AGAIN.
+
+Cloudy combines Inventory + Sales + Marketing signals to identify what is moving, what is not, what deserves promotion and what should receive less attention.
+
+## FILES + CONTACT DATA
+
+When uploading a contact document from Files, the user first selects the contact.
+
+The selector searches/filter in real time using available:
+- name;
+- email;
+- company/business;
+- phone.
+
+Opening a contact also allows adding documents, notes and tasks directly to that contact.
+
+Private contact context stays inside CloudSales unless a specific authorized integration requires it. Advertising feedback is normalized into provider-safe outcome/conversion signals rather than uploading raw documents or note text.
+
+## TEAM
+
+Team answers: “What is happening with each person and what needs attention?”
+
+Show only operationally useful information such as:
+- member identity;
+- role/status;
+- recent workspace activity;
+- blocked/pending work where available;
+- decisions/ownership that require attention.
+
+Do not turn Team into intrusive surveillance.
+
+## BILLING
+
+Billing must prevent the feeling of an opaque expensive subscription by making value and cost structure understandable.
+
+Show clearly:
+- plan/subscription;
+- usage/work performed;
+- billing period / next cut;
+- advertising spend separately from CloudSales charges;
+- work executed by Cloudy/AgentCloud when available;
+- invoices/payment/account controls.
+
+Never fabricate ROI or attribution. Show value using real recorded work and real business outcomes only.
 
 ## HighLevel simplification map
 
-HighLevel capabilities are normalized as follows:
-- Contacts + contact activity + forms/surveys results -> LEADS
-- Opportunities + pipelines -> PIPELINE
-- Conversations + messaging/calls/social inbox -> AI CHAT
-- Calendars + appointments -> CALENDAR
-- Workflows + triggers + automation logs -> AUTOMATIONS
-- Products + websites/funnels + service-commerce offer data -> INVENTORY
-- Social Planner + campaigns + ad/reporting layer -> MARKETING
-- Media/documents -> FILES
-- Integrations + account/provider settings -> CONNECT
-- Payments/subscriptions/invoices/account essentials -> BILLING
+CloudSales does not clone HighLevel navigation.
 
-Reputation, memberships, forms, surveys, funnels and other provider-specific modules are surfaced contextually inside the closest CloudSales module rather than becoming new primary navigation items.
+- Contacts -> LEADS
+- Opportunities/pipelines -> PIPELINE
+- Conversations -> AI CHAT
+- Calendars -> CALENDAR
+- Workflows/triggers -> CLOUDY-managed automation, surfaced contextually
+- Products/services/sites/funnels -> INVENTORY
+- Social/campaigns/ad reporting -> MARKETING
+- Media/documents -> FILES
+- Users/roles -> TEAM
+- Integrations -> CONNECT
+- Payments/subscriptions/account -> BILLING
+
+Provider-specific modules are surfaced contextually instead of becoming new menu items.
 
 ## UI rules
 
@@ -221,21 +272,20 @@ Inherit UCDS-1:
 - clean, elegant and professional;
 - no overloaded dashboards;
 - no decorative feature walls;
-- no tiny text;
 - minimum operational font size: 12 px;
+- no technical keys when a human label exists;
+- no content flash behind the canonical CloudSales logo;
 - no important information hidden below the viewport;
 - no vertical or horizontal scroll in normal app use;
-- use windows, tabs, paging and drill-down views instead of scroll;
-- one dominant task per view;
-- minimum friction and minimum complexity;
-- mobile-first touch targets;
-- consistent icons and labels;
+- use windows, tabs, paging and drill-down views;
+- one dominant purpose per view;
+- consistent touch targets and branding;
 - real data only.
 
-When in doubt between stacking more information onto the current screen or creating another focused window, create the focused window.
+When in doubt between adding information to the current window or creating a focused next window, create the focused next window.
 
 ## Technical migration rule
 
-Do not solve this architecture by stacking new DOM-mutating patch runtimes indefinitely. Existing compatibility runtimes may be used during migration, but the target is a single canonical PWA source/shell. Every migrated feature should reduce, not increase, the number of competing navigation/layout layers.
+Compatibility runtimes may be used only during migration. The target is one canonical PWA source/shell. Every migration step must reduce competing navigation/layout logic.
 
-The migration is complete only when each page has a native fixed-window implementation and no hidden legacy content depends on scroll for access.
+The migration is complete only when every page has a fixed-window native implementation and no hidden legacy content depends on scroll for access.
