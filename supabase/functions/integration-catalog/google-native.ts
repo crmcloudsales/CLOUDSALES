@@ -55,13 +55,51 @@ export async function publishGoogleBusinessPost(svc:any,organizationId:string,in
   return {provider_key:'google_business_profile',external_post_id:String(data?.name||''),status:'published',raw:data};
 }
 
-// YouTube Data API uploads require video media. A standalone image must first be transformed
-// by CloudSales Content Engine into a video/Short; this adapter will never pretend an image is uploadable.
+async function fetchPublicVideo(url:string){
+  if(!url.startsWith('https://'))throw new Error('youtube_video_requires_public_https_url');
+  const r=await fetch(url,{method:'GET',redirect:'follow'});
+  if(!r.ok||!r.body)throw new Error(`youtube_video_fetch_failed:${r.status}`);
+  const contentType=String(r.headers.get('content-type')||'video/mp4');
+  if(!contentType.startsWith('video/'))throw new Error('youtube_asset_is_not_video');
+  const contentLength=r.headers.get('content-length');
+  return {response:r,contentType,contentLength};
+}
+
+// Native YouTube upload. We intentionally require video media: a standalone image must first
+// be converted by the CloudSales Content Engine into a video/Short before this adapter is called.
+export async function publishYouTube(svc:any,organizationId:string,input:any){
+  const auth=await connectionAccessToken(svc,organizationId,'youtube');
+  if(!auth)throw new Error('youtube_not_configured');
+  const assets=Array.isArray(input?.assets)?input.assets:[];
+  const video=assets.find((a:any)=>String(a?.type||'')==='video'&&String(a?.url||'').startsWith('https://'));
+  if(!video)throw new Error('youtube_video_asset_required');
+  const title=String(input?.title||input?.text||'CloudSales').trim().slice(0,100)||'CloudSales';
+  const description=String(input?.description||input?.text||'').slice(0,5000);
+  const requestedPrivacy=String(input?.privacy_status||'private').toLowerCase();
+  const privacyStatus=['private','unlisted','public'].includes(requestedPrivacy)?requestedPrivacy:'private';
+  const source=await fetchPublicVideo(String(video.url));
+  const metadata={snippet:{title,description,categoryId:String(input?.category_id||'22')},status:{privacyStatus,selfDeclaredMadeForKids:Boolean(input?.made_for_kids||false)}};
+  const initiateUrl='https://www.googleapis.com/upload/youtube/v3/videos?uploadType=resumable&part=snippet,status';
+  const initHeaders:Record<string,string>={Authorization:`Bearer ${auth.token}`,'content-type':'application/json; charset=UTF-8','x-upload-content-type':source.contentType};
+  if(source.contentLength)initHeaders['x-upload-content-length']=source.contentLength;
+  const init=await fetch(initiateUrl,{method:'POST',headers:initHeaders,body:JSON.stringify(metadata)});
+  if(!init.ok){const t=await init.text();throw new Error(`youtube_upload_session_failed:${init.status}:${t.slice(0,220)}`)}
+  const uploadUrl=String(init.headers.get('location')||'');
+  if(!uploadUrl.startsWith('https://'))throw new Error('youtube_resumable_location_missing');
+  const uploadHeaders:Record<string,string>={'content-type':source.contentType};
+  if(source.contentLength)uploadHeaders['content-length']=source.contentLength;
+  const uploaded=await fetch(uploadUrl,{method:'PUT',headers:uploadHeaders,body:source.response.body});
+  const text=await uploaded.text();let data:any={};try{data=text?JSON.parse(text):{}}catch{data={raw:text}}
+  if(!uploaded.ok)throw new Error(`youtube_upload_failed:${uploaded.status}:${String(data?.error?.message||text).slice(0,220)}`);
+  const id=String(data?.id||'');if(!id)throw new Error('youtube_video_id_missing');
+  return {provider_key:'youtube',external_post_id:id,external_url:`https://www.youtube.com/watch?v=${encodeURIComponent(id)}`,status:'published',privacy_status:String(data?.status?.privacyStatus||privacyStatus),raw:data};
+}
+
 export async function youtubeUploadReady(svc:any,organizationId:string,input:any){
   const auth=await connectionAccessToken(svc,organizationId,'youtube');
   if(!auth)throw new Error('youtube_not_configured');
   const assets=Array.isArray(input?.assets)?input.assets:[];
   const video=assets.find((a:any)=>String(a?.type||'')==='video'&&String(a?.url||'').startsWith('https://'));
   if(!video)throw new Error('youtube_video_asset_required');
-  return {provider_key:'youtube',ready:true,video_url:String(video.url),connection_id:auth.connection.id,note:'resumable_upload_runtime_required'};
+  return {provider_key:'youtube',ready:true,video_url:String(video.url),connection_id:auth.connection.id,note:'native_resumable_upload_available'};
 }
