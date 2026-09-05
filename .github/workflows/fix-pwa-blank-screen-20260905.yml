@@ -1,0 +1,45 @@
+name: Fix CloudSales PWA blank screen 2026-09-05
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-pwa-blank-screen-20260905.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove blank-screen boot guard and bump cache
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('web/pwa.html')
+          s=p.read_text()
+          s=s.replace('class="cs-i18n-pending cs-brand-pwa-v20260903"','class="cs-brand-pwa-v20260903"',1)
+          s=s.replace('<style id="cs-i18n-boot-20260902">html.cs-i18n-pending body{visibility:hidden}</style><script id="cs-i18n-boot-20260902">setTimeout(()=>document.documentElement.classList.remove(\'cs-i18n-pending\'),1800)</script>','<style id="cs-i18n-boot-20260902">html,body{visibility:visible!important}</style>',1)
+          # Defensive fallback if exact boot snippet has drifted.
+          s=re.sub(r'<style id="cs-i18n-boot-20260902">.*?</style><script id="cs-i18n-boot-20260902">.*?</script>', '<style id="cs-i18n-boot-20260902">html,body{visibility:visible!important}</style>', s, count=1, flags=re.S)
+          if 'visibility:hidden' in s and 'cs-i18n-pending body' in s:
+              raise SystemExit('blank-screen visibility guard still present')
+          p.write_text(s)
+          sw=Path('web/sw.js')
+          x=sw.read_text()
+          x=re.sub(r"const CACHE='[^']+';", "const CACHE='cloudsales-pwa-2026.09.05.1510-no-blank';", x, count=1)
+          sw.write_text(x)
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name 'crmcloudsales'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web/pwa.html web/sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(pwa): never hide login screen during boot'
+          git push
