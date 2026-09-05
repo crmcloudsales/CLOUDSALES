@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.09.05.2-auth-social-canonical';
+const CACHE='cloudsales-pwa-2026.09.05.3-connect-center';
 const LOCALES=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
 const I18N=[
   '/cloudsales-static-i18n-v2.js',
@@ -33,6 +33,7 @@ const CORE=[
   '/cloudy-executive-runtime-v1.js',
   '/billing-runtime-v1.js',
   '/member-runtime-v1.js',
+  '/connect-center-runtime-v1.js',
   ...I18N,
   '/icon-192.png',
   '/icon-512.png',
@@ -70,7 +71,7 @@ self.addEventListener('fetch',event=>{
   const url=new URL(event.request.url);
   if(url.origin!==location.origin) return;
 
-  const runtimeScript=/\/(?:auth|app|meta|cloudy|works|ad-spend|ai-chat|calendar|contact-profile|dashboard|sales-analytics|native-shell|canonical-pwa|pwa-polish|workspace-polish|pwa-i18n|cloudsales-static-i18n|cloudy-executive|billing|member)[^/]*\.js$/.test(url.pathname);
+  const runtimeScript=/\/(?:auth|app|meta|cloudy|works|ad-spend|ai-chat|calendar|contact-profile|dashboard|sales-analytics|native-shell|canonical-pwa|pwa-polish|workspace-polish|pwa-i18n|cloudsales-static-i18n|cloudy-executive|billing|member|connect-center)[^/]*\.js$/.test(url.pathname);
   const i18nCatalog=url.pathname.startsWith('/i18n/catalog-v1/');
   const networkFirst=event.request.mode==='navigate'||url.pathname==='/'||url.pathname==='/sw.js'||url.pathname==='/manifest.webmanifest'||url.pathname==='/install.js'||runtimeScript||i18nCatalog;
 
