@@ -31,7 +31,7 @@ const tabs={
       ['twenty','Twenty','twenty','twenty.com'],
       ['salesforce','Salesforce','salesforce','salesforce.com'],
       ['zoho','Zoho CRM','zoho','zoho.com'],
-      ['pipedrive','Pipedrive','pipedrive.com'],
+      ['pipedrive','Pipedrive','pipedrive','pipedrive.com'],
       ['freshsales','Freshsales','freshsales','freshworks.com'],
       ['monday','Monday CRM','monday_crm','monday.com'],
       ['copper','Copper','copper','copper.com'],
