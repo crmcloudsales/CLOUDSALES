@@ -1,0 +1,26 @@
+name: Apply CloudSales mobile UX hotfix
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/mobile-ux-apply-20260905.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply hotfix
+        run: python scripts/mobile_ux_hotfix_20260905.py
+      - name: Commit and push
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/commercial.html web/native-shell-runtime-v1.js web/sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(mobile): integrate bottom nav and repair hamburger"
+          git push
