@@ -1,0 +1,85 @@
+name: Senzik Logo PRO Release
+
+on:
+  push:
+    paths:
+      - '.github/workflows/senzik-logo-pro-release.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate optimized logo asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          ASSET='web/clients/senzik/assets/logo-gold-pro-192.webp.b64'
+          test -s "$ASSET"
+          tr -d '\n\r ' < "$ASSET" | base64 -d > /tmp/senzik-logo.webp
+          test "$(stat -c%s /tmp/senzik-logo.webp)" -gt 15000
+          python - <<'PY'
+          from pathlib import Path
+          b=Path('/tmp/senzik-logo.webp').read_bytes()
+          assert b[:4]==b'RIFF' and b[8:12]==b'WEBP', 'invalid webp asset'
+          print('validated webp bytes:', len(b))
+          PY
+
+      - name: Replace header logo with user-approved transparent gold PRO asset
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          html_path=Path('web/clients/senzik/landing-edge.html')
+          asset_path=Path('web/clients/senzik/assets/logo-gold-pro-192.webp.b64')
+          x=html_path.read_text()
+          b64=''.join(asset_path.read_text().split())
+          assert re.fullmatch(r'[A-Za-z0-9+/]+={0,2}', b64), 'invalid base64 characters'
+          data='data:image/webp;base64,'+b64
+
+          x=re.sub(r'<!--\s*senzik-future-investment-v[^>]*-->', '<!-- senzik-future-investment-v5-user-gold-pro-logo -->', x, count=1)
+
+          logo_img=(
+            '<img class="brandMark" src="'+data+'" width="88" height="88" '
+            'alt="Senzik Residences" decoding="async" fetchpriority="high">'
+          )
+          pattern=r'<(?:span|div|i)\s+class=["\']brandMark["\'][^>]*>\s*</(?:span|div|i)>'
+          x,n=re.subn(pattern,logo_img,x,count=1)
+          if n!=1:
+            raise SystemExit('brandMark placeholder not found exactly once')
+
+          overrides='''
+/* user-approved SENZIK gold PRO logo: transparent web asset */
+.brand{min-width:92px!important;display:flex!important;align-items:center!important}
+.brandMark{display:block!important;width:88px!important;height:88px!important;object-fit:contain!important;background:none!important;-webkit-mask:none!important;mask:none!important;filter:drop-shadow(0 0 14px rgba(218,171,49,.22))!important;transition:transform .3s ease,filter .3s ease!important}
+.brand:hover .brandMark{transform:translateY(-1px) scale(1.015)!important;filter:drop-shadow(0 0 20px rgba(235,190,62,.34))!important}
+.navin{min-height:108px!important}
+@media(max-width:760px){.brand{min-width:70px!important}.brandMark{width:70px!important;height:70px!important}.navin{min-height:88px!important}}
+'''
+          if 'user-approved SENZIK gold PRO logo' not in x:
+            x=x.replace('</style>',overrides+'</style>',1)
+
+          assert data in x
+          assert 'senzik-future-investment-v5-user-gold-pro-logo' in x
+          html_path.write_text(x)
+          PY
+
+      - name: Commit source update
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'cloudsales-release-bot'
+          git config user.email 'noreply@cloudsales.app'
+          git add web/clients/senzik/landing-edge.html
+          if git diff --cached --quiet; then
+            echo 'No changes needed'
+            exit 0
+          fi
+          git commit -m 'Senzik: use approved transparent gold PRO logo'
+          git push
