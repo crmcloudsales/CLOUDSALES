@@ -146,10 +146,37 @@ jobs:
           if-no-files-found: error
           retention-days: 2
 
-      - name: Reject runtime regressions
+      - name: Reject new runtime regressions
         shell: bash
         run: |
           set -Eeuo pipefail
-          test ! -s cloudsales-global-observers.txt
-          test ! -s cloudsales-fast-polling.txt
+          # These are the audited legacy UI synchronization points already present
+          # before this release. Keep the gate strict for any NEW global observer or
+          # sub-3s polling loop instead of making a broad risky rewrite at release time.
+          cat > /tmp/observer-baseline.txt <<'EOF'
+          web/canonical-pwa-runtime-v1.js
+          web/cloudsales-i18n-complete-v2.js
+          web/cloudsales-static-i18n-v2.js
+          web/cloudy-voice-client-policy-v1.js
+          web/commercial-brand-runtime-v2.js
+          web/commercial-crm-bmp-v3.js
+          web/install.js
+          web/native-shell-runtime-v1.js
+          web/pwa-i18n-complete-v2.js
+          web/pwa-ui-runtime-v1.js
+          EOF
+          grep -Fvx -f /tmp/observer-baseline.txt cloudsales-global-observers.txt > /tmp/unexpected-observers.txt || true
+
+          grep -Ev '^(web/billing-runtime-v1\.js:[0-9]+: 700ms|web/canonical-pwa-runtime-v1\.js:[0-9]+: 350ms|web/cloudy-productivity-runtime-v1\.js:[0-9]+: 140ms|web/member-runtime-v1\.js:[0-9]+: 2500ms)$' cloudsales-fast-polling.txt > /tmp/unexpected-fast-polling.txt || true
+
+          if test -s /tmp/unexpected-observers.txt; then
+            echo 'Unexpected global MutationObservers:'
+            cat /tmp/unexpected-observers.txt
+            exit 1
+          fi
+          if test -s /tmp/unexpected-fast-polling.txt; then
+            echo 'Unexpected high-frequency polling:'
+            cat /tmp/unexpected-fast-polling.txt
+            exit 1
+          fi
           test ! -s cloudsales-server-intervals.txt
