@@ -6,6 +6,14 @@
   "forbid_unapproved_provider_substitution": true,
   "forbid_invented_links_credentials_prices_or_ids": true,
   "verify_before_claiming_success": true,
+  "free_access": {
+    "free_trials_enabled": false,
+    "free_days": 0,
+    "charge_from_day_one": true,
+    "unpaid_access_allowed": false,
+    "provider_trial_configuration_allowed": false,
+    "changes_require_explicit_user_directive": true
+  },
   "billing": {
     "subscription_plans": {
       "customer_facing_provider": "paypal",
@@ -30,7 +38,7 @@
   },
   "journey": [
     "select_plan",
-    "pay_with_provider_for_billing_category",
+    "pay_from_day_one_with_provider_for_billing_category",
     "create_or_access_account",
     "preserve_paid_plan_account_association",
     "offer_os_appropriate_install_path"
