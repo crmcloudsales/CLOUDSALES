@@ -7,13 +7,21 @@
   "forbid_invented_links_credentials_prices_or_ids": true,
   "verify_before_claiming_success": true,
   "billing": {
-    "customer_facing_provider": "paypal",
-    "stripe_customer_checkout_allowed": false,
-    "plans": {
-      "basic": {"price_usd_month": 47},
-      "pro": {"price_usd_month": 97},
-      "premium": {"price_usd_month": 147}
-    }
+    "subscription_plans": {
+      "customer_facing_provider": "paypal",
+      "require_reusable_paypal_links": true,
+      "stripe_plan_checkout_allowed": false,
+      "plans": {
+        "basic": {"price_usd_month": 47, "provider": "paypal"},
+        "pro": {"price_usd_month": 97, "provider": "paypal"},
+        "premium": {"price_usd_month": 147, "provider": "paypal"}
+      }
+    },
+    "markups": {
+      "provider": "stripe",
+      "stripe_allowed": true
+    },
+    "provider_changes_require_explicit_user_directive": true
   },
   "auth": {
     "email_password": true,
@@ -22,7 +30,7 @@
   },
   "journey": [
     "select_plan",
-    "pay_with_canonical_provider",
+    "pay_with_provider_for_billing_category",
     "create_or_access_account",
     "preserve_paid_plan_account_association",
     "offer_os_appropriate_install_path"
