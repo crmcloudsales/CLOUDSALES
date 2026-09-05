@@ -23,7 +23,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
-      - name: Patch PWA release smoke
+      - name: Patch PWA release smoke and digest typing
         run: python .github/scripts/fix_pwa_release_smoke_20260905.py
       - name: Type-check release function
         run: deno check supabase/functions/cloudflare-pwa-release-v12/index.ts
