@@ -1,0 +1,51 @@
+name: CloudSales Google API Bootstrap
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/google/enable-cloudsales-google-apis.sh'
+      - '.github/workflows/google-cloud-enable-apis.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  enable-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud via Workload Identity Federation
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: cloudsales-507715
+          workload_identity_provider: projects/1039655793672/locations/global/workloadIdentityPools/github-actions/providers/cloudsales-repo
+          service_account: cloudsales-github-automation@cloudsales-507715.iam.gserviceaccount.com
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Enable CloudSales Google APIs
+        shell: bash
+        run: bash infra/google/enable-cloudsales-google-apis.sh
+
+      - name: Write summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## CloudSales Google API Bootstrap'
+            echo
+            echo '- Project: `cloudsales-507715`'
+            echo '- Identity: `cloudsales-github-automation@cloudsales-507715.iam.gserviceaccount.com`'
+            echo '- Authentication: Workload Identity Federation (no JSON key)'
+            echo
+            echo '### Enabled Google services'
+            echo '```'
+            gcloud services list --enabled --project=cloudsales-507715 --format='value(config.name)' | sort
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
