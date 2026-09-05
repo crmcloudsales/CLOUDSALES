@@ -31,8 +31,11 @@ jobs:
           assert 'stripe-checkout-start' not in s
           assert 'initEmbeddedCheckout' not in s
           assert 'Checkout seguro por Stripe' not in s
+          assert 'https://js.stripe.com/v3' not in s
           assert 'Pago seguro por PayPal' in s
-          assert '/paypal-plan-links-v1.js' in s
+          assert 'cs-paypal-plan-registry-v1' in s
+          assert 'cs-paypal-plan-checkout-v1' in s
+          assert "plan_basic:null" in s and "plan_pro:null" in s and "plan_premium:null" in s
           assert 'https://app.cloudsales.app/?signup=1' in s
           assert 'https://app.cloudsales.app/?install=ios' in s
           assert 'https://app.cloudsales.app/?install=android' in s
