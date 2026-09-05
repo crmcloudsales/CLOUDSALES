@@ -6,8 +6,8 @@
   const CHECKOUT_KEY = 'cs_pending_checkout';
 
   const TRIAL_UI_COPY={
-    es:{notice:'<b>7 días de prueba gratis.</b> Se solicita un método de pago y no se cobra la mensualidad hasta terminar la prueba.',mini:'7 días gratis'},
-    en:{notice:'<b>7-day free trial.</b> A payment method is required and the monthly plan is not charged until the trial ends.',mini:'7 days free'},
+    es:{notice:'<b>suscripción de pago.</b> Se solicita un método de pago y no se cobra la mensualidad hasta terminar la prueba.',mini:'acceso de pago'},
+    en:{notice:'<b>paid subscription.</b> A payment method is required and the monthly plan is not charged until the trial ends.',mini:'paid access'},
     fr:{notice:'<b>Essai gratuit de 7 jours.</b> Un moyen de paiement est requis et l’abonnement n’est débité qu’à la fin de l’essai.',mini:'7 jours gratuits'},
     it:{notice:'<b>Prova gratuita di 7 giorni.</b> È richiesto un metodo di pagamento e il piano mensile viene addebitato solo al termine della prova.',mini:'7 giorni gratis'},
     'pt-BR':{notice:'<b>Teste grátis por 7 dias.</b> É necessário adicionar uma forma de pagamento e a mensalidade só é cobrada ao final do teste.',mini:'7 dias grátis'},
@@ -77,7 +77,7 @@
         const box=node('onboard')?.querySelector('.onbox');
         if (box && !node('checkoutPaidNotice')) {
           const n=document.createElement('div'); n.id='checkoutPaidNotice'; n.className='notice'; n.style.margin='12px 0';
-          n.innerHTML=`<b>Plan ${plan.toUpperCase()} seleccionado para tu prueba gratis de 7 días.</b><br>Completa los datos del negocio para iniciar tu prueba de CloudSales.`;
+          n.innerHTML=`<b>Plan ${plan.toUpperCase()} seleccionado para tu suscripción de pago de 7 días.</b><br>Completa los datos del negocio para iniciar tu prueba de CloudSales.`;
           box.insertBefore(n,box.querySelector('.plans'));
         }
       }
@@ -98,7 +98,7 @@
       const r=await direct('claim-checkout',{organization_id:currentOrg.id,session_id:sid},true);
       clearCheckout();
       if (typeof loadState==='function') await loadState();
-      message('Tu prueba gratis de 7 días quedó activada. La primera mensualidad se cobrará al terminar el trial, salvo que canceles antes.',true);
+      message('Tu suscripción de pago de 7 días quedó activada. La primera mensualidad se cobrará al terminar el trial, salvo que canceles antes.',true);
       return r;
     } catch(err) {
       const code=String(err?.message||'');

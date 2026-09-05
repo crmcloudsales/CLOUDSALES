@@ -95,15 +95,15 @@
   function patchCanonicalPricing() {
     const apply = () => {
       document.querySelectorAll('.planpick[data-plan="basic"]').forEach(el => {
-        el.innerHTML = 'BASIC<br><b>$47</b><div style="font-size:9px;color:#AAA7B2;margin-top:4px">1 usuario · uso: costo +50%</div><span class="trialPlanNote">7 días gratis</span>';
+        el.innerHTML = 'BASIC<br><b>$47</b><div style="font-size:9px;color:#AAA7B2;margin-top:4px">1 usuario · uso: costo +50%</div><span class="trialPlanNote">acceso de pago</span>';
         el.setAttribute('aria-label', 'BASIC 47 USD al mes, 1 usuario, uso variable a costo real más 50 por ciento');
       });
       document.querySelectorAll('.planpick[data-plan="pro"]').forEach(el => {
-        el.innerHTML = 'PRO<br><b>$97</b><div style="font-size:9px;color:#AAA7B2;margin-top:4px">1 usuario · uso: costo +35%</div><span class="trialPlanNote">7 días gratis</span>';
+        el.innerHTML = 'PRO<br><b>$97</b><div style="font-size:9px;color:#AAA7B2;margin-top:4px">1 usuario · uso: costo +35%</div><span class="trialPlanNote">acceso de pago</span>';
         el.setAttribute('aria-label', 'PRO 97 USD al mes, 1 usuario, uso variable a costo real más 35 por ciento');
       });
       document.querySelectorAll('.planpick[data-plan="premium"]').forEach(el => {
-        el.innerHTML = 'PREMIUM<br><b>$147</b><div style="font-size:9px;color:#AAA7B2;margin-top:4px">suscripción individual · uso: costo +25%</div><span class="trialPlanNote">7 días gratis</span>';
+        el.innerHTML = 'PREMIUM<br><b>$147</b><div style="font-size:9px;color:#AAA7B2;margin-top:4px">suscripción individual · uso: costo +25%</div><span class="trialPlanNote">acceso de pago</span>';
         el.setAttribute('aria-label', 'PREMIUM 147 USD al mes, suscripción individual, uso variable a costo real más 25 por ciento');
       });
 
