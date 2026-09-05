@@ -1,0 +1,52 @@
+name: Map legacy CloudSales icon release paths to locked isotipo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloudsales-isotipo-release-compat-20260905.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Point legacy release-only aliases to the canonical transparent design
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f web/assets/cloudsales-isotipo-official-512.png
+          test -f web/assets/cloudsales-isotipo-official-192.png
+          mkdir -p web/assets
+          cp web/assets/cloudsales-isotipo-official-512.png web/assets/cloudsales-app-icon-official-v4.png
+          cp web/assets/cloudsales-isotipo-official-192.png web/assets/cloudsales-app-icon-official-v4-192.png
+          cp web/assets/cloudsales-isotipo-official-512.png web/cloudsales-app-icon-official-v4.png
+          cp web/assets/cloudsales-isotipo-official-192.png web/cloudsales-app-icon-official-v4-192.png
+          cp web/assets/cloudsales-isotipo-official-512.png web/cloudsales-favicon-official-v4.png
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          for p in [Path('web/assets/cloudsales-app-icon-official-v4.png'),Path('web/assets/cloudsales-app-icon-official-v4-192.png'),Path('web/cloudsales-favicon-official-v4.png')]:
+              im=Image.open(p).convert('RGBA')
+              if im.getchannel('A').getextrema()[0] != 0:
+                  raise SystemExit(f'{p} lost transparency')
+          print('legacy route aliases now resolve to locked transparent isotipo')
+          PY
+      - name: Commit compatibility aliases
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'cloudsales-release-bot'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web/assets/cloudsales-app-icon-official-v4.png web/assets/cloudsales-app-icon-official-v4-192.png web/cloudsales-app-icon-official-v4.png web/cloudsales-app-icon-official-v4-192.png web/cloudsales-favicon-official-v4.png
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(brand): serve locked isotipo through legacy release routes'
+          git pull --rebase origin main
+          git push origin HEAD:main
