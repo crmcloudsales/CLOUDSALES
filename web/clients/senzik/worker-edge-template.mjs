@@ -3,6 +3,7 @@ const GATE_KEY="6a5d3fce-7b17-413c-8b0d-010035db3aaa";
 const ORIGIN="https://senzikresidences.cloudsales.app";
 const INTAKE="https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/lead-intake";
 const OFFICIAL_WHATSAPP="https://api.whatsapp.com/send?phone=525512819326&text=Quiero+m%C3%A1s+informaci%C3%B3n+sobre+Senzik";
+const OFFICIAL_LOGO="https://senzikresidences.com/images/logo-header.svg";
 
 const headers={"content-type":"application/json;charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"};
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers});
@@ -39,6 +40,19 @@ export default {
   async fetch(req,env){
     const u=new URL(req.url);
     const path=u.pathname.replace(/\/+$/g,"")||"/";
+
+    if(req.method==="GET"&&path==="/senzik-logo.svg"){
+      try{
+        const lr=await fetch(OFFICIAL_LOGO,{headers:{"user-agent":"Mozilla/5.0 (compatible; CloudSales-Senzik/1.0)","accept":"image/svg+xml,*/*"}});
+        if(!lr.ok)throw new Error("official_logo_"+lr.status);
+        const svg=await lr.text();
+        if(!/<svg[\s>]/i.test(svg))throw new Error("official_logo_invalid");
+        return new Response(svg,{headers:{"content-type":"image/svg+xml;charset=utf-8","cache-control":"public,max-age=86400,s-maxage=86400,stale-while-revalidate=604800","x-content-type-options":"nosniff"}});
+      }catch{
+        const fallback='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120"><text x="0" y="82" fill="black" font-family="Arial,Helvetica,sans-serif" font-size="76" font-weight="600" letter-spacing="12">SENZIK</text></svg>';
+        return new Response(fallback,{headers:{"content-type":"image/svg+xml;charset=utf-8","cache-control":"public,max-age=300","x-content-type-options":"nosniff"}});
+      }
+    }
 
     if(req.method==="GET"&&path==="/health")return json({
       ok:true,
