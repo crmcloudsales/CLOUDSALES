@@ -35,35 +35,36 @@ jobs:
 
           x = landing.read_text()
           x = re.sub(r'\n?<style data-senzik-user-logo-v8>[\s\S]*?</style>\s*<!-- senzik-user-logo-v8 -->\s*', '\n', x)
-          css = r'''
-<style data-senzik-user-logo-v8>
-/* Exact user-uploaded Senzik logo. Format-only conversion: transparent WebP. */
-.brand{min-width:108px!important;display:flex!important;align-items:center!important}
-.brandMark{
-  display:block!important;
-  width:96px!important;
-  height:96px!important;
-  background:url("/senzik-user-logo.webp?v=8") center/contain no-repeat!important;
-  background-size:contain!important;
-  background-position:center!important;
-  -webkit-mask:none!important;
-  mask:none!important;
-  filter:drop-shadow(0 0 12px rgba(216,171,75,.22))!important;
-  animation:none!important;
-  transition:transform .3s ease,filter .3s ease!important
-}
-.brand:hover .brandMark{
-  transform:translateY(-1px) scale(1.015)!important;
-  filter:drop-shadow(0 0 18px rgba(216,171,75,.30))!important
-}
-@media(max-width:760px){
-  .brand{min-width:78px!important}
-  .brandMark{width:78px!important;height:78px!important}
-  .navin{min-height:90px!important}
-}
-</style>
-<!-- senzik-user-logo-v8 -->
-'''
+          css = '''
+          <style data-senzik-user-logo-v8>
+          /* Exact user-uploaded Senzik logo. Format-only conversion: transparent WebP. */
+          .brand{min-width:108px!important;display:flex!important;align-items:center!important}
+          .brandMark{
+            display:block!important;
+            width:96px!important;
+            height:96px!important;
+            background:url("/senzik-user-logo.webp?v=8") center/contain no-repeat!important;
+            background-size:contain!important;
+            background-position:center!important;
+            -webkit-mask:none!important;
+            mask:none!important;
+            filter:drop-shadow(0 0 12px rgba(216,171,75,.22))!important;
+            animation:none!important;
+            transition:transform .3s ease,filter .3s ease!important
+          }
+          .brand:hover .brandMark{
+            transform:translateY(-1px) scale(1.015)!important;
+            filter:drop-shadow(0 0 18px rgba(216,171,75,.30))!important
+          }
+          @media(max-width:760px){
+            .brand{min-width:78px!important}
+            .brandMark{width:78px!important;height:78px!important}
+            .navin{min-height:90px!important}
+          }
+          </style>
+          <!-- senzik-user-logo-v8 -->
+          '''
+          css = '\n'.join(line[10:] if line.startswith('          ') else line for line in css.splitlines())
           if '</head>' not in x:
               raise SystemExit('landing head not found')
           x = x.replace('</head>', css + '\n</head>', 1)
@@ -79,9 +80,12 @@ jobs:
           w = re.sub(r'\n\s*if\(req\.method==="GET"&&path==="/senzik-user-logo\.webp"\)\{[\s\S]*?\n\s*\}\n\n', '\n', w, count=1)
           route_anchor = '    if(req.method==="GET"&&path==="/senzik-logo.svg"){'
           route = '''    if(req.method==="GET"&&path==="/senzik-user-logo.webp"){
-      const bin=Uint8Array.from(atob(USER_LOGO_B64),c=>c.charCodeAt(0));
-      return new Response(bin,{headers:{"content-type":"image/webp","cache-control":"public,max-age=31536000,immutable","x-content-type-options":"nosniff"}});
-    }\n\n'''
+              const bin=Uint8Array.from(atob(USER_LOGO_B64),c=>c.charCodeAt(0));
+              return new Response(bin,{headers:{"content-type":"image/webp","cache-control":"public,max-age=31536000,immutable","x-content-type-options":"nosniff"}});
+            }
+
+          '''
+          route = '\n'.join(line[10:] if line.startswith('          ') else line for line in route.splitlines())
           if route_anchor not in w:
               raise SystemExit('worker route anchor not found')
           w = w.replace(route_anchor, route + route_anchor, 1)
@@ -108,5 +112,3 @@ jobs:
           git add -u web/clients/senzik/senzik-user-logo-data.txt || true
           git diff --cached --quiet || git commit -m "feat(senzik): use exact uploaded transparent logo in header"
           git push
-
-# trigger v8 exact-logo integration
