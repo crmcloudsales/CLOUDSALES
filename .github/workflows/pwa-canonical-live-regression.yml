@@ -1,0 +1,52 @@
+name: PWA canonical live regression
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/pwa-live-regression-trigger.txt'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          node --check web/native-shell-runtime-v1.js
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Verify live cold-auth and canonical source
+        run: |
+          node <<'NODE'
+          const {chromium}=require('playwright');
+          (async()=>{
+            const browser=await chromium.launch({headless:true});
+            const ctx=await browser.newContext({viewport:{width:390,height:844},locale:'es-MX'});
+            const js=await (await ctx.request.get('https://app.cloudsales.app/native-shell-runtime-v1.js?qa='+Date.now())).text();
+            const need=['Office</small>','data-csn="pipeline"','data-csn="marketing"','csNativeMoreButton','activateCloudyVoice','hardAuthGate','background-size:190%','overflow-y:auto!important'];
+            for(const x of need)if(!js.includes(x))throw Error('live_source_missing:'+x);
+            const p=await ctx.newPage();
+            const errors=[];p.on('pageerror',e=>errors.push(String(e.message||e)));
+            await p.goto('https://app.cloudsales.app/?coldqa='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
+            await p.waitForTimeout(1800);
+            const state=await p.evaluate(()=>({
+              authVisible:!!document.querySelector('#auth:not(.hidden),.auth:not(.hidden)'),
+              shellVisible:!!document.querySelector('#shell:not(.hidden),.shell:not(.hidden)'),
+              privateNav:!!document.querySelector('#csNativeBottom'),
+              hasSession:!!localStorage.getItem('cs_session'),
+              text:(document.body.innerText||'').slice(0,1000)
+            }));
+            if(state.hasSession)throw Error('fresh_context_has_session');
+            if(state.shellVisible||state.privateNav)throw Error('fresh_context_private_shell_visible');
+            if(!state.authVisible)throw Error('fresh_context_login_not_visible');
+            if(/PENNYWORTH/i.test(state.text))throw Error('fresh_context_tenant_visible');
+            if(errors.length)throw Error('page_errors:'+errors.join('|'));
+            console.log('PWA_CANONICAL_LIVE_PASS',state);
+            await browser.close();
+          })().catch(e=>{console.error(e);process.exit(1)});
+          NODE
