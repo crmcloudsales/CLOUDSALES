@@ -59,9 +59,23 @@ html.cs-mobile-menu-open,html.cs-mobile-menu-open body,html.cs-checkout-open,htm
         raise SystemExit("commercial nav insertion anchor missing")
     s=s.replace(anchor,mobile_css+anchor,1)
 
-# After a successful Stripe return, show the install/access chooser before onboarding.
-if 'id="cs-checkout-return-router-20260905"' not in s:
-    return_router = r'''<script id="cs-checkout-return-router-20260905">(()=>{try{const q=new URLSearchParams(location.search);if(q.get('checkout')==='return'&&q.get('session_id'))location.replace('/welcome.html'+location.search)}catch(_){}})();</script>'''
+# Successful Stripe return: turn the public root into a dedicated access/install page.
+# This stays on a route the public Worker already serves, so it cannot fall through to a 404.
+return_router = r'''<script id="cs-checkout-return-router-20260905">(()=>{try{
+const q=new URLSearchParams(location.search);if(q.get('checkout')!=='return'||!q.get('session_id'))return;
+const show=()=>{
+  document.documentElement.lang='es-MX';document.title='CloudSales — Tu acceso está listo';
+  const style=document.createElement('style');style.id='cs-post-checkout-access-v1';style.textContent=`
+  html,body{min-height:100%;background:radial-gradient(760px 420px at 50% -120px,#2D0A4A 0,transparent 72%),#08070D!important;color:#F3F4F8!important}body{margin:0!important;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif!important}.csPcWrap{width:min(930px,calc(100% - 28px));margin:auto;padding:28px 0 42px}.csPcHero{padding:26px;border:1px solid #37323F;border-radius:28px;background:linear-gradient(145deg,#17141F,#0b0910);box-shadow:0 28px 90px #0008}.csPcLogo{width:210px;max-width:62vw;height:auto}.csPcKicker{margin-top:26px;color:#F955B6;font-size:12px;font-weight:900;letter-spacing:.09em}.csPcTrial{display:inline-flex;margin-top:10px;padding:7px 11px;border:1px solid #5b3454;border-radius:999px;background:#211323;color:#F955B6;font-size:12px;font-weight:900}.csPcHero h1{font-size:clamp(38px,8vw,64px);line-height:.98;letter-spacing:-.05em;margin:12px 0}.csPcLead{max-width:760px;color:#AAA7B2;font-size:17px;line-height:1.6}.csPcGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:13px;margin-top:25px}.csPcCard{display:block;padding:20px;border:1px solid #37323F;border-radius:20px;background:#121019;color:#F3F4F8;text-decoration:none;min-height:118px;transition:.16s}.csPcCard:hover,.csPcCard:focus-visible{border-color:#F955B6;transform:translateY(-1px);outline:none}.csPcCard b{display:block;font-size:19px;margin-bottom:7px}.csPcCard span{display:block;color:#AAA7B2;line-height:1.45;font-size:14px}.csPcNext{margin-top:18px;padding:21px;border:1px solid #2f2a34;border-radius:20px;background:#100e15}.csPcNext h2{margin:0 0 7px;font-size:21px}.csPcBtn{display:inline-flex;margin-top:10px;align-items:center;justify-content:center;padding:14px 20px;border-radius:999px;background:linear-gradient(135deg,#F955B6,#C13BE4);color:#fff!important;text-decoration:none;font-weight:900}.csPcFine{margin-top:13px;color:#85808d;font-size:12px;line-height:1.5}@media(max-width:680px){.csPcWrap{padding-top:16px}.csPcHero{padding:20px;border-radius:22px}.csPcGrid{grid-template-columns:1fr}.csPcCard{min-height:0;padding:18px}}`;
+  document.head.appendChild(style);
+  document.body.innerHTML=`<main class="csPcWrap" id="csPostCheckoutAccess"><section class="csPcHero"><img class="csPcLogo" src="/cloudsales-logo-official-v2.png" alt="CloudSales"><div class="csPcKicker">TU CLOUDSALES ESTÁ LISTO</div><div class="csPcTrial">✓ 7 días gratis</div><h1>Elige cómo quieres usar CloudSales.</h1><p class="csPcLead">Tu cuenta funciona en todos tus dispositivos. Puedes instalar la app o entrar desde el navegador. Después, continúa con Cloudy para completar el onboarding de tu negocio.</p><div class="csPcGrid"><a class="csPcCard" href="https://app.cloudsales.app/?welcome=1"><b>🌐 Entrar desde tu navegador</b><span>Usa CloudSales Web ahora. No necesitas instalar nada.</span></a><a class="csPcCard" href="https://app.cloudsales.app/?install=desktop" target="_blank" rel="noopener"><b>💻 Escritorio</b><span>Instala CloudSales como aplicación en tu computadora.</span></a><a class="csPcCard" href="https://app.cloudsales.app/?install=ios" target="_blank" rel="noopener"><b>📱 iPhone / iPad</b><span>Instala CloudSales en tu dispositivo Apple.</span></a><a class="csPcCard" href="https://app.cloudsales.app/?install=android" target="_blank" rel="noopener"><b>🤖 Android</b><span>Instala CloudSales en tu teléfono o tablet Android.</span></a></div></section><section class="csPcNext"><h2>Siguiente: onboarding con Cloudy</h2><p class="csPcLead">Cuando estés listo, continúa con el mismo correo que usaste en el checkout. Cloudy te guiará para conectar tu CRM, canales, equipo y automatizaciones.</p><a class="csPcBtn" href="https://app.cloudsales.app/?welcome=1">Continuar con Cloudy</a><p class="csPcFine">Tu prueba gratuita dura 7 días. Tu método de pago queda asociado a la suscripción y el cobro mensual comienza al terminar la prueba, salvo cancelación conforme a los términos aplicables.</p></section></main>`;
+};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show,{once:true});else show();
+}catch(e){console.error('post_checkout_access',e)}})();</script>'''
+old_return=re.compile(r'<script id="cs-checkout-return-router-20260905">.*?</script>',re.S)
+if old_return.search(s):
+    s=old_return.sub(return_router,s,count=1)
+else:
     head_anchor='<head>'
     if head_anchor not in s:
         raise SystemExit("commercial head anchor missing")
@@ -112,7 +126,7 @@ checks={
     "hamburger_dom_ready": "DOMContentLoaded',init" in c and "csMobileMenuBtn" in c and "csMobileNav" in c,
     "mobile_menu_full_sheet": "cs-mobile-nav-runtime-fix-20260905" in c and "height:calc(100dvh - 64px)" in c,
     "trial_visible": c.count("7 días gratis") >= 3 and "trialPricingBanner" in c,
-    "checkout_return_router": "cs-checkout-return-router-20260905" in c and "welcome.html" in c,
+    "checkout_return_access_page": "csPostCheckoutAccess" in c and "install=desktop" in c and "install=ios" in c and "install=android" in c and "Continuar con Cloudy" in c and "welcome.html" not in c,
     "native_reserved_region": marker in n and "--csNavReserve:108px" in n,
     "native_no_behind_nav": "body::after" in n and "margin:14px auto var(--csNavReserve)" in n,
     "cache_bumped": "1010-mobile-shell-hotfix" in sw,
