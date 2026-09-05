@@ -1,0 +1,43 @@
+name: Finalize CloudSales Google Connect
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-google-connect-20260905.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-cloudsales-google-connect-20260905
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply final Google Connect patch
+        run: python .github/scripts/finalize_google_connect_20260905.py
+      - name: Validate browser runtime syntax
+        run: node --check web/connect-center-runtime-v1.js
+      - name: Commit runtime
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if git diff --quiet -- web/connect-center-runtime-v1.js; then
+            echo 'Already finalized.'
+            exit 0
+          fi
+          git config user.name 'CloudSales Automation'
+          git config user.email 'noreply@cloudsales.app'
+          git add web/connect-center-runtime-v1.js
+          git commit -m 'Finalize Google OAuth connect and callback flow'
+          git push origin HEAD:main
