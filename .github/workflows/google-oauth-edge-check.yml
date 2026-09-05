@@ -1,0 +1,33 @@
+name: Google OAuth Edge Check
+
+on:
+  push:
+    branches:
+      - cloudsales-unified-google-oauth
+    paths:
+      - 'supabase/functions/connection-start-v4/index.ts'
+      - 'supabase/functions/connection-complete-v4/index.ts'
+      - 'supabase/functions/google-platform-setup/index.ts'
+      - '.github/workflows/google-oauth-edge-check.yml'
+  pull_request:
+    paths:
+      - 'supabase/functions/connection-start-v4/index.ts'
+      - 'supabase/functions/connection-complete-v4/index.ts'
+      - 'supabase/functions/google-platform-setup/index.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  deno-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Google OAuth Edge Functions
+        run: |
+          deno check supabase/functions/connection-start-v4/index.ts
+          deno check supabase/functions/connection-complete-v4/index.ts
+          deno check supabase/functions/google-platform-setup/index.ts
