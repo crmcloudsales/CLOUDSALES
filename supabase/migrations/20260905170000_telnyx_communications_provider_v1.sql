@@ -38,8 +38,6 @@ values
  ('telnyx','whatsapp.receive','planned',false,true,'Receive WhatsApp messages through signed Telnyx webhooks.',jsonb_build_object('signature','ed25519','e2e_required',true)),
  ('telnyx','whatsapp.template.send','planned',true,true,'Send Meta-approved WhatsApp templates through Telnyx.',jsonb_build_object('endpoint','POST /v2/messages/whatsapp','e2e_required',true)),
  ('telnyx','whatsapp.media.send','planned',true,true,'Send supported WhatsApp media through Telnyx.',jsonb_build_object('endpoint','POST /v2/messages/whatsapp','e2e_required',true)),
- ('telnyx','voice.call.start','planned',true,true,'Start programmable voice calls through Telnyx Voice API after Call Control setup.',jsonb_build_object('e2e_required',true)),
- ('telnyx','voice.call.receive','planned',false,true,'Receive and normalize Telnyx voice webhooks.',jsonb_build_object('signature','ed25519','e2e_required',true)),
  ('telnyx','message.status','planned',false,true,'Normalize Telnyx delivery lifecycle webhooks.',jsonb_build_object('events',jsonb_build_array('message.sent','message.finalized'),'e2e_required',true)),
  ('telnyx','message.thread.read','planned',false,true,'Read normalized CloudSales conversation thread.',jsonb_build_object('canonical_store','universal_messages')),
  ('telnyx','message.thread.reply','planned',true,true,'Reply through the CloudSales communications queue using Telnyx.',jsonb_build_object('canonical_queue','communications_engine_jobs','e2e_required',true))
@@ -54,8 +52,7 @@ on conflict(provider_key,capability_key) do update set
 insert into public.communications_engine_providers(provider_key,channel,priority,status,cost_model,capabilities,config)
 values
  ('telnyx','sms',10,'inactive',jsonb_build_object('model','telnyx_usage','refresh_before_routing',true),array['sms.send','sms.receive','message.status']::text[],jsonb_build_object('api_base','https://api.telnyx.com/v2','send_endpoint','/messages','requires_live_e2e_before_active',true)),
- ('telnyx','whatsapp',15,'inactive',jsonb_build_object('model','telnyx_plus_meta','refresh_before_routing',true),array['whatsapp.connect.start','whatsapp.connect.complete','whatsapp.send','whatsapp.receive','whatsapp.template.send','whatsapp.media.send','message.status']::text[],jsonb_build_object('api_base','https://api.telnyx.com/v2','send_endpoint','/messages/whatsapp','requires_live_e2e_before_active',true)),
- ('telnyx','voice',20,'inactive',jsonb_build_object('model','telnyx_usage','refresh_before_routing',true),array['voice.call.start','voice.call.receive']::text[],jsonb_build_object('api_base','https://api.telnyx.com/v2','requires_call_control_application',true,'requires_live_e2e_before_active',true))
+ ('telnyx','whatsapp',15,'inactive',jsonb_build_object('model','telnyx_plus_meta','refresh_before_routing',true),array['whatsapp.connect.start','whatsapp.connect.complete','whatsapp.send','whatsapp.receive','whatsapp.template.send','whatsapp.media.send','message.status']::text[],jsonb_build_object('api_base','https://api.telnyx.com/v2','send_endpoint','/messages/whatsapp','requires_live_e2e_before_active',true))
 on conflict(provider_key,channel) do update set
  priority=excluded.priority,
  cost_model=excluded.cost_model,
@@ -67,8 +64,7 @@ insert into public.integration_provider_routes(capability_key,provider_key,route
 values
  ('sms.send','telnyx','direct',10,false,'beta',1,1,1,jsonb_build_object('activation_gate','telnyx_sms_e2e_passed')),
  ('whatsapp.connect.start','telnyx','aggregator',15,false,'beta',1,1,1,jsonb_build_object('activation_gate','telnyx_whatsapp_e2e_passed','onboarding_mode','telnyx_meta_embedded_signup')),
- ('whatsapp.send','telnyx','aggregator',15,false,'beta',1,1,1,jsonb_build_object('activation_gate','telnyx_whatsapp_e2e_passed')),
- ('voice.call.start','telnyx','direct',20,false,'beta',1,1,1,jsonb_build_object('activation_gate','telnyx_voice_e2e_passed'))
+ ('whatsapp.send','telnyx','aggregator',15,false,'beta',1,1,1,jsonb_build_object('activation_gate','telnyx_whatsapp_e2e_passed'))
 on conflict(capability_key,provider_key) do update set
  route_type=excluded.route_type,
  priority=excluded.priority,
@@ -80,7 +76,7 @@ on conflict(capability_key,provider_key) do update set
 insert into public.communications_engine_webhooks(provider_key,channel,endpoint,status,events,metadata)
 values
  ('telnyx','sms','https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/connection-secret-setup','pending',array['message.received','message.sent','message.finalized']::text[],jsonb_build_object('signature','ed25519','timestamp_tolerance_seconds',300,'runtime_consolidated',true,'handler','connection-secret-setup')),
- ('telnyx','whatsapp','https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/connection-secret-setup','pending',array['message.received','message.sent','message.finalized','message.delivered','message.read','message.failed']::text[],jsonb_build_object('signature','ed25519','timestamp_tolerance_seconds',300,'runtime_consolidated',true,'handler','connection-secret-setup'))
+ ('telnyx','whatsapp','https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/connection-secret-setup','pending',array['message.received','message.sent','message.finalized']::text[],jsonb_build_object('signature','ed25519','timestamp_tolerance_seconds',300,'runtime_consolidated',true,'handler','connection-secret-setup'))
 on conflict(provider_key,channel) do update set
  endpoint=excluded.endpoint,
  events=excluded.events,
@@ -90,8 +86,8 @@ on conflict(provider_key,channel) do update set
 insert into public.integration_readiness(provider_key,phase,priority,status,owner,required_items,next_action,notes)
 values(
  'telnyx',3,'critical','in_progress','shared',
- jsonb_build_array('Telnyx account/API key','Telnyx webhook public key','messaging profile + number','signed webhook verification','SMS live E2E','Meta/WABA Embedded Signup','WhatsApp live E2E','Call Control application','Voice live E2E'),
- 'Configure Telnyx credentials, bind a sender, verify signed webhook delivery, then run SMS, WhatsApp and Voice E2E before enabling routing.',
+ jsonb_build_array('Telnyx account/API key','Telnyx webhook public key','messaging profile + number','signed webhook verification','SMS live E2E','Meta/WABA Embedded Signup','WhatsApp live E2E'),
+ 'Configure Telnyx credentials, bind a sender, verify signed webhook delivery, then run SMS and WhatsApp E2E before enabling routing.',
  'Adapter is provider-agnostic and remains disabled until live tests pass.'
 )
 on conflict(provider_key) do update set
