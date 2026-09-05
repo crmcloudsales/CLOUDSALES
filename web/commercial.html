@@ -305,8 +305,47 @@ html.cs-brand-v20260903.cs-samsung-internet body .btn.primary{
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}.skip-link{position:fixed;left:12px;top:8px;z-index:500;transform:translateY(-150%);background:#F3F4F8;color:#08070D;padding:10px 14px;border-radius:10px;font-weight:900}.skip-link:focus{transform:none}.csMobileMenuBtn{display:none;margin-left:auto;width:46px;height:46px;border:1px solid #403846;border-radius:999px;background:#121019;color:#F3F4F8;font:900 22px/1 system-ui;cursor:pointer}.csMobileNav{display:none;position:fixed;inset:66px 0 auto 0;z-index:90;padding:12px 14px 20px;background:rgba(8,7,13,.985);border-bottom:1px solid rgba(249,85,182,.18);box-shadow:0 24px 70px #000a}.csMobileNav.open{display:block}.csMobileNavInner{width:min(100%,620px);margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:8px}.csMobileNav a{min-height:46px;display:flex;align-items:center;padding:10px 13px;border:1px solid #332d39;border-radius:14px;background:#121019;color:#F3F4F8;font-weight:780;font-size:14px}.csMobileNav a.primary{background:linear-gradient(115deg,#F955B6,#C13BE4);border-color:transparent;color:white}.checkout[aria-hidden="true"]{display:none!important}.checkout[aria-hidden="false"]{display:block!important}.checkout :focus-visible,.nav :focus-visible,.csMobileNav :focus-visible{outline:3px solid #F955B6;outline-offset:3px}@media(max-width:940px){.csMobileMenuBtn{display:inline-grid;place-items:center}.navlinks>a{display:none!important}.navlinks>.csLangDesktop{display:none!important}.csLangMobile{margin-left:0!important}.navin>.csLangMobile{order:2}.csMobileMenuBtn{order:3}.brand{margin-right:auto}.csMobileNavInner{grid-template-columns:1fr 1fr}}@media(max-width:430px){.csMobileNavInner{grid-template-columns:1fr}.csMobileNav{max-height:calc(100vh - 66px);overflow:auto}.brand img{max-width:155px!important}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto!important}*,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 </style>
-<script id="cs-professional-nav-a11y-20260903-js">
-(()=>{'use strict';const b=document.getElementById('csMobileMenuBtn'),m=document.getElementById('csMobileNav'),modal=document.getElementById('checkout'),close=document.getElementById('cclose');let last=null;function nav(open){if(!b||!m)return;m.classList.toggle('open',open);m.setAttribute('aria-hidden',String(!open));b.setAttribute('aria-expanded',String(open));b.setAttribute('aria-label',open?'Cerrar menú':'Abrir menú');if(open)m.querySelector('a')?.focus()}b?.addEventListener('click',()=>nav(!m.classList.contains('open')));m?.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>nav(false)));function syncModal(open){if(!modal)return;modal.setAttribute('aria-hidden',String(!open));if(open){last=document.activeElement;document.body.style.overflow='hidden';setTimeout(()=>document.getElementById('cemail')?.focus(),0)}else{document.body.style.overflow='';if(last&&last.focus)last.focus()}}document.querySelectorAll('.buy').forEach(x=>x.addEventListener('click',()=>syncModal(true)));close?.addEventListener('click',()=>syncModal(false));modal?.addEventListener('click',e=>{if(e.target===modal)syncModal(false)});document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(modal?.classList.contains('open')){modal.classList.remove('open');syncModal(false)}else nav(false)}});window.addEventListener('cloudsales:locale',()=>{document.querySelectorAll('[data-cs-untranslated]').forEach(x=>{if(x.closest('#csMobileNav'))x.removeAttribute('data-cs-untranslated')})});})();
+<style id="cs-mobile-nav-runtime-fix-20260905">
+html.cs-mobile-menu-open,html.cs-mobile-menu-open body,html.cs-checkout-open,html.cs-checkout-open body{overflow:hidden!important}
+@media(max-width:940px){
+  .csMobileNav{inset:64px 0 0 0!important;max-height:none!important;height:calc(100dvh - 64px)!important;overflow:auto!important;padding:14px 14px calc(24px + env(safe-area-inset-bottom))!important;background:#08070D!important;border-bottom:0!important;box-shadow:none!important}
+  .csMobileNavInner{width:min(100%,620px)!important;margin:0 auto!important;align-content:start!important}
+  .csMobileNav a{min-height:52px!important}
+}
+</style><script id="cs-professional-nav-a11y-20260903-js">
+(()=>{'use strict';
+function init(){
+  const b=document.getElementById('csMobileMenuBtn');
+  const m=document.getElementById('csMobileNav');
+  const modal=document.getElementById('checkout');
+  const close=document.getElementById('cclose');
+  if(!b||!m)return;
+  let last=null;
+  function nav(open){
+    m.classList.toggle('open',open);
+    m.setAttribute('aria-hidden',String(!open));
+    b.setAttribute('aria-expanded',String(open));
+    b.setAttribute('aria-label',open?'Cerrar menú':'Abrir menú');
+    document.documentElement.classList.toggle('cs-mobile-menu-open',open);
+    if(open)requestAnimationFrame(()=>m.querySelector('a')?.focus());
+  }
+  b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();nav(!m.classList.contains('open'))});
+  m.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>nav(false)));
+  document.addEventListener('pointerdown',e=>{if(m.classList.contains('open')&&!m.contains(e.target)&&!b.contains(e.target))nav(false)});
+  function syncModal(open){
+    if(!modal)return;
+    modal.setAttribute('aria-hidden',String(!open));
+    if(open){last=document.activeElement;document.documentElement.classList.add('cs-checkout-open');setTimeout(()=>document.getElementById('cemail')?.focus(),0)}
+    else{document.documentElement.classList.remove('cs-checkout-open');if(last&&last.focus)last.focus()}
+  }
+  document.querySelectorAll('.buy').forEach(x=>x.addEventListener('click',()=>syncModal(true)));
+  close?.addEventListener('click',()=>syncModal(false));
+  modal?.addEventListener('click',e=>{if(e.target===modal)syncModal(false)});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(modal?.classList.contains('open')){modal.classList.remove('open');syncModal(false)}else nav(false)}});
+  window.addEventListener('resize',()=>{if(innerWidth>940)nav(false)},{passive:true});
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
 </script>
 <script type="application/ld+json" id="cs-jsonld-software-20260903">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"CloudSales","url":"https://cloudsales.app/","applicationCategory":"BusinessApplication","operatingSystem":"Web, iOS, Android, Windows, macOS","description":"AI operating layer for CRM, lead quality, follow-up, appointments and sales operations.","offers":[{"@type":"Offer","name":"Basic","price":"47","priceCurrency":"USD","url":"https://cloudsales.app/#pricing"},{"@type":"Offer","name":"Pro","price":"97","priceCurrency":"USD","url":"https://cloudsales.app/#pricing"},{"@type":"Offer","name":"Premium","price":"147","priceCurrency":"USD","url":"https://cloudsales.app/#pricing"}]}</script>
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/cloudsales-isotipo-official-180.png?v=202609050933">

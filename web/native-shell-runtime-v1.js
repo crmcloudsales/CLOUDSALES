@@ -31,6 +31,24 @@ function css(){if(document.getElementById(ID+'-css'))return;document.querySelect
 
 /* Canonical mobile shell 2026-09-05 */
 @media(max-width:860px){html.cs-native-app,html.cs-native-app body{height:auto!important;max-height:none!important;overflow-x:hidden!important;overflow-y:auto!important}html.cs-native-app .shell:not(.hidden){height:auto!important;max-height:none!important;min-height:100dvh!important;overflow:visible!important;padding-bottom:104px!important}html.cs-native-app .content{height:auto!important;max-height:none!important;min-height:calc(100dvh - 170px)!important;overflow:visible!important}html.cs-native-app .page,html.cs-native-app .page.active{height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important;padding-bottom:24px!important}.csNBottom{left:18px!important;right:18px!important;grid-template-columns:1fr 1fr 1.18fr 1fr 1fr!important;height:78px!important;padding:8px!important;overflow:visible!important}.csNBottom button,.csNBottom small{font-size:13px!important}.csNBottom .csNCloudy{height:68px!important;width:68px!important;transform:translateY(-13px)!important}.csNCloudy .csCloudyHead{width:60px!important;height:60px!important;background-size:190%!important;background-position:50% 38%!important}.csNCloudy small{top:66px!important;font-size:13px!important}.csNMoreFloat{position:fixed;z-index:10055;right:21px;bottom:calc(86px + env(safe-area-inset-bottom));width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:1px solid #37323F;background:#121019;color:#AAA7B2;box-shadow:0 8px 24px #0008}.csNMoreFloat .csNIcon,.csNMoreFloat svg{width:18px;height:18px}.csNMoreGrid button,.csNMoreTop,.csNMoreTop button,.csNHeader p,.csNBadge,.csNTabs button,.csNHero p,.csNQuick button,.csNKpi span,.csNRow b,.csNRow p,.csNMeta,.csNEmpty,.csNBtn,.csNInventoryToolbar input{font-size:13px!important}.csNPane{overflow:visible!important;max-height:none!important}.brandrow img,.topbar img[src*=cloudsales-logo]{transform:scale(.94);transform-origin:left center}.orgswitch,.orgswitch select{margin-left:3px}}
+
+/* Native viewport/nav integration 2026-09-05 */
+@media(max-width:860px){
+:root{--csNavReserve:108px}
+html.cs-native-app,html.cs-native-app body{height:100dvh!important;max-height:100dvh!important;overflow:hidden!important}
+html.cs-native-app body{overscroll-behavior:none!important;position:relative!important}
+html.cs-native-app body::after{content:'';position:fixed;left:0;right:0;bottom:0;height:calc(100px + env(safe-area-inset-bottom));background:#08070D;z-index:10030;pointer-events:none}
+html.cs-native-app .shell:not(.hidden),html.cs-native-app .app{height:100dvh!important;max-height:100dvh!important;min-height:100dvh!important;overflow:hidden!important;padding-bottom:0!important}
+html.cs-native-app .main{height:100dvh!important;max-height:100dvh!important;min-height:0!important;overflow:hidden!important;display:flex!important;flex-direction:column!important;padding-bottom:0!important}
+html.cs-native-app .topbar{flex:0 0 auto!important;position:relative!important;top:auto!important}
+html.cs-native-app .content{flex:1 1 auto!important;min-height:0!important;height:auto!important;max-height:none!important;width:min(calc(100% - 22px),1180px)!important;margin:14px auto var(--csNavReserve)!important;overflow:hidden!important;position:relative!important;padding:0!important}
+html.cs-native-app .page,html.cs-native-app .page.active{height:100%!important;max-height:100%!important;min-height:0!important;overflow:hidden!important;margin:0!important;padding-bottom:0!important}
+html.cs-native-app .page.active:not(#page-home):not(#page-inventory):not(#page-cloudy):not(#page-marketing){overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;padding-bottom:14px!important}
+html.cs-native-app .csNativeScreen{height:100%!important;max-height:100%!important;min-height:0!important;overflow:hidden!important}
+html.cs-native-app .csNPane{min-height:0!important;max-height:100%!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;padding-bottom:14px!important;scroll-padding-bottom:14px!important}
+.csNBottom{z-index:10040!important;bottom:max(8px,env(safe-area-inset-bottom))!important}
+.csNMoreFloat{z-index:10055!important}
+}
 `;document.head.appendChild(s)}
 function contentRoot(){return document.querySelector('.content')||document.querySelector('main')||document.body}
 function route(page){closeMore();if(page==='cloudy'){activateCloudyVoice();return}if(page==='inventory')ensureInventory();if(page==='automations')ensureAutomations();if(page==='billing')ensureBilling();try{if(typeof go==='function')go(page);else activate(page)}catch{activate(page)}setTimeout(()=>{if(page==='home')renderHome();if(page==='inventory')renderInventory();if(page==='marketing')renderMarketing()},40)}
