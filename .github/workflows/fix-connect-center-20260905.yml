@@ -1,0 +1,37 @@
+name: Fix CloudSales Connect Center 2026-09-05
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-connect-center-20260905.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fix provider mappings and account state
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('web/connect-center-runtime-v1.js')
+          s=p.read_text()
+          s=s.replace("['whatsapp','WhatsApp con IA','meta_whatsapp','whatsapp.com'],['telegram','Telegram','telegram','telegram.org']", "['whatsapp','WhatsApp con IA','meta_whatsapp','whatsapp.com'],['telegram','Telegram','telegram_messaging','telegram.org']")
+          s=s.replace("['google','Google','google','google.com']", "['google','Google','google_workspace','google.com']")
+          s=s.replace("['microsoft','Microsoft','microsoft','microsoft.com']", "['microsoft','Microsoft','microsoft_365','microsoft.com']")
+          s=s.replace("function connection(provider){return (window.currentOrg?.connections||[]).find(x=>x.provider_key===provider)}", "function connection(provider){const org=(typeof currentOrg!=='undefined'&&currentOrg)?currentOrg:window.currentOrg;return (org?.connections||[]).find(x=>x.provider_key===provider)}")
+          p.write_text(s)
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name 'CloudSales Automation'
+          git config user.email 'automation@cloudsales.app'
+          git add web/connect-center-runtime-v1.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(ui): align Connect provider keys and state lookup'
+          git push origin HEAD:main
