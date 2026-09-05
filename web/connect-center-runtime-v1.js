@@ -31,7 +31,7 @@ const tabs={
       ['twenty','Twenty','twenty','twenty.com'],
       ['salesforce','Salesforce','salesforce','salesforce.com'],
       ['zoho','Zoho CRM','zoho','zoho.com'],
-      ['pipedrive','Pipedrive','pipedrive','pipedrive.com'],
+      ['pipedrive','Pipedrive','pipedrive.com'],
       ['freshsales','Freshsales','freshsales','freshworks.com'],
       ['monday','Monday CRM','monday_crm','monday.com'],
       ['copper','Copper','copper','copper.com'],
@@ -192,13 +192,13 @@ function openTelnyx(){
       if(!conn){
         const key=String(el.querySelector('#csTelnyxApiKey')?.value||'').trim();
         if(!key)throw new Error('Pega la Telnyx API Key.');
-        const d=await api('connection-secret-setup',{organization_id:org().id,provider_key:'telnyx',action:'connect',api_key:key});
+        const d=await direct('connection-secret-setup',{organization_id:org().id,provider_key:'telnyx',action:'connect',api_key:key});
         el.querySelector('#csTelnyxApiKey').value='';
         conn=d.connection;
       }
       const publicKey=String(el.querySelector('#csTelnyxPublicKey')?.value||'').trim();
       if(publicKey){
-        await api('connection-secret-setup',{organization_id:org().id,provider_key:'telnyx',action:'configure_webhook_public_key',connection_id:conn.id,public_key:publicKey});
+        await direct('connection-secret-setup',{organization_id:org().id,provider_key:'telnyx',action:'configure_webhook_public_key',connection_id:conn.id,public_key:publicKey});
         el.querySelector('#csTelnyxPublicKey').value='';
       }
       if(typeof loadState==='function')await loadState();
