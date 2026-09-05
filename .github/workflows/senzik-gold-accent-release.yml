@@ -1,0 +1,96 @@
+name: Senzik Gold Accent Release
+
+on:
+  push:
+    paths:
+      - '.ops/senzik-gold-accent.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: senzik-gold-accent-release
+  cancel-in-progress: false
+
+jobs:
+  patch-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout canonical source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Apply restrained gold brand accents
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('web/clients/senzik/landing-edge.html')
+          s=p.read_text()
+
+          assert '<!-- senzik-future-investment-v2 -->' in s
+          s=s.replace('<!-- senzik-future-investment-v2 -->','<!-- senzik-future-investment-v3-gold -->',1)
+
+          old='--mint:#7cf7c6;--mint2:#36d99d;--cyan:#72d9ff;--gold:#d9b36c;--white:#fff;'
+          new='--mint:#7cf7c6;--mint2:#36d99d;--cyan:#72d9ff;--gold:#C8A86B;--gold-soft:#E6D2A3;--gold-deep:#8F6B35;--gold-line:rgba(200,168,107,.24);--gold-glow:rgba(200,168,107,.16);--white:#fff;'
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='.brand img{width:150px;height:54px;object-fit:contain;filter:brightness(0) invert(1)}'
+          new='.brand img{width:150px;height:54px;object-fit:contain;filter:brightness(0) saturate(100%) invert(72%) sepia(34%) saturate(635%) hue-rotate(356deg) brightness(94%) contrast(88%) drop-shadow(0 0 12px rgba(200,168,107,.18));transition:filter .3s ease,transform .3s ease}.brand:hover img{transform:translateY(-1px);filter:brightness(0) saturate(100%) invert(82%) sepia(28%) saturate(555%) hue-rotate(350deg) brightness(101%) contrast(90%) drop-shadow(0 0 18px rgba(200,168,107,.28))}'
+          assert old in s
+          s=s.replace(old,new,1)
+
+          replacements={
+            '.links a:after{content:"";position:absolute;left:0;right:100%;bottom:-8px;height:1px;background:var(--mint);transition:.25s}':'.links a:after{content:"";position:absolute;left:0;right:100%;bottom:-8px;height:1px;background:linear-gradient(90deg,var(--gold),var(--gold-soft));box-shadow:0 0 10px var(--gold-glow);transition:.25s}',
+            '.btn:hover{transform:translateY(-2px);border-color:rgba(124,247,198,.35);box-shadow:0 14px 34px rgba(0,0,0,.22)}':'.btn:hover{transform:translateY(-2px);border-color:var(--gold-line);box-shadow:0 14px 34px rgba(0,0,0,.22),0 0 18px rgba(200,168,107,.07)}',
+            '.btn.primary{background:linear-gradient(135deg,var(--mint),var(--mint2));color:#03120c;border-color:transparent;box-shadow:0 10px 32px rgba(54,217,157,.18)}':'.btn.primary{background:linear-gradient(135deg,var(--mint),var(--mint2));color:#03120c;border-color:rgba(230,210,163,.28);box-shadow:0 10px 32px rgba(54,217,157,.18),inset 0 0 0 1px rgba(230,210,163,.09)}',
+            '.eyebrow{display:inline-flex;align-items:center;gap:10px;padding:8px 11px;border:1px solid rgba(124,247,198,.17);':'.eyebrow{display:inline-flex;align-items:center;gap:10px;padding:8px 11px;border:1px solid var(--gold-line);',
+            '.assetPanel:before{content:"";position:absolute;inset:-1px;background:linear-gradient(120deg,rgba(124,247,198,.25),transparent 32%,transparent 70%,rgba(114,217,255,.13));':'.assetPanel:before{content:"";position:absolute;inset:-1px;background:linear-gradient(120deg,rgba(200,168,107,.24),transparent 30%,transparent 70%,rgba(114,217,255,.12));',
+            '.tickerTrack b{color:var(--mint);padding-right:18px}':'.tickerTrack b{color:var(--gold-soft);padding-right:18px;text-shadow:0 0 14px rgba(200,168,107,.10)}',
+            '.kicker{font-size:9px;letter-spacing:.18em;text-transform:uppercase;font-weight:950;color:var(--mint);padding-top:12px}':'.kicker{font-size:9px;letter-spacing:.18em;text-transform:uppercase;font-weight:950;color:var(--gold-soft);padding-top:12px;text-shadow:0 0 12px rgba(200,168,107,.09)}',
+            '.ringStat{width:110px;height:110px;border-radius:50%;display:grid;place-items:center;border:1px solid rgba(124,247,198,.22);background:radial-gradient(circle,rgba(124,247,198,.08),transparent 65%);box-shadow:0 0 50px rgba(54,217,157,.08);':'.ringStat{width:110px;height:110px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--gold-line);background:radial-gradient(circle,rgba(200,168,107,.08),transparent 65%);box-shadow:0 0 50px rgba(200,168,107,.07);',
+            'const ringMat=new THREE.MeshBasicMaterial({color:0x72d9ff,wireframe:true,transparent:true,opacity:.12});':'const ringMat=new THREE.MeshBasicMaterial({color:0xC8A86B,wireframe:true,transparent:true,opacity:.13});'
+          }
+          for old,new in replacements.items():
+              assert old in s, old
+              s=s.replace(old,new,1)
+
+          # Add a subtle gold halo to the hero without changing the base palette.
+          marker='.hero{position:relative;min-height:100svh;overflow:hidden;background:#030608;display:flex;align-items:flex-end}'
+          assert marker in s
+          s=s.replace(marker,marker+'.hero:before{content:"";position:absolute;z-index:2;right:-8vw;top:5vh;width:min(42vw,620px);aspect-ratio:1;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(200,168,107,.10),rgba(200,168,107,.035) 34%,transparent 70%);filter:blur(14px)}',1)
+
+          p.write_text(s)
+          PY
+
+      - name: Verify gold accent contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE='web/clients/senzik/landing-edge.html'
+          grep -q 'senzik-future-investment-v3-gold' "$FILE"
+          grep -q -- '--gold:#C8A86B' "$FILE"
+          grep -q 'drop-shadow(0 0 12px rgba(200,168,107,.18))' "$FILE"
+          grep -q 'color:0xC8A86B' "$FILE"
+          grep -q 'background:linear-gradient(90deg,var(--gold),var(--gold-soft))' "$FILE"
+          grep -q 'Contenido del proyecto basado exclusivamente' "$FILE"
+
+      - name: Commit canonical Senzik source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- web/clients/senzik/landing-edge.html; then
+            echo 'No source changes required.'
+            exit 0
+          fi
+          git config user.name 'cloudsales-release-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/clients/senzik/landing-edge.html
+          git commit -m 'Senzik: apply gold logo and restrained gold accents'
+          git pull --rebase origin main
+          git push origin main
