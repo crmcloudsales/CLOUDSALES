@@ -52,6 +52,9 @@
       #csBillingGate .cta[disabled]{opacity:.55;cursor:wait}
       #csBillingGate .secondary{width:100%;border:1px solid #37323F;border-radius:999px;background:#17141F;color:#D8D5DF;padding:12px 18px;font-size:14px;font-weight:800;cursor:pointer;margin-top:10px}
       #csBillingGate .small{font-size:11px;color:#AAA7B2;text-align:center;margin-top:12px}
+      #csBillingSettings{border:1px solid #37323F;background:linear-gradient(180deg,#121019,#0B0910);border-radius:20px;padding:18px}
+      #csBillingSettings h3{margin:0 0 9px}#csBillingSettings p{color:#AAA7B2;font-size:13px;line-height:1.5;margin:0 0 12px}
+      #csBillingSettings .csPayState{font-size:11px;color:#F955B6;font-weight:900;margin-bottom:9px;text-transform:uppercase;letter-spacing:.06em}
     `;document.head.appendChild(s)
   }
 
@@ -92,6 +95,32 @@
     return u.toString()
   }
 
+  function openPrimaryCardSetup(org){
+    const link=PRIMARY_CARD_LINKS[String(org?.id||'')];
+    if(!link)return false;
+    location.href=paymentUrl(link,`csorg:${org.id}`);
+    return true
+  }
+
+  function ensureSettingsBilling(){
+    injectCss();
+    const org=typeof currentOrg!=='undefined'?currentOrg:null;
+    const page=document.getElementById('page-settings');
+    if(!page||!org)return;
+    const cards=page.querySelector('.cards');if(!cards)return;
+    let root=document.getElementById('csBillingSettings');
+    const supported=Boolean(PRIMARY_CARD_LINKS[String(org.id||'')]);
+    if(!supported){root?.remove();return}
+    if(!root){root=document.createElement('div');root.id='csBillingSettings';root.className='card';cards.appendChild(root)}
+    const sub=org.subscription||org.billing_access||{};
+    const connected=String(sub.billing_provider||'').toLowerCase()==='stripe'||Boolean(sub.card_on_file)||Boolean(sub.metadata?.card_on_file);
+    const due=fmtDate(sub.current_period_end);
+    root.innerHTML=connected
+      ?`<div class="csPayState">Stripe conectado</div><h3>Método de pago</h3><p>La tarjeta de tu membresía principal está registrada con Stripe.${due?` Próxima renovación: ${esc(due)}.`:''}</p>`
+      :`<div class="csPayState">Membresía principal · US$97</div><h3>Método de pago</h3><p>Registra una tarjeta de respaldo con Stripe para la próxima renovación.${due?` Tu periodo actual está vigente hasta ${esc(due)}.`:''} No se realiza ningún cargo al registrarla.</p><button class="btn primary small" id="csBillingSettingsAdd">Agregar tarjeta de respaldo</button>`;
+    const add=root.querySelector('#csBillingSettingsAdd');if(add)add.onclick=()=>openPrimaryCardSetup(org)
+  }
+
   async function start(){
     const b=billing(),org=typeof currentOrg!=='undefined'?currentOrg:null,btn=overlay?.querySelector('#csBillingStart');
     if(!b||!org)return;
@@ -105,9 +134,8 @@
     }
 
     if(!hard){
-      const link=PRIMARY_CARD_LINKS[String(org.id||'')];
-      if(!link){if(btn){btn.disabled=false;btn.textContent='Agregar tarjeta de respaldo'}return}
-      location.href=paymentUrl(link,`csorg:${org.id}`);return
+      if(!openPrimaryCardSetup(org)&&btn){btn.disabled=false;btn.textContent='Agregar tarjeta de respaldo'}
+      return
     }
 
     location.href=paymentUrl(PRO_RENEW_LINK,`csorg:${org.id}`)
@@ -117,11 +145,17 @@
     const q=new URL(location.href).searchParams;if(!q.has('billing')&&!q.has('member_billing'))return;
     for(let i=0;i<12;i++){
       await new Promise(r=>setTimeout(r,i?1800:400));
-      try{if(typeof loadState==='function')await loadState();const org=typeof currentOrg!=='undefined'?currentOrg:null,b=billing();if(!b||!promptRequired(b,org)){history.replaceState({},'',location.pathname);remove();return}}catch{}
+      try{if(typeof loadState==='function')await loadState();ensureSettingsBilling();const org=typeof currentOrg!=='undefined'?currentOrg:null,b=billing();if(!b||!promptRequired(b,org)){history.replaceState({},'',location.pathname);remove();return}}catch{}
     }
   }
 
-  function tick(){const org=typeof currentOrg!=='undefined'?currentOrg:null,b=billing();if(!b||!promptRequired(b,org)){remove();return}ensure(b)}
+  function tick(){
+    ensureSettingsBilling();
+    const org=typeof currentOrg!=='undefined'?currentOrg:null,b=billing();
+    if(!b||!promptRequired(b,org)){remove();return}
+    ensure(b)
+  }
+
   window.addEventListener('load',()=>{setInterval(tick,700);setTimeout(tick,200);refreshAfterReturn()});
   void BILLING_PROTOCOL;void IDENTITY_MODEL;
 })();
