@@ -1,0 +1,56 @@
+name: CloudSales Canonical User Directive Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'config/canonical-directives.json'
+      - 'web/**'
+      - 'supabase/functions/**'
+      - '.github/workflows/cloudsales-canonical-user-directive-gate.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'config/canonical-directives.json'
+      - 'web/**'
+      - 'supabase/functions/**'
+      - '.github/workflows/cloudsales-canonical-user-directive-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-directives:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate canonical directives
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node <<'NODE'
+          const fs=require('fs');
+          const cfg=JSON.parse(fs.readFileSync('config/canonical-directives.json','utf8'));
+          if(cfg.explicit_user_instruction_is_source_of_truth!==true) throw new Error('explicit_user_instruction_rule_disabled');
+          if(cfg.forbid_unapproved_provider_substitution!==true) throw new Error('provider_substitution_rule_disabled');
+          if(cfg.forbid_invented_links_credentials_prices_or_ids!==true) throw new Error('no_invention_rule_disabled');
+          if(cfg.verify_before_claiming_success!==true) throw new Error('verification_rule_disabled');
+          if(cfg.billing?.customer_facing_provider!=='paypal') throw new Error('customer_facing_billing_provider_must_be_paypal');
+          if(cfg.billing?.stripe_customer_checkout_allowed!==false) throw new Error('stripe_customer_checkout_must_be_disabled');
+          const plans=cfg.billing?.plans||{};
+          if(plans.basic?.price_usd_month!==47||plans.pro?.price_usd_month!==97||plans.premium?.price_usd_month!==147) throw new Error('canonical_plan_prices_changed_without_directive');
+          console.log('Canonical user directives OK');
+          NODE
+      - name: Reject public Stripe Payment Links while PayPal is canonical
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if grep -RIn --exclude='*.map' --exclude='cloudsales-canonical-user-directive-gate.yml' 'buy\.stripe\.com' web supabase/functions; then
+            echo 'Direct Stripe Payment Link found while canonical customer billing provider is PayPal.'
+            exit 1
+          fi
+          echo 'No direct Stripe Payment Links in customer-facing runtime sources.'
