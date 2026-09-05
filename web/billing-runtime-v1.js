@@ -1,7 +1,8 @@
 (() => {
   'use strict';
 
-  const BILLING_PROTOCOL='per_member';
+  const BILLING_PROTOCOL='member_checkout';
+  const IDENTITY_MODEL='per_member';
   const PRO_RENEW_LINK='https://buy.stripe.com/9B6dR12RWdJa0an3nJ6sw0f';
   const EXTRA_MEMBER_LINK='https://buy.stripe.com/fZudR1eAE5cE9KXgav6sw0h';
   const PRIMARY_CARD_LINKS={
@@ -122,5 +123,5 @@
 
   function tick(){const org=typeof currentOrg!=='undefined'?currentOrg:null,b=billing();if(!b||!promptRequired(b,org)){remove();return}ensure(b)}
   window.addEventListener('load',()=>{setInterval(tick,700);setTimeout(tick,200);refreshAfterReturn()});
-  void BILLING_PROTOCOL;
+  void BILLING_PROTOCOL;void IDENTITY_MODEL;
 })();
