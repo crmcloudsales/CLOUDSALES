@@ -1,0 +1,97 @@
+name: CloudSales PayPal Live Bootstrap 2026-09-05
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloudsales-paypal-live-bootstrap-20260905.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID || secrets.PAYPAL_LIVE_CLIENT_ID || secrets.PAYPAL_CLIENT_ID_CLOUDSALES }}
+      PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET || secrets.PAYPAL_LIVE_CLIENT_SECRET || secrets.PAYPAL_CLIENT_SECRET_CLOUDSALES }}
+      PAYPAL_API: https://api-m.paypal.com
+      WEBHOOK_URL: https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/paypal-webhook
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Validate PayPal credentials exist
+        run: |
+          if [ -z "$PAYPAL_CLIENT_ID" ] || [ -z "$PAYPAL_CLIENT_SECRET" ]; then
+            echo 'PAYPAL_CREDENTIALS_MISSING'
+            exit 2
+          fi
+          echo 'PAYPAL_CREDENTIALS_PRESENT'
+      - name: Create/reuse CloudSales PayPal product, plans and webhook
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN=$(curl -fsS -u "$PAYPAL_CLIENT_ID:$PAYPAL_CLIENT_SECRET" -d 'grant_type=client_credentials' "$PAYPAL_API/v1/oauth2/token" | jq -r .access_token)
+          test -n "$TOKEN" && test "$TOKEN" != null
+          AUTH=(-H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json')
+
+          PRODUCTS=$(curl -fsS "${AUTH[@]}" "$PAYPAL_API/v1/catalogs/products?page_size=20&page=1&total_required=true")
+          PRODUCT_ID=$(echo "$PRODUCTS" | jq -r '.products[]? | select(.name=="CloudSales Subscription") | .id' | head -1)
+          if [ -z "$PRODUCT_ID" ]; then
+            PRODUCT_ID=$(curl -fsS -X POST "${AUTH[@]}" -H 'PayPal-Request-Id: cloudsales-product-v1' \
+              -d '{"name":"CloudSales Subscription","description":"CloudSales paid subscription plans","type":"SERVICE","category":"SOFTWARE"}' \
+              "$PAYPAL_API/v1/catalogs/products" | jq -r .id)
+          fi
+          echo "PRODUCT_ID=$PRODUCT_ID" >> "$GITHUB_ENV"
+
+          create_plan(){
+            KEY="$1"; NAME="$2"; PRICE="$3";
+            PLANS=$(curl -fsS "${AUTH[@]}" "$PAYPAL_API/v1/billing/plans?product_id=$PRODUCT_ID&page_size=20&page=1&total_required=true")
+            ID=$(echo "$PLANS" | jq -r --arg n "$NAME" '.plans[]? | select(.name==$n and .status=="ACTIVE") | .id' | head -1)
+            if [ -z "$ID" ]; then
+              BODY=$(jq -nc --arg product "$PRODUCT_ID" --arg name "$NAME" --arg price "$PRICE" '{product_id:$product,name:$name,description:($name+" monthly subscription"),status:"ACTIVE",billing_cycles:[{frequency:{interval_unit:"MONTH",interval_count:1},tenure_type:"REGULAR",sequence:1,total_cycles:0,pricing_scheme:{fixed_price:{value:$price,currency_code:"USD"}}}],payment_preferences:{auto_bill_outstanding:true,setup_fee:{value:"0",currency_code:"USD"},setup_fee_failure_action:"CANCEL",payment_failure_threshold:1}}')
+              ID=$(curl -fsS -X POST "${AUTH[@]}" -H "PayPal-Request-Id: cloudsales-${KEY}-plan-v1" -d "$BODY" "$PAYPAL_API/v1/billing/plans" | jq -r .id)
+            fi
+            echo "$ID"
+          }
+          BASIC_ID=$(create_plan basic 'CloudSales Basic' '47.00')
+          PRO_ID=$(create_plan pro 'CloudSales Pro' '97.00')
+          PREMIUM_ID=$(create_plan premium 'CloudSales Premium' '147.00')
+          echo "BASIC_ID=$BASIC_ID" >> "$GITHUB_ENV"
+          echo "PRO_ID=$PRO_ID" >> "$GITHUB_ENV"
+          echo "PREMIUM_ID=$PREMIUM_ID" >> "$GITHUB_ENV"
+
+          WEBHOOKS=$(curl -fsS "${AUTH[@]}" "$PAYPAL_API/v1/notifications/webhooks")
+          WEBHOOK_ID=$(echo "$WEBHOOKS" | jq -r --arg u "$WEBHOOK_URL" '.webhooks[]? | select(.url==$u) | .id' | head -1)
+          if [ -z "$WEBHOOK_ID" ]; then
+            BODY=$(jq -nc --arg url "$WEBHOOK_URL" '{url:$url,event_types:[{name:"PAYMENT.SALE.COMPLETED"},{name:"PAYMENT.CAPTURE.COMPLETED"},{name:"BILLING.SUBSCRIPTION.ACTIVATED"},{name:"BILLING.SUBSCRIPTION.CANCELLED"},{name:"BILLING.SUBSCRIPTION.SUSPENDED"},{name:"BILLING.SUBSCRIPTION.EXPIRED"},{name:"PAYMENT.SALE.REFUNDED"},{name:"PAYMENT.CAPTURE.REFUNDED"}]}')
+            WEBHOOK_ID=$(curl -fsS -X POST "${AUTH[@]}" -d "$BODY" "$PAYPAL_API/v1/notifications/webhooks" | jq -r .id)
+          fi
+          echo "WEBHOOK_ID=$WEBHOOK_ID" >> "$GITHUB_ENV"
+
+      - name: Write public PayPal subscription config
+        run: |
+          cat > web/paypal-subscription-config-v1.js <<EOF
+          window.CLOUDSALES_PAYPAL_SUBSCRIPTIONS = Object.freeze({
+            clientId: '${PAYPAL_CLIENT_ID}',
+            webhookId: '${WEBHOOK_ID}',
+            currency: 'USD',
+            plans: Object.freeze({
+              plan_basic: Object.freeze({planId:'${BASIC_ID}',price:47}),
+              plan_pro: Object.freeze({planId:'${PRO_ID}',price:97}),
+              plan_premium: Object.freeze({planId:'${PREMIUM_ID}',price:147})
+            })
+          });
+          EOF
+          grep -q "plan_basic: Object.freeze({planId:'P-" web/paypal-subscription-config-v1.js
+          grep -q "plan_pro: Object.freeze({planId:'P-" web/paypal-subscription-config-v1.js
+          grep -q "plan_premium: Object.freeze({planId:'P-" web/paypal-subscription-config-v1.js
+      - name: Commit generated PayPal config
+        run: |
+          git config user.name 'CloudSales PayPal Automation'
+          git config user.email 'noreply@cloudsales.app'
+          git add web/paypal-subscription-config-v1.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'feat(paypal): activate reusable live Basic Pro Premium subscriptions'
+          git push origin HEAD:main
