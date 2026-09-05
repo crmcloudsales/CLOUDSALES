@@ -1,0 +1,42 @@
+name: Run PWA auth connect fix
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/run-pwa-auth-connect-fix-20260905.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/pwa-auth-connect-canonical-fix-20260905.js
+      - run: node --check web/native-shell-runtime-v1.js
+      - name: Assertions
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const p=fs.readFileSync('web/pwa.html','utf8');
+          const n=fs.readFileSync('web/native-shell-runtime-v1.js','utf8');
+          if(!p.includes("wanted=['zernio','buffer','youtube','google_business_profile']"))throw Error('social-only filter missing');
+          if(!p.includes('csNativeAuthReset'))throw Error('auth reset hook missing');
+          if(!n.includes("const ID='cs-native-shell-v8';"))throw Error('shell version missing');
+          if(!n.includes('csNativeAuthenticatedBoot'))throw Error('auth boot missing');
+          if(!n.includes('Office</small>')||!n.includes('data-csn="pipeline"'))throw Error('canonical nav missing');
+          console.log('ASSERTIONS_PASS');
+          NODE
+      - name: Commit fix
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/pwa.html web/native-shell-runtime-v1.js web/sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(pwa): hide private nav on auth and show social connections only"
+          git push
