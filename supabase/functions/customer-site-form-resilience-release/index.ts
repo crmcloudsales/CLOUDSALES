@@ -40,5 +40,24 @@ function patchWorker(x:string){
   if(x.includes('turnstile_required'))throw new Error('server_form_qa_turnstile_required');
   return x;
 }
-globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{const url=typeof input==='string'?input:input instanceof URL?input.href:input.url;const res=await nativeFetch(input as any,init);if(!res.ok||!url.includes(RAW))return res;let text=await res.text();if(/\/landing-edge\.html(?:\?|$)/.test(url)){text=patchLanding(text);assertLandingContract(text)}else if(/\/worker-edge-template\.mjs(?:\?|$)/.test(url)){text=patchWorker(text)}const headers=new Headers(res.headers);headers.delete('content-length');return new Response(text,{status:res.status,statusText:res.statusText,headers})}) as typeof fetch;
+
+globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
+  let url=typeof input==='string'?input:input instanceof URL?input.href:input.url;
+  let requestInput:any=input;
+  // Acanto's canonical commercial page is landing-v2.html. The shared base
+  // provisioner historically asks for landing-edge.html; translate that source
+  // request here without creating a second Acanto site or changing its URL.
+  if(url.includes('/web/clients/acanto/landing-edge.html')){
+    url=url.replace('/landing-edge.html','/landing-v2.html');
+    requestInput=url;
+  }
+  const res=await nativeFetch(requestInput as any,init);
+  if(!res.ok||!url.includes(RAW))return res;
+  let text=await res.text();
+  if(/\/landing-(?:edge|v2)\.html(?:\?|$)/.test(url)){text=patchLanding(text);assertLandingContract(text)}
+  else if(/\/worker-edge-template\.mjs(?:\?|$)/.test(url)){text=patchWorker(text)}
+  const headers=new Headers(res.headers);headers.delete('content-length');
+  return new Response(text,{status:res.status,statusText:res.statusText,headers})
+}) as typeof fetch;
+
 await import("https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/eafd8ce3fad9cd93441dc23ddd28bc18af249f99/supabase/functions/customer-site-provision/index.ts");
