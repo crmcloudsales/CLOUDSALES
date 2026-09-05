@@ -134,6 +134,54 @@
   }
   patchCanonicalPricing();
 
+  function patchFormUX() {
+    const apply = () => {
+      document.documentElement.dataset.csFormUx = 'v1';
+      if (!document.getElementById('cs-form-ux-v1')) {
+        const s = document.createElement('style');
+        s.id = 'cs-form-ux-v1';
+        s.textContent = `.field label,.authbox .field label,.onbox .field label,.modalbox .field label{font-size:12px!important}.field input,.field select,.field textarea,.modalbox input,.modalbox select,.modalbox textarea{font-size:16px!important}.trialPlanNote,.plans .planpick div,#signupEmailNotice,.authbox .notice,.onbox .notice{font-size:12px!important}.authbox [style*="font-size:11px"],.authbox [style*="font-size:10px"],.onbox [style*="font-size:11px"],.onbox [style*="font-size:10px"]{font-size:12px!important}`;
+        document.head.appendChild(s);
+      }
+      const attr = (id, values) => {
+        const el = document.getElementById(id); if (!el) return;
+        for (const [k,v] of Object.entries(values)) {
+          try { if (k === 'inputMode') el.inputMode = v; else if (k === 'minLength') el.minLength = Number(v); else if (k === 'maxLength') el.maxLength = Number(v); else if (k === 'required') el.required = Boolean(v); else el.setAttribute(k, String(v)); } catch {}
+        }
+      };
+      attr('email',{type:'email',inputMode:'email',autocomplete:'email',required:true,'aria-required':'true','aria-describedby':'authMsg'});
+      attr('password',{type:'password',minLength:8,required:true,'aria-required':'true','aria-describedby':'authMsg'});
+      attr('fullName',{autocomplete:'name',maxLength:160});
+      attr('bizName',{autocomplete:'organization',maxLength:160});
+      attr('industry',{'aria-label':'Industria o sector'});
+      attr('legalCheck',{'aria-label':'Aceptar términos y aviso de privacidad'});
+      attr('hlLocation',{autocomplete:'off',autocapitalize:'none',spellcheck:'false','aria-label':'HighLevel Location ID'});
+      attr('hlToken',{autocomplete:'off','aria-label':'HighLevel access token'});
+      const authMsg = document.getElementById('authMsg'); if (authMsg) { authMsg.setAttribute('role','status'); authMsg.setAttribute('aria-live','polite'); }
+
+      const patchModal = () => {
+        const modal = document.getElementById('modal'); if (!modal) return;
+        modal.setAttribute('role','dialog'); modal.setAttribute('aria-modal','true');
+        const h = modal.querySelector('.modalbox h2'); if (h) { h.id = h.id || 'csModalTitle'; modal.setAttribute('aria-labelledby',h.id); }
+        attr('mFirst',{autocomplete:'given-name',maxLength:120});
+        attr('mLast',{autocomplete:'family-name',maxLength:120});
+        attr('mPhone',{type:'tel',inputMode:'tel',autocomplete:'tel',maxLength:80});
+        attr('mEmail',{type:'email',inputMode:'email',autocomplete:'email',maxLength:320});
+        attr('mDeal',{autocomplete:'off',maxLength:180});
+        attr('mValue',{inputMode:'decimal'});
+        const rc = document.getElementById('resetConfirm'); if (rc) { rc.type='password'; rc.autocomplete='new-password'; rc.minLength=8; rc.required=true; }
+      };
+      patchModal();
+      if (!document.documentElement.dataset.csFormUxObserver) {
+        document.documentElement.dataset.csFormUxObserver = '1';
+        new MutationObserver(patchModal).observe(document.body,{subtree:true,childList:true});
+      }
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(apply, 0), { once: true });
+    else setTimeout(apply, 0);
+  }
+  patchFormUX();
+
   const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const ios = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const android = () => /Android/i.test(navigator.userAgent);
