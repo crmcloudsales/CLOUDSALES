@@ -54,17 +54,22 @@ Deno.serve(async(req)=>{
 
   const conversationExternal=`${facts.channel}:${facts.ownNumber}:${facts.remoteNumber}`;
   const preview=facts.text.slice(0,300);
-  const {data:conversation}=await svc.from("universal_conversations").upsert({organization_id:organizationId,contact_id:contactId,source_provider:"telnyx",external_conversation_id:conversationExternal,primary_channel:facts.channel,status:"open",unread_count:facts.direction==="inbound"?1:0,last_message_at:facts.occurredAt,last_message_preview:preview,metadata:{connection_id:connectionId,sender:facts.ownNumber}}, {onConflict:"organization_id,source_provider,external_conversation_id"}).select("id,unread_count").single();
+  const {data:conversation}=await svc.from("universal_conversations").upsert({organization_id:organizationId,contact_id:contactId,source_provider:"telnyx",external_conversation_id:conversationExternal,primary_channel:facts.channel,status:"open",last_message_at:facts.occurredAt,last_message_preview:preview,metadata:{connection_id:connectionId,sender:facts.ownNumber}}, {onConflict:"organization_id,source_provider,external_conversation_id"}).select("id,unread_count").single();
   if(conversation?.id){
     await svc.from("universal_messages").upsert({organization_id:organizationId,conversation_id:conversation.id,contact_id:contactId,source_provider:"telnyx",external_message_id:facts.messageId,direction:facts.direction==="inbound"?"inbound":"outbound",channel:facts.channel,message_type:String(facts.payload.type||"text").toLowerCase(),body:facts.text||null,attachments:facts.media,status:status||facts.statusRaw||null,sender_identifier:facts.direction==="inbound"?facts.remoteNumber:facts.ownNumber,recipient_identifier:facts.direction==="inbound"?facts.ownNumber:facts.remoteNumber,occurred_at:facts.occurredAt,metadata:{provider_event_id:facts.eventId,connection_id:connectionId}}, {onConflict:"organization_id,source_provider,external_message_id"});
-    if(facts.direction==="inbound")await svc.from("universal_conversations").update({unread_count:Math.max(1,Number(conversation.unread_count||0)+1),last_message_at:facts.occurredAt,last_message_preview:preview}).eq("id",conversation.id);
+    if(facts.direction==="inbound")await svc.from("universal_conversations").update({unread_count:Number(conversation.unread_count||0)+1,last_message_at:facts.occurredAt,last_message_preview:preview}).eq("id",conversation.id);
   }
 
   if(facts.direction==="inbound"&&facts.channel==="sms"){
     const keyword=facts.text.trim().toUpperCase();
     if(["STOP","STOPALL","UNSUBSCRIBE","CANCEL","END","QUIT"].includes(keyword)){
-      await svc.from("contact_suppressions").upsert({organization_id:organizationId,contact_id:contactId,phone_normalized:normalizePhone(facts.remoteNumber),reason:"sms_opt_out",active:true,metadata:{provider:"telnyx",event_id:facts.eventId,keyword}}, {onConflict:"organization_id,phone_normalized"}).then(()=>{}).catch(()=>{});
-      await svc.from("audit_log").insert({organization_id:organizationId,actor_type:"system",action:"communications.sms.opt_out",entity_type:"contact",entity_id:contactId,connection_id:connectionId,success:true,context:{phone:facts.remoteNumber,provider:"telnyx",keyword}});
+      const phone=normalizePhone(facts.remoteNumber);
+      const {data:existingSuppression}=await svc.from("contact_suppressions").select("id").eq("organization_id",organizationId).eq("phone_normalized",phone).eq("active",true).limit(1).maybeSingle();
+      const suppressionPayload={contact_id:contactId,phone_normalized:phone,reason:"sms_opt_out",active:true,metadata:{provider:"telnyx",event_id:facts.eventId,keyword}};
+      let suppressionError:any=null;
+      if(existingSuppression?.id){const {error}=await svc.from("contact_suppressions").update(suppressionPayload).eq("id",existingSuppression.id);suppressionError=error;}
+      else{const {error}=await svc.from("contact_suppressions").insert({organization_id:organizationId,...suppressionPayload});suppressionError=error;}
+      await svc.from("audit_log").insert({organization_id:organizationId,actor_type:"system",action:suppressionError?"communications.sms.opt_out_failed":"communications.sms.opt_out",entity_type:"contact",entity_id:contactId,connection_id:connectionId,success:!suppressionError,context:{phone,provider:"telnyx",keyword,error:suppressionError?.message||null}});
     }
   }
 
