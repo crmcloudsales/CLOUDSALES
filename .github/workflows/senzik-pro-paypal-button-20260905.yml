@@ -1,0 +1,44 @@
+name: Senzik Pro PayPal button 2026-09-05
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/senzik-pro-paypal-button-20260905.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set Senzik Pro CTA
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('web/billing-runtime-v1.js')
+          s=p.read_text()
+          old="const button=senzik?`Pagar ${amount}`:"
+          new="const button=senzik?'INICIAR PLAN PRO':"
+          if old not in s:
+              raise SystemExit('target button expression not found')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          sw=Path('web/sw.js')
+          x=sw.read_text()
+          import re
+          x=re.sub(r"const CACHE='[^']+';", "const CACHE='cloudsales-pwa-2026.09.05.1948-senzik-pro-paypal';", x, count=1)
+          sw.write_text(x)
+          PY
+      - name: Commit Senzik Pro CTA
+        run: |
+          git config user.name 'crmcloudsales'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web/billing-runtime-v1.js web/sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(billing): show Start Pro Plan CTA for Senzik PayPal gate'
+          git push
