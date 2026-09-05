@@ -1,0 +1,44 @@
+name: Activate canonical PWA 2026-09-05
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/canonical-pwa-runtime-v1.js'
+      - '.github/workflows/activate-canonical-pwa-20260905.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Activate canonical runtime and bust PWA cache
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('web/pwa.html')
+          s=p.read_text()
+          tag='<script src="/canonical-pwa-runtime-v1.js?v=202609050430"></script>'
+          if tag not in s:
+              s=s.replace('</body></html>',tag+'</body></html>')
+              if tag not in s:
+                  s=s.replace('</body>',tag+'</body>')
+          p.write_text(s)
+
+          sw=Path('web/sw.js')
+          x=sw.read_text()
+          import re
+          x=re.sub(r"const CACHE='[^']+';","const CACHE='cloudsales-pwa-2026.09.05.0430-canonical-v1';",x,count=1)
+          if "'/canonical-pwa-runtime-v1.js'" not in x:
+              x=x.replace("  '/native-shell-runtime-v1.js',","  '/native-shell-runtime-v1.js',\n  '/canonical-pwa-runtime-v1.js',")
+          x=x.replace('native-shell|pwa-polish','native-shell|canonical-pwa|pwa-polish')
+          sw.write_text(x)
+          PY
+      - name: Commit activated canonical runtime
+        run: |
+          git config user.name 'crmcloudsales'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web/pwa.html web/sw.js
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'fix(pwa): activate canonical voice-first shell and bust cache'
+          git push
