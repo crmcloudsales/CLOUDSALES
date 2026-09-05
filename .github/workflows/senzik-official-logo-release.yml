@@ -31,9 +31,10 @@ jobs:
         run: |
           set -euo pipefail
           F='web/clients/senzik/landing-edge.html'
-          grep -q 'senzik-future-investment-v5-user-gold-pro-logo' "$F"
-          grep -q 'data:image/webp;base64,' "$F"
-          grep -q 'user-approved SENZIK gold PRO logo' "$F"
+          grep -q 'senzik-future-investment-v5-user-gold-pro-vector' "$F"
+          grep -q 'user-approved SENZIK gold PRO logo: transparent vector web treatment' "$F"
+          grep -q 'mask:url("/senzik-logo.svg")' "$F"
+          grep -q 'class="brandMark"' "$F"
           grep -q 'id="leadForm"' "$F"
           grep -q 'name="country_state"' "$F"
           ! grep -q 'autorización municipal' "$F"
@@ -51,6 +52,6 @@ jobs:
           git config user.name 'cloudsales-release-bot'
           git config user.email 'actions@users.noreply.github.com'
           git add web/clients/senzik/landing-edge.html
-          git commit -m 'Senzik: use approved transparent gold PRO logo'
+          git commit -m 'Senzik: use approved transparent gold PRO vector logo'
           git pull --rebase origin main
           git push origin main
