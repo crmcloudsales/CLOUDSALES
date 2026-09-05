@@ -14,7 +14,6 @@ printf 'Repository: %s\n\n' "$REPO"
 
 gcloud config set project "$PROJECT_ID" >/dev/null
 
-# Minimum APIs required for keyless GitHub -> Google Cloud federation.
 gcloud services enable \
   iam.googleapis.com \
   iamcredentials.googleapis.com \
@@ -30,31 +29,49 @@ if ! gcloud iam service-accounts describe "$SA_EMAIL" --project="$PROJECT_ID" >/
     --display-name="CloudSales GitHub Automation"
 fi
 
-if ! gcloud iam workload-identity-pools describe "$POOL_ID" --project="$PROJECT_ID" --location="global" >/dev/null 2>&1; then
-  gcloud iam workload-identity-pools create "$POOL_ID" \
+create_pool() {
+  local err
+  err="$(mktemp)"
+  if ! gcloud iam workload-identity-pools create "$POOL_ID" \
     --project="$PROJECT_ID" \
     --location="global" \
-    --display-name="CloudSales GitHub Actions"
-fi
+    --display-name="CloudSales GitHub Actions" 2>"$err"; then
+    if ! grep -Eqi 'ALREADY_EXISTS|already exists' "$err"; then
+      cat "$err" >&2
+      rm -f "$err"
+      return 1
+    fi
+  fi
+  rm -f "$err"
+}
 
-if ! gcloud iam workload-identity-pools providers describe "$PROVIDER_ID" \
-  --project="$PROJECT_ID" \
-  --location="global" \
-  --workload-identity-pool="$POOL_ID" >/dev/null 2>&1; then
-  gcloud iam workload-identity-pools providers create-oidc "$PROVIDER_ID" \
+create_provider() {
+  local err
+  err="$(mktemp)"
+  if ! gcloud iam workload-identity-pools providers create-oidc "$PROVIDER_ID" \
     --project="$PROJECT_ID" \
     --location="global" \
     --workload-identity-pool="$POOL_ID" \
     --display-name="CloudSales GitHub Repository" \
     --issuer-uri="https://token.actions.githubusercontent.com" \
     --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_owner=assertion.repository_owner,attribute.actor=assertion.actor,attribute.ref=assertion.ref" \
-    --attribute-condition="assertion.repository=='${REPO}'"
-fi
+    --attribute-condition="assertion.repository=='${REPO}'" 2>"$err"; then
+    if ! grep -Eqi 'ALREADY_EXISTS|already exists' "$err"; then
+      cat "$err" >&2
+      rm -f "$err"
+      return 1
+    fi
+  fi
+  rm -f "$err"
+}
 
-POOL_NAME="$(gcloud iam workload-identity-pools describe "$POOL_ID" \
-  --project="$PROJECT_ID" \
-  --location="global" \
-  --format='value(name)')"
+create_pool
+create_provider
+
+# Use deterministic canonical resource names instead of immediately re-reading newly-created WIF resources.
+# This avoids Google IAM eventual-consistency NOT_FOUND responses after successful creation.
+POOL_NAME="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${POOL_ID}"
+PROVIDER_NAME="${POOL_NAME}/providers/${PROVIDER_ID}"
 
 # Permit only the canonical CloudSales repository to impersonate this service account.
 gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
@@ -66,12 +83,6 @@ gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/serviceusage.serviceUsageAdmin" >/dev/null
-
-PROVIDER_NAME="$(gcloud iam workload-identity-pools providers describe "$PROVIDER_ID" \
-  --project="$PROJECT_ID" \
-  --location="global" \
-  --workload-identity-pool="$POOL_ID" \
-  --format='value(name)')"
 
 printf '\n== READY ==\n'
 printf 'PROJECT_ID=%s\n' "$PROJECT_ID"
