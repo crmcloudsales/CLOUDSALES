@@ -10,6 +10,7 @@ on:
       - 'supabase/functions/connection-complete-v4/index.ts'
       - 'supabase/functions/google-platform-setup/index.ts'
       - 'supabase/functions/oauth-callback-relay/index.ts'
+      - 'web/connect-center-runtime-v1.js'
       - '.github/workflows/google-oauth-edge-check.yml'
   pull_request:
     branches:
@@ -19,22 +20,32 @@ on:
       - 'supabase/functions/connection-complete-v4/index.ts'
       - 'supabase/functions/google-platform-setup/index.ts'
       - 'supabase/functions/oauth-callback-relay/index.ts'
+      - 'web/connect-center-runtime-v1.js'
       - '.github/workflows/google-oauth-edge-check.yml'
 
 permissions:
   contents: read
 
 jobs:
-  deno-check:
+  google-connect-check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: Type-check Google OAuth Edge Functions
         run: |
           deno check supabase/functions/connection-start-v4/index.ts
           deno check supabase/functions/connection-complete-v4/index.ts
           deno check supabase/functions/google-platform-setup/index.ts
           deno check supabase/functions/oauth-callback-relay/index.ts
+      - name: Check Connect Center runtime
+        run: |
+          node --check web/connect-center-runtime-v1.js
+          grep -F "connection-start-v4" web/connect-center-runtime-v1.js
+          grep -F "connection-complete-v4" web/connect-center-runtime-v1.js
+          grep -F "GOOGLE_WORKSPACE_CAPABILITIES" web/connect-center-runtime-v1.js
