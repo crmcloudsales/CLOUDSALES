@@ -1,0 +1,117 @@
+name: CloudSales Subscriber Onboarding Audit 2026-09-05
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloudsales-subscriber-onboarding-audit-20260905.yml'
+      - 'web/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm i playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium webkit >/dev/null
+      - name: Run live onboarding audit
+        env:
+          COMMERCIAL: https://cloudsales.app
+          APP: https://app.cloudsales.app
+        run: |
+          cat > /tmp/audit.mjs <<'JS'
+          import { chromium, webkit, devices } from 'playwright';
+          import assert from 'node:assert/strict';
+
+          const COMMERCIAL=process.env.COMMERCIAL;
+          const APP=process.env.APP;
+          const report=[];
+          const ok=(name,detail='')=>{report.push({name,status:'PASS',detail});console.log(`PASS ${name} ${detail}`)};
+          const fail=(name,detail='')=>{report.push({name,status:'FAIL',detail});console.error(`FAIL ${name} ${detail}`)};
+          async function check(name,fn){try{await fn();ok(name)}catch(e){fail(name,String(e?.message||e));throw e}}
+
+          await check('commercial_http_200',async()=>{
+            const r=await fetch(COMMERCIAL+'/?qa='+Date.now(),{headers:{'cache-control':'no-cache'}});assert.equal(r.status,200);const t=await r.text();
+            assert.match(t,/Basic/i);assert.match(t,/Pro/i);assert.match(t,/Premium/i);assert.match(t,/Pago seguro por PayPal/i);
+            assert.doesNotMatch(t,/Checkout seguro por Stripe/i);
+            assert.doesNotMatch(t,/free\s*trial|prueba\s+gratuita|prueba\s+gratis/i);
+            assert.doesNotMatch(t,/aesquer1@gmail\.com|7XCN724E73MHKXAV|arturo-pro|Senzik/i);
+          });
+
+          await check('manifest_dark_icons',async()=>{
+            const r=await fetch(APP+'/manifest.webmanifest?qa='+Date.now(),{headers:{'cache-control':'no-cache'}});assert.equal(r.status,200);const m=await r.json();
+            assert.equal(String(m.background_color).toUpperCase(),'#08070D');assert.equal(String(m.theme_color).toUpperCase(),'#08070D');
+            const sizes=new Set((m.icons||[]).map(x=>x.sizes));assert.ok(sizes.has('192x192'));assert.ok(sizes.has('512x512'));
+          });
+
+          for (const [engineName,engine,contextOptions] of [
+            ['chromium',chromium,{}],
+            ['webkit_mac',webkit,{viewport:{width:1440,height:900}}],
+            ['webkit_iphone',webkit,{...devices['iPhone 15']}],
+          ]) {
+            const browser=await engine.launch({headless:true});
+            const context=await browser.newContext(contextOptions);
+            const page=await context.newPage();
+
+            await check(`${engineName}_commercial_renders`,async()=>{
+              await page.goto(COMMERCIAL+'/?qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+              await page.waitForTimeout(800);
+              const body=(await page.locator('body').innerText()).trim();assert.ok(body.length>500,'commercial body too small/blank');
+              assert.match(body,/Basic/i);assert.match(body,/Pro/i);assert.match(body,/Premium/i);
+            });
+
+            await check(`${engineName}_signup_renders_not_blank`,async()=>{
+              await page.goto(APP+'/?signup=1&qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+              await page.waitForTimeout(1200);
+              const body=(await page.locator('body').innerText()).trim();assert.ok(body.length>150,'signup page blank');
+              assert.match(body,/Google/i);assert.match(body,/Microsoft/i);
+              const emails=await page.locator('input[type="email"]').count();const passwords=await page.locator('input[type="password"]').count();assert.ok(emails>=1,'email input missing');assert.ok(passwords>=1,'password input missing');
+            });
+
+            for (const suffix of ['ios','android','desktop']) {
+              await check(`${engineName}_install_${suffix}_loads`,async()=>{
+                const r=await page.request.get(APP+`/?install=${suffix}&qa=`+Date.now(),{timeout:30000});assert.equal(r.status(),200);
+              });
+            }
+
+            await browser.close();
+          }
+
+          const browser=await chromium.launch({headless:true});
+          const page=await browser.newPage();
+          await page.goto(COMMERCIAL+'/?qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});
+          await page.waitForTimeout(600);
+
+          for (const plan of ['Basic','Pro','Premium']) {
+            await check(`paypal_${plan.toLowerCase()}_checkout_reusable`,async()=>{
+              const button=page.getByRole('button',{name:new RegExp(`Elegir ${plan}`,'i')});assert.ok(await button.count(),`button ${plan} missing`);
+              await button.first().click();await page.waitForTimeout(250);
+              const email=page.locator('#cemail');assert.ok(await email.count(),'checkout email missing');await email.fill(`qa+${plan.toLowerCase()}-${Date.now()}@cloudsales.app`);
+              const continueBtn=page.locator('#cstart');assert.ok(await continueBtn.count(),'continue button missing');
+              const popupPromise=page.waitForEvent('popup',{timeout:6000}).catch(()=>null);
+              await continueBtn.click();
+              const popup=await popupPromise;
+              if (popup) {
+                await popup.waitForLoadState('domcontentloaded',{timeout:15000}).catch(()=>{});
+                const u=popup.url();assert.match(u,/paypal\.com/i,`not PayPal: ${u}`);await popup.close();
+              } else {
+                await page.waitForTimeout(1200);
+                const msg=(await page.locator('#cerr').innerText().catch(()=>''))||'';
+                assert.fail(`PayPal did not open for ${plan}. UI message: ${msg}`);
+              }
+              await page.locator('#cclose').click().catch(()=>{});
+            });
+          }
+          await browser.close();
+
+          console.log('ONBOARDING_AUDIT_COMPLETE',JSON.stringify(report));
+          JS
+          node /tmp/audit.mjs
