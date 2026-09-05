@@ -23,74 +23,56 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Patch official Senzik logo and clean source contract
+      - name: Apply user-approved transparent gold PRO logo
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
-          import re
+          import base64, re
 
           landing=Path('web/clients/senzik/landing-edge.html')
-          worker=Path('web/clients/senzik/worker-edge-template.mjs')
+          asset=Path('web/clients/senzik/assets/logo-gold-pro-192.webp.b64')
           s=landing.read_text()
-          w=worker.read_text()
+          b64=''.join(asset.read_text().split())
+          raw=base64.b64decode(b64, validate=True)
+          if not (len(raw)>15000 and raw[:4]==b'RIFF' and raw[8:12]==b'WEBP'):
+              raise SystemExit('Invalid optimized Senzik WebP asset')
 
-          old_header='<a class="brand" href="#inicio" aria-label="Senzik Residences"><img src="https://senzikresidences.com/images/logo-header.svg" alt="Senzik Residences"></a>'
-          new_header='<a class="brand" href="#inicio" aria-label="Senzik Residences"><span class="brandMark" aria-hidden="true"></span><span class="srOnly">Senzik Residences</span></a>'
-          if old_header in s:
-              s=s.replace(old_header,new_header,1)
-          elif 'class="brandMark"' not in s:
-              raise SystemExit('Senzik brand header contract not found')
+          data='data:image/webp;base64,'+b64
+          old='<span class="brandMark" aria-hidden="true"></span>'
+          new='<img class="brandMark" src="'+data+'" width="88" height="88" alt="Senzik Residences" decoding="async" fetchpriority="high">'
+          if old in s:
+              s=s.replace(old,new,1)
+          elif 'data:image/webp;base64,' not in s:
+              raise SystemExit('Senzik brandMark placeholder not found')
 
-          s=re.sub(
-              r'\.brand\{display:flex;align-items:center;text-decoration:none\}\.brand img\{[^}]*\}(?:\.brand:hover img\{[^}]*\})?',
-              '.brand{display:flex;align-items:center;text-decoration:none;min-width:172px}.brandMark{display:block;width:172px;height:62px;background:linear-gradient(135deg,#F2DBA9 0%,var(--gold) 43%,#9A743A 100%);-webkit-mask:url("/senzik-logo.svg") center/contain no-repeat;mask:url("/senzik-logo.svg") center/contain no-repeat;filter:drop-shadow(0 0 12px rgba(200,168,107,.18));transition:transform .3s ease,filter .3s ease}.brand:hover .brandMark{transform:translateY(-1px);filter:drop-shadow(0 0 18px rgba(200,168,107,.30))}.srOnly{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}',
-              s,
-              count=1
-          )
-          s=s.replace('.brand img{width:124px}', '.brandMark{width:142px;height:52px}.brand{min-width:142px}')
-          s=s.replace('<!-- senzik-future-investment-v3-gold -->','<!-- senzik-future-investment-v4-official-gold-logo -->',1)
-          if 'senzik-future-investment-v4-official-gold-logo' not in s:
-              s=s.replace('</head>','<!-- senzik-future-investment-v4-official-gold-logo -->\n</head>',1)
+          s=re.sub(r'<!--\s*senzik-future-investment-v[^>]*-->', '<!-- senzik-future-investment-v5-user-gold-pro-logo -->', s, count=1)
+          if 'senzik-future-investment-v5-user-gold-pro-logo' not in s:
+              s=s.replace('</head>','<!-- senzik-future-investment-v5-user-gold-pro-logo -->\n</head>',1)
+
+          override='''
+/* user-approved SENZIK gold PRO logo: transparent web asset */
+.brand{min-width:92px!important;display:flex!important;align-items:center!important}
+.brandMark{display:block!important;width:88px!important;height:88px!important;object-fit:contain!important;background:none!important;-webkit-mask:none!important;mask:none!important;filter:drop-shadow(0 0 14px rgba(218,171,49,.22))!important;transition:transform .3s ease,filter .3s ease!important}
+.brand:hover .brandMark{transform:translateY(-1px) scale(1.015)!important;filter:drop-shadow(0 0 20px rgba(235,190,62,.34))!important}
+.navin{min-height:108px!important}
+@media(max-width:760px){.brand{min-width:70px!important}.brandMark{width:70px!important;height:70px!important}.navin{min-height:88px!important}}
+'''
+          if 'user-approved SENZIK gold PRO logo: transparent web asset' not in s:
+              s=s.replace('</style>',override+'</style>',1)
 
           forbidden=['autorización municipal','área privativa total','área común total','¿Cuándo buscas entrega?','name="budget"','Presupuesto</label>']
           found=[x for x in forbidden if x in s]
           if found:
               raise SystemExit('Forbidden legacy Senzik content remains: '+', '.join(found))
-          required=['id="leadForm"','name="country_state"','Contenido del proyecto basado exclusivamente','class="brandMark"']
+          required=['id="leadForm"','name="country_state"','Contenido del proyecto basado exclusivamente','data:image/webp;base64,']
           missing=[x for x in required if x not in s]
           if missing:
               raise SystemExit('Required Senzik contract missing: '+', '.join(missing))
 
-          official='const OFFICIAL_WHATSAPP="https://api.whatsapp.com/send?phone=525512819326&text=Quiero+m%C3%A1s+informaci%C3%B3n+sobre+Senzik";'
-          if 'const OFFICIAL_LOGO=' not in w:
-              if official not in w:
-                  raise SystemExit('Worker official WhatsApp anchor not found')
-              w=w.replace(official, official+'\nconst OFFICIAL_LOGO="https://senzikresidences.com/images/logo-header.svg";',1)
-
-          anchor='    if(req.method==="GET"&&path==="/health")return json({'
-          logo_route=(
-              '    if(req.method==="GET"&&path==="/senzik-logo.svg"){\n'
-              '      try{\n'
-              '        const lr=await fetch(OFFICIAL_LOGO,{headers:{"user-agent":"Mozilla/5.0 (compatible; CloudSales-Senzik/1.0)","accept":"image/svg+xml,*/*"}});\n'
-              '        if(!lr.ok)throw new Error("official_logo_"+lr.status);\n'
-              '        const svg=await lr.text();\n'
-              '        if(!/<svg[\\s>]/i.test(svg))throw new Error("official_logo_invalid");\n'
-              '        return new Response(svg,{headers:{"content-type":"image/svg+xml;charset=utf-8","cache-control":"public,max-age=86400,s-maxage=86400,stale-while-revalidate=604800","x-content-type-options":"nosniff"}});\n'
-              '      }catch{\n'
-              '        const fallback=\'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120"><text x="0" y="82" fill="black" font-family="Arial,Helvetica,sans-serif" font-size="76" font-weight="600" letter-spacing="12">SENZIK</text></svg>\';\n'
-              '        return new Response(fallback,{headers:{"content-type":"image/svg+xml;charset=utf-8","cache-control":"public,max-age=300","x-content-type-options":"nosniff"}});\n'
-              '      }\n'
-              '    }\n\n'
-          )
-          if 'path==="/senzik-logo.svg"' not in w:
-              if anchor not in w:
-                  raise SystemExit('Worker route anchor not found')
-              w=w.replace(anchor,logo_route+anchor,1)
-
           landing.write_text(s)
-          worker.write_text(w)
+          print('validated logo bytes:',len(raw))
           PY
 
       - name: Verify Senzik source contract
@@ -98,12 +80,11 @@ jobs:
         run: |
           set -euo pipefail
           F='web/clients/senzik/landing-edge.html'
-          W='web/clients/senzik/worker-edge-template.mjs'
-          grep -q 'senzik-future-investment-v4-official-gold-logo' "$F"
-          grep -q 'class="brandMark"' "$F"
-          grep -q 'mask:url("/senzik-logo.svg")' "$F"
-          grep -q 'path==="/senzik-logo.svg"' "$W"
-          grep -q 'OFFICIAL_LOGO="https://senzikresidences.com/images/logo-header.svg"' "$W"
+          grep -q 'senzik-future-investment-v5-user-gold-pro-logo' "$F"
+          grep -q 'data:image/webp;base64,' "$F"
+          grep -q 'user-approved SENZIK gold PRO logo' "$F"
+          grep -q 'id="leadForm"' "$F"
+          grep -q 'name="country_state"' "$F"
           ! grep -q 'autorización municipal' "$F"
           ! grep -q '¿Cuándo buscas entrega?' "$F"
           ! grep -q 'name="budget"' "$F"
@@ -112,13 +93,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- web/clients/senzik/landing-edge.html web/clients/senzik/worker-edge-template.mjs; then
+          if git diff --quiet -- web/clients/senzik/landing-edge.html; then
             echo 'No source changes required.'
             exit 0
           fi
           git config user.name 'cloudsales-release-bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add web/clients/senzik/landing-edge.html web/clients/senzik/worker-edge-template.mjs
-          git commit -m 'Senzik: serve official logo in gold and remove legacy content'
+          git add web/clients/senzik/landing-edge.html
+          git commit -m 'Senzik: use approved transparent gold PRO logo'
           git pull --rebase origin main
           git push origin main
