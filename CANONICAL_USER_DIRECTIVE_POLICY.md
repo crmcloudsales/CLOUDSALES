@@ -14,6 +14,7 @@ Examples:
 - If the user says **PayPal**, use **PayPal** for the scope they specified.
 - If the user says **Stripe for markups**, Stripe remains allowed for markups only.
 - If the user says **PRO US$97**, do not change the plan or price.
+- If the user says **zero free trials**, no free-access period may be created, advertised or granted.
 - If the user identifies a specific customer/account/email, do not create a different identity or workspace.
 
 ## Mandatory execution rules
@@ -43,6 +44,14 @@ Until the user explicitly changes it:
 - **Stripe is allowed for all CloudSales markups.**
 - Stripe may remain the processor for markup charges while the three subscription plans remain PayPal-only.
 
+### Free-access policy
+- **ZERO FREE TRIALS.**
+- **Free days: 0.**
+- **Charge from day one.**
+- No website, PWA, checkout, email, promotion, marketplace flow, subscription record, provider configuration, entitlement or automation may advertise, create or grant a free trial period.
+- Unpaid accounts remain billing-locked until payment is confirmed.
+- This rule can only change through a later explicit user directive.
+
 Do not label any checkout as PayPal unless the transaction is actually processed by PayPal. Do not label any checkout as Stripe unless it is actually processed by Stripe.
 
 ## Required customer journey
@@ -50,12 +59,12 @@ Do not label any checkout as PayPal unless the transaction is actually processed
 The intended CloudSales subscription journey must support, as applicable:
 
 1. Select plan.
-2. Pay through the canonical payment provider for that billing category.
+2. Pay from day one through the canonical payment provider for that billing category.
 3. Create or access the CloudSales account.
 4. Support email + password, Google, and Microsoft authentication when enabled.
 5. Preserve the paid plan/account association.
 6. Offer the appropriate web/app installation path for the user's operating system.
-7. Never strand the user on a blank page, dead link, or mismatched account.
+7. Never strand the user on a blank page, dead link, mismatched account or unpaid free-access state.
 
 ## Override rule
 
