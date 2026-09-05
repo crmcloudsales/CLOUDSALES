@@ -1,0 +1,10 @@
+const fs=require('fs');
+const p='web/workspace-polish-runtime-v1.js';
+let s=fs.readFileSync(p,'utf8');
+s=s.replace("const ID='cs-workspace-polish-v2',VERSION='2026.09.04.1';","const ID='cs-workspace-polish-v3',VERSION='2026.09.05.1';");
+s=s.replace("const c=(org()?.connections||[]).filter(x=>x.status==='connected'),providers=[...grid.querySelectorAll('.provider')];","const socialKeys=new Set(['zernio','buffer','youtube','google_business_profile']);const c=(org()?.connections||[]).filter(x=>x.status==='connected'&&socialKeys.has(String(x.provider_key||''))),providers=[...grid.querySelectorAll('.provider')];");
+s=s.replace("hint.textContent=c.length?'Cloudy puede usar únicamente los permisos autorizados de tus conexiones activas.':'Conecta tu CRM y canales para que Cloudy trabaje con datos reales del negocio.'","hint.textContent=c.length?'Cloudy puede usar únicamente los permisos autorizados de tus redes sociales conectadas.':'Conecta tus redes sociales para que Cloudy pueda publicar y operar únicamente con los permisos que autorices.'");
+if(!s.includes("socialKeys=new Set(['zernio','buffer','youtube','google_business_profile'])"))throw Error('social connection count filter missing');
+if(s.includes('Conecta tu CRM y canales'))throw Error('CRM copy remains in Connect polish');
+fs.writeFileSync(p,s);
+console.log('CONNECT_SOCIAL_POLISH_PASS');
