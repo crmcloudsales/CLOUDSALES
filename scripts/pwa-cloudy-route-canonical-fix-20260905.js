@@ -1,10 +1,8 @@
 const fs=require('fs');const p='web/native-shell-runtime-v1.js';let s=fs.readFileSync(p,'utf8');
 // Cloudy is voice-first everywhere: route requests activate voice and never open a Cloudy page.
 s=s.replace("function route(page){closeMore();if(page==='inventory')ensureInventory();", "function route(page){closeMore();if(page==='cloudy'){activateCloudyVoice();return}if(page==='inventory')ensureInventory();");
-s=s.replaceAll("p.querySelector('[data-m=\"cloudy\"]').onclick=()=>route('cloudy')","p.querySelector('[data-m=\"cloudy\"]').onclick=activateCloudyVoice");
-s=s.replaceAll("p.querySelector('[data-x=\"cloudy\"]').onclick=()=>route('cloudy')","p.querySelector('[data-x=\"cloudy\"]').onclick=activateCloudyVoice");
+s=s.replace(/\(\)=>route\('cloudy'\)/g,'activateCloudyVoice');
 s=s.replace("setTimeout(()=>{renderHome();buildCloudy();renderMarketing();markRoute()},120)","setTimeout(()=>{renderHome();renderMarketing();markRoute()},120)");
-// Do not build legacy Cloudy center when route callbacks fire.
 s=s.replace("if(page==='cloudy')buildCloudy();","");
 fs.writeFileSync(p,s);
 if(!s.includes("if(page==='cloudy'){activateCloudyVoice();return}"))throw Error('cloudy route guard missing');
