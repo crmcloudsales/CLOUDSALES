@@ -1,0 +1,29 @@
+name: Remove CloudSales free trials
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/remove-free-trials-20260905.py'
+      - '.github/workflows/remove-free-trials-20260905.yml'
+permissions:
+  contents: write
+jobs:
+  remove-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove all active free-trial logic and copy
+        run: python .github/scripts/remove-free-trials-20260905.py
+      - name: Commit cleanup
+        run: |
+          git config user.name 'crmcloudsales'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add web supabase/functions config
+          if git diff --cached --quiet; then echo 'No cleanup changes'; else git commit -m 'fix(billing): zero free trials everywhere active'; git push; fi
+      - name: Hard guard
+        run: |
+          if grep -REni --include='*.html' --include='*.js' --include='*.ts' --include='*.json' '(free[[:space:]-]+trial|prueba[[:space:]]+(gratis|gratuita)|trial_days|trial_period_days|trial_ends_at|trial_started_at|trialing|auto_charge_after_trial)' web supabase/functions config; then
+            echo 'ERROR: free-trial reference remains in active CloudSales surfaces'
+            exit 1
+          fi
+          echo 'ZERO FREE TRIALS VERIFIED'
