@@ -70,14 +70,12 @@ jobs:
           landing.write_text(x)
 
           w = worker.read_text()
-          # Replace any previous embedded exact-logo constant if this workflow is re-run.
           w = re.sub(r'\nconst USER_LOGO_B64="[A-Za-z0-9+/=]+";\n', '\n', w)
           anchor = 'const OFFICIAL_LOGO="https://senzikresidences.com/images/logo-header.svg";'
           if anchor not in w:
               raise SystemExit('worker logo anchor not found')
           w = w.replace(anchor, anchor + '\nconst USER_LOGO_B64="' + b64 + '";', 1)
 
-          # Remove an older v8 route if present, then insert a single canonical route.
           w = re.sub(r'\n\s*if\(req\.method==="GET"&&path==="/senzik-user-logo\.webp"\)\{[\s\S]*?\n\s*\}\n\n', '\n', w, count=1)
           route_anchor = '    if(req.method==="GET"&&path==="/senzik-logo.svg"){'
           route = '''    if(req.method==="GET"&&path==="/senzik-user-logo.webp"){
@@ -89,7 +87,6 @@ jobs:
           w = w.replace(route_anchor, route + route_anchor, 1)
           worker.write_text(w)
 
-          # The source payload is temporary; the exact bytes are now embedded in the Worker source.
           data_file.unlink()
           PY
 
@@ -111,3 +108,5 @@ jobs:
           git add -u web/clients/senzik/senzik-user-logo-data.txt || true
           git diff --cached --quiet || git commit -m "feat(senzik): use exact uploaded transparent logo in header"
           git push
+
+# trigger v8 exact-logo integration
