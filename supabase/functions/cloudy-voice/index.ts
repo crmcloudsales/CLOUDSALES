@@ -48,15 +48,22 @@ Deno.serve(async req=>{
     svc.from("internal_settings").select("value").eq("setting_key","cloudflare_cloudsales_account").maybeSingle()
   ]);
   const runtime=runtimeRow?.value||{};
+  const profileConfig=profile?.config||{};
+  const forbidden=Array.isArray(profileConfig.forbidden_personas)?profileConfig.forbidden_personas.map((x:any)=>String(x).toLowerCase()):[];
+  const identity=`${String(profile?.display_name||"")} ${String(profileConfig.persona||"")}`.toLowerCase();
+  if(forbidden.some((name:string)=>name&&identity.includes(name)))return json({error:"forbidden_voice_identity",voice_key:selected.key},409,origin);
+  if(selected.key==="cloudy_es_mx"&&String(profileConfig.gender||"").toLowerCase()!=="male")return json({error:"cloudy_spanish_voice_must_be_male",voice_key:selected.key},409,origin);
   let tokenSetting:any=null;
   for(const k of ["cloudflare_ai_gateway_token_cloudsales","cloudflare_api_token_cloudsales"]){const {data}=await svc.from("internal_settings").select("secret_id").eq("setting_key",k).maybeSingle();if(data?.secret_id){tokenSetting=data;break}}
   const accountId=String(acct?.value?.account_id||"");
   const cloudflareReady=Boolean(tokenSetting?.secret_id&&accountId);
-  if(mode==="profile")return json({voice_profile:profile||null,voice_ready:cloudflareReady,fallback_tts_ready:cloudflareReady,preferred_identity_ready:Boolean(runtime.preferred_identity_ready&&profile?.reference_asset_uri),preferred_identity_engine:runtime.preferred_identity_engine||"chatterbox_v3",asr_ready:cloudflareReady,asr_model:runtime.asr_model||"@cf/openai/whisper",fallback_tts_model:runtime.tts_fallback_model||"@cf/myshell-ai/melotts",supported_locales:VOICES.map(v=>v.key)},200,origin);
+  const clientMaleTtsRequired=selected.key==="cloudy_es_mx"&&!Boolean(runtime.preferred_identity_ready&&profile?.reference_asset_uri);
+  if(mode==="profile")return json({voice_profile:profile||null,voice_ready:cloudflareReady,fallback_tts_ready:cloudflareReady,preferred_identity_ready:Boolean(runtime.preferred_identity_ready&&profile?.reference_asset_uri),preferred_identity_engine:runtime.preferred_identity_engine||"chatterbox_v3",client_male_tts_required:clientMaleTtsRequired,voice_persona_target:profileConfig.persona||null,voice_identity_policy:profileConfig.identity_policy||null,asr_ready:cloudflareReady,asr_model:runtime.asr_model||"@cf/openai/whisper",fallback_tts_model:runtime.tts_fallback_model||"@cf/myshell-ai/melotts",supported_locales:VOICES.map(v=>v.key)},200,origin);
   if(!cloudflareReady)return json({error:"cloudflare_ai_not_authorized",voice_ready:false,voice_profile:profile||null},503,origin);
   const {data:token}=await svc.rpc("service_read_secret",{p_secret_id:tokenSetting.secret_id});if(!token)return json({error:"cloudflare_ai_secret_unavailable"},503,origin);
   const headers:any={Authorization:`Bearer ${token}`,"cf-aig-gateway-id":String(runtime.gateway_id||"default")};
   if(mode==="tts"){
+    if(clientMaleTtsRequired)return json({error:"preferred_male_voice_not_ready",client_male_tts_required:true,voice_key:selected.key,voice_policy:"male_only_no_listia_fallback"},503,origin);
     let b=parsed; if(!b){try{b=await req.json()}catch{return json({error:"invalid_json"},400,origin)}}
     const text=String(b.text||"").trim();if(!text)return json({error:"text_required"},400,origin);if(text.length>Number(runtime.max_tts_chars||3000))return json({error:"text_too_long"},413,origin);
     const model=String(runtime.tts_fallback_model||"@cf/myshell-ai/melotts");
