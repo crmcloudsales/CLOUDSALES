@@ -1,0 +1,45 @@
+name: Finalize CloudSales Google OAuth
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/finalize-google-oauth-20260905.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-cloudsales-google-oauth-20260905
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply final Google OAuth and branding fixes
+        run: python .github/scripts/finalize_google_oauth_20260905.py
+      - name: Verify changed runtime syntax
+        run: |
+          node --check web/install.js
+          node --check web/connect-center-runtime-v1.js
+      - name: Commit source-of-truth fixes
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if git diff --quiet; then
+            echo 'No patch required.'
+            exit 0
+          fi
+          git config user.name 'CloudSales Automation'
+          git config user.email 'noreply@cloudsales.app'
+          git add web/install.js web/connect-center-runtime-v1.js .github/workflows/cloudsales-runtime-gate.yml
+          git commit -m 'Finalize Google OAuth callback and canonical PWA icon'
+          git push origin HEAD:main
