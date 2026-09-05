@@ -3,17 +3,23 @@ name: Google OAuth Edge Check
 on:
   push:
     branches:
+      - main
       - cloudsales-unified-google-oauth
     paths:
       - 'supabase/functions/connection-start-v4/index.ts'
       - 'supabase/functions/connection-complete-v4/index.ts'
       - 'supabase/functions/google-platform-setup/index.ts'
+      - 'supabase/functions/oauth-callback-relay/index.ts'
       - '.github/workflows/google-oauth-edge-check.yml'
   pull_request:
+    branches:
+      - main
     paths:
       - 'supabase/functions/connection-start-v4/index.ts'
       - 'supabase/functions/connection-complete-v4/index.ts'
       - 'supabase/functions/google-platform-setup/index.ts'
+      - 'supabase/functions/oauth-callback-relay/index.ts'
+      - '.github/workflows/google-oauth-edge-check.yml'
 
 permissions:
   contents: read
@@ -31,3 +37,4 @@ jobs:
           deno check supabase/functions/connection-start-v4/index.ts
           deno check supabase/functions/connection-complete-v4/index.ts
           deno check supabase/functions/google-platform-setup/index.ts
+          deno check supabase/functions/oauth-callback-relay/index.ts
