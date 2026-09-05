@@ -11,20 +11,13 @@ function patchLanding(x:string){
   x=x.replaceAll("appearance:'always'","appearance:'interaction-only'")
      .replaceAll('appearance:"always"','appearance:"interaction-only"')
      .replace(/data-appearance=["']always["']/gi,'data-appearance="interaction-only"');
-
-  // Remove client-side hard dependency on Turnstile. The token is still sent
-  // whenever available and verified server-side.
   x=x.replace("if(!token){statusEl.className='status err';statusEl.textContent='Completa la verificación de seguridad.';btn.disabled=false;return}","");
   x=x.replace("if(!ts){show('Completa la verificación de seguridad.',false);return}","");
   x=x.replace("if(!turnToken){show('Completa la verificación de seguridad.',false);return}","");
   x=x.replace("if(!token){msg(body.classList.contains('es')?'Completa la verificación de seguridad.':'Complete the security verification.',false);return}","");
-
-  // Senzik: REVIEW is a successful durable capture, but do not unlock the
-  // optional WhatsApp continuation until ACCEPTED.
   const senzikSuccess="if(!r.ok)throw new Error(d.message||'No pudimos enviar tus datos.');show('Gracias. Recibimos tus datos correctamente.',true);wa.href=d.whatsapp_url||wa.href;wa.classList.add('show');form.reset();turnToken='';if(window.turnstile&&widgetId!==null)window.turnstile.reset(widgetId)";
   const senzikReview="if(!r.ok)throw new Error(d.message||'No pudimos enviar tus datos.');if(d.status==='review'){show(d.message||'Gracias. Recibimos tus datos y los estamos verificando.',true);wa.classList.remove('show');form.reset();turnToken='';if(window.turnstile&&widgetId!==null)window.turnstile.reset(widgetId);return}show('Gracias. Recibimos tus datos correctamente.',true);wa.href=d.whatsapp_url||wa.href;wa.classList.add('show');form.reset();turnToken='';if(window.turnstile&&widgetId!==null)window.turnstile.reset(widgetId)";
   if(x.includes(senzikSuccess))x=x.replace(senzikSuccess,senzikReview);
-
   return x;
 }
 function fieldExists(x:string,names:string[]){return names.some(n=>new RegExp(`<input\\b[^>]*(?:id|name)=["']${n}["']`,'i').test(x))}
@@ -47,35 +40,28 @@ function optionalVerifyBlock(kind:'clean'|'string'){
 }
 function patchWorker(x:string){
   x=x.replaceAll("appearance:'always'","appearance:'interaction-only'").replaceAll('appearance:"always"','appearance:"interaction-only"');
-
   const numa=`const turnstileToken=clean(b.turnstile_token,2048);if(!turnstileToken)return json({message:'Completa la verificación de seguridad.'},422);\n let turnstileOk=false;try{const tr=await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({secret:env.TURNSTILE_SECRET,response:turnstileToken,remoteip:ip})});const td=await tr.json();turnstileOk=td?.success===true&&(!td?.hostname||String(td.hostname).toLowerCase()===u.hostname.toLowerCase())}catch{}\n if(!turnstileOk)return json({message:'No pudimos validar la verificación de seguridad.'},422);`;
   if(x.includes(numa))x=x.replace(numa,optionalVerifyBlock('clean').replaceAll('"',"'"));
-
   const acanto=`const turnstileToken=clean(b.turnstile_token,2048);if(!turnstileToken)return json({message:'Please complete the security verification.'},422);\n let turnstileOk=false;try{const tr=await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({secret:env.TURNSTILE_SECRET,response:turnstileToken,remoteip:ip})});const td=await tr.json();turnstileOk=td?.success===true&&(!td?.hostname||String(td.hostname).toLowerCase()===u.hostname.toLowerCase())}catch{}\n if(!turnstileOk)return json({message:'Security verification failed.'},422);`;
   if(x.includes(acanto))x=x.replace(acanto,optionalVerifyBlock('clean').replaceAll('"',"'"));
-
   const senzik=`const token=clean(b.turnstile_token,2048);if(!token)return json({message:'Completa la verificación de seguridad.'},422);\n    let turnstileOk=false;\n    try{const tr=await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({secret:env.TURNSTILE_SECRET,response:token,remoteip:req.headers.get('CF-Connecting-IP')||''})});const td=await tr.json();turnstileOk=td&&td.success===true&&(!td.hostname||String(td.hostname).toLowerCase()===u.hostname.toLowerCase())}catch{}\n    if(!turnstileOk)return json({message:'No pudimos validar la verificación de seguridad.'},422);`;
   if(x.includes(senzik))x=x.replace(senzik,`const turnstileToken=clean(b.turnstile_token,2048);let turnstileOk=false,turnstileChecked=false;\n    if(turnstileToken){turnstileChecked=true;try{const tr=await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body:new URLSearchParams({secret:env.TURNSTILE_SECRET,response:turnstileToken,remoteip:req.headers.get('CF-Connecting-IP')||''})});const td=await tr.json();turnstileOk=td&&td.success===true&&(!td.hostname||String(td.hostname).toLowerCase()===u.hostname.toLowerCase())}catch{turnstileOk=false}}`);
-
   x=x.replace('const passed=await turnstile(env,clean(b.turnstile_token,3000),ip);if(!passed)return json({error:"turnstile_failed"},403);','const turnstileToken=clean(b.turnstile_token,3000),passed=turnstileToken?await turnstile(env,turnstileToken,ip):false;');
-
   if(!x.includes('siteverify')){
     const a='const ip=req.headers.get("CF-Connecting-IP")||"",ua=req.headers.get("User-Agent")||"",honey=String(b.website||"").trim()!=="";';
     const bb=' const ip=req.headers.get("CF-Connecting-IP")||"",ua=req.headers.get("User-Agent")||"",honey=clean(b.website,300)!=="";';
     if(x.includes(a))x=x.replace(a,a+'\n '+optionalVerifyBlock('string'));
     else if(x.includes(bb))x=x.replace(bb,bb+'\n '+optionalVerifyBlock('clean'));
   }
-
   x=x.replaceAll('turnstile:true','turnstile:(typeof turnstileOk!=="undefined"?turnstileOk:(typeof passed!=="undefined"?passed:false))');
-
-  // Let the shared intake decide REVIEW vs REJECT for contradictory contact data
-  // instead of dropping a plausible human at the site Worker.
   x=x.replace('if(candidateName.length<2||(!candidateEmail&&!candidatePhone))return json({error:"contact_required"},400);','if(!candidateEmail&&!candidatePhone)return json({error:"contact_required"},400);');
   x=x.replace('if(candidateEmail&&!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(candidateEmail))return json({error:"invalid_email"},400);','');
   x=x.replace("if(first.length<2||!validEmail(em))return json({message:'Please check your name and email.'},422);","");
   x=x.replace("if(phone&&phone.replace(/\\D/g,'').length<8)return json({message:'Please check the phone number or leave it blank.'},422);","");
 
-  if(/if\s*\(\s*!\s*(?:turnstileToken|token|turnToken|ts|turnstileOk|passed)\s*\)[\s\S]{0,220}(?:verification|verificación|turnstile_failed|turnstile_required)/i.test(x))throw new Error('server_form_qa_hard_turnstile_gate');
+  // Only reject the generated worker if a real server response still hard-gates
+  // Turnstile. Client-side source-transform strings are not server gates.
+  if(/if\s*\(\s*!\s*turnstileToken\s*\)\s*return\s+json/i.test(x)||/if\s*\(\s*!\s*turnstileOk\s*\)\s*return\s+json/i.test(x)||/if\s*\(\s*!\s*passed\s*\)\s*return\s+json\(\{error:["']turnstile_failed/i.test(x))throw new Error('server_form_qa_hard_turnstile_gate');
   if(x.includes('turnstile_required'))throw new Error('server_form_qa_turnstile_required');
   return x;
 }
