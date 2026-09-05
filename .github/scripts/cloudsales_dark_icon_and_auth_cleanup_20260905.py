@@ -32,9 +32,16 @@ if start>=0 and end>start:
 a=s.find('  function captureCheckout()'); b=s.find('  function captureClaim()',a)
 if a>=0 and b>a:
     s=s[:a]+"  function captureCheckout(){ return ''; }\n  function prepareCheckoutUi(){ return Promise.resolve(null); }\n  function claimCheckoutIfReady(){ return Promise.resolve(null); }\n  function bindCheckoutOnboarding(){}\n\n"+s[b:]
+
+# Exactly one generic post-payment signup switch, even after repeated workflow runs.
+signup="if(new URL(location.href).searchParams.get('signup')==='1' && typeof setMode==='function') setMode('signup');"
+s=re.sub(r"(?:\s*if\(new URL\(location\.href\)\.searchParams\.get\('signup'\)==='1' && typeof setMode==='function'\) setMode\('signup'\);)+",'',s)
 needle="    captureClaim(); captureCheckout(); prepareCheckoutUi(); bindCheckoutOnboarding(); ensureNotice(); ensureTrialUi(); ensureGoogleAuth(); const forgot=ensureForgot();"
-repl="    captureClaim(); captureCheckout(); prepareCheckoutUi(); bindCheckoutOnboarding(); ensureNotice(); ensureTrialUi(); ensureGoogleAuth(); const forgot=ensureForgot(); if(new URL(location.href).searchParams.get('signup')==='1' && typeof setMode==='function') setMode('signup');"
-s=s.replace(needle,repl)
+if needle in s:
+    s=s.replace(needle,needle+' '+signup,1)
+else:
+    raise SystemExit('Auth bind anchor not found')
+
 for old,new in {
     'Plan ${plan.toUpperCase()} seleccionado para tu suscripción de pago de 7 días.':'Plan ${plan.toUpperCase()} seleccionado para tu suscripción de pago.',
     'Completa los datos del negocio para iniciar tu prueba de CloudSales.':'Completa los datos del negocio para configurar CloudSales.',
@@ -42,7 +49,8 @@ for old,new in {
     'El pago fue realizado con otro correo. Entra con el mismo email utilizado en Stripe.':'El pago fue realizado con otro correo. Entra con el mismo email utilizado para pagar.',
     '/* canonical: paid access only; zero paid subscriptions */':'/* canonical: paid plans only */',
     '/* canonical: paid access only; zero free trials */':'/* canonical: paid plans only */',
-    '/* canonical: paid plans only; no free trial */':'/* canonical: paid plans only */'
+    '/* canonical: paid plans only; no free trial */':'/* canonical: paid plans only */',
+    '/* canonical: paid plans only; no paid plan */':'/* canonical: paid plans only */'
 }.items(): s=s.replace(old,new)
 subs=[
     (r'free\s*trial','paid plan'),(r'prueba\s+gratuita','plan de pago'),(r'prueba\s+gratis','plan de pago'),
@@ -53,10 +61,12 @@ subs=[
     (r'trial\s+ends','billing starts'),(r'terminar\s+el\s+trial','activar la suscripción')
 ]
 for pat,replacement in subs: s=re.sub(pat,replacement,s,flags=re.I)
+# The free-trial scrub can touch comments; normalize the canonical comment at the end.
+s=re.sub(r"function ensureTrialUi\(\)\{ /\* canonical:[^*]*\*/ \}","function ensureTrialUi(){ /* canonical: paid plans only */ }",s)
+if s.count(signup)!=1: raise SystemExit(f'Expected exactly one signup switch, found {s.count(signup)}')
 auth.write_text(s,encoding='utf-8')
 
 # Canonical subscription gate: no person-specific logic and no Stripe checkout for plans.
-# If a plan payment is required, send the customer to the commercial plan surface.
 billing=ROOT/'web/billing-runtime-v1.js'
 billing.write_text(r'''(() => {
   'use strict';
