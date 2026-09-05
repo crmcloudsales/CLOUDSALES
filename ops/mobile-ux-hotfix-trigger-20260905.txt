@@ -1,2 +1,3 @@
 Trigger the 2026-09-05 CloudSales mobile UX repair workflow.
 Rerun: route successful checkout returns through the install/access chooser.
+Rerun 2: keep the chooser on the live public root route before Cloudy onboarding.
