@@ -1,0 +1,30 @@
+name: Patch PWA release optional i18n
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-pwa-release-optional-i18n-20260905.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python .github/scripts/patch_pwa_release_optional_i18n_20260905.py
+      - name: Commit patch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git diff --quiet -- supabase/functions/cloudflare-pwa-release-v12/index.ts && exit 0
+          git config user.name 'CloudSales Automation'
+          git config user.email 'noreply@cloudsales.app'
+          git add supabase/functions/cloudflare-pwa-release-v12/index.ts
+          git commit -m 'Make legacy i18n catalogs optional in PWA release'
+          git push origin HEAD:main
