@@ -54,18 +54,18 @@ jobs:
           node <<'NODE'
           const fs=require('fs');
           const must=(file,items)=>{const s=fs.readFileSync(file,'utf8');for(const x of items)if(!s.includes(x))throw new Error(`${file}_missing_${x}`);return s};
-          for(const p of ['web/assets/cloudsales-app-icon-official-v2.png','web/assets/cloudsales-app-icon-official-v2-192.png','web/assets/cloudsales-logo-official-v2.png'])
+          for(const p of ['web/assets/cloudsales-isotipo-official-192.png','web/assets/cloudsales-isotipo-official-512.png','web/favicon.png'])
             if(!fs.existsSync(p)||fs.statSync(p).size<1000)throw new Error('missing_official_asset_'+p);
 
           const manifest=JSON.parse(fs.readFileSync('web/manifest.webmanifest','utf8'));
           if(manifest.id!=='/cloudsales-app-v2')throw new Error('manifest_identity_not_rotated');
           const icons=(manifest.icons||[]).map(x=>String(x.src||''));
-          if(!icons.some(x=>x.includes('/cloudsales-app-icon-official-v2-192.png'))||!icons.some(x=>x.includes('/cloudsales-app-icon-official-v2.png'))||icons.some(x=>/icon\.svg/i.test(x)))throw new Error('manifest_icon_identity_invalid');
+          if(!icons.some(x=>x.includes('/icon-192.png'))||!icons.some(x=>x.includes('/icon-512.png'))||icons.some(x=>/icon\.svg/i.test(x)))throw new Error('manifest_icon_identity_invalid');
 
           const pwaHtml=must('web/pwa.html',['Basic<br><b>$47</b>','Pro<br><b>$97</b>','Premium<br><b>$147</b>']);
           if(pwaHtml.includes('Basic<br><b>$49</b>')||pwaHtml.includes('Premium<br><b>$197</b>'))throw new Error('pwa_legacy_pricing_regression');
 
-          must('web/install.js',['beforeinstallprompt','/cloudsales-app-icon-official-v2.png','promptInstall']);
+          must('web/install.js',['beforeinstallprompt','/icon-512.png','promptInstall']);
           must('web/auth-runtime-v2.js',['claim-organization','cs_pending_claim','claimPending','cs_org']);
           must('web/app-runtime-v14.js',['Operational Center','tenant-ops-api','renderMarketingOps','opportunity.move']);
           const cloudy=must('web/cloudy-runtime-v3.js',['MediaRecorder','getUserMedia','requestAnimationFrame','cloudy-voice?mode=transcribe','cloudy-voice?mode=tts','SILENCE_MS','cs_cloudy_session']);
