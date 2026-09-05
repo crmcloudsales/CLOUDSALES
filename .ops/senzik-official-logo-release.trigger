@@ -1,3 +1,3 @@
-release: senzik-official-logo-v4.1
-requested_at: 2026-09-05T12:33:00Z
-purpose: exact official Senzik logo via same-origin proxy, gold treatment, legacy-content guard
+release: senzik-user-gold-pro-logo-v5
+requested_at: 2026-09-05T13:41:00Z
+purpose: use user-approved metallic gold Senzik logo, transparent web asset, responsive header fit
