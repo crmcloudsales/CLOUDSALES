@@ -44,6 +44,7 @@ const tabs={
     title:'Conecta otras herramientas',
     description:'Conecta mensajería y productividad para que CloudSales pueda operar con el contexto autorizado de tu negocio.',
     items:[
+      ['google_workspace','Google Workspace','google_workspace','google.com'],
       ['whatsapp','WhatsApp','meta_whatsapp','whatsapp.com'],
       ['telegram','Telegram','telegram_messaging','telegram.org'],
       ['notion','Notion','notion','notion.so']
@@ -176,7 +177,61 @@ function relabel(){
   });
 }
 
+async function completeOAuthCallback(attempt=0){
+  let u;try{u=new URL(location.href)}catch{return}
+  const oauthAttempt=u.searchParams.get('oauth_attempt_id')||'';
+  const provider=u.searchParams.get('provider')||'';
+  const oauthState=u.searchParams.get('state')||'';
+  const providerError=u.searchParams.get('error')||'';
+  if(!oauthAttempt||!provider||!oauthState)return;
+
+  const clean=()=>{
+    try{
+      const next=new URL(location.href);
+      ['oauth_attempt_id','provider','state','status','error'].forEach(k=>next.searchParams.delete(k));
+      next.hash='connect';
+      history.replaceState({},'',next.pathname+(next.search||'')+next.hash);
+    }catch{}
+  };
+
+  if(providerError){
+    clean();
+    alert('La autorización fue cancelada o Google devolvió un error. Puedes intentar conectar de nuevo.');
+    return;
+  }
+
+  const organization=org();
+  if((!organization?.id||typeof api!=='function')&&attempt<20){
+    setTimeout(()=>completeOAuthCallback(attempt+1),250);
+    return;
+  }
+  if(!organization?.id||typeof api!=='function')return;
+
+  const lock=`${provider}:${oauthAttempt}`;
+  try{
+    if(sessionStorage.getItem('cs_oauth_callback_lock')===lock)return;
+    sessionStorage.setItem('cs_oauth_callback_lock',lock);
+    await api('connection-complete-v4',{
+      organization_id:organization.id,
+      provider_key:provider,
+      oauth_attempt_id:oauthAttempt,
+      state:oauthState
+    });
+    clean();
+    try{if(typeof loadState==='function')await loadState()}catch{}
+    try{if(typeof loadCatalog==='function')await loadCatalog()}catch{}
+    try{if(typeof go==='function')go('connect')}catch{}
+    render();
+    alert(provider==='google_workspace'?'Google quedó conectado a CloudSales.':'Integración conectada correctamente.');
+  }catch(err){
+    sessionStorage.removeItem('cs_oauth_callback_lock');
+    clean();
+    alert('CloudSales recibió la autorización, pero no pudo terminar la conexión. Intenta conectar de nuevo.');
+  }
+}
+
 function boot(){
+  void completeOAuthCallback();
   css();relabel();account();render();
   const page=document.getElementById('page-connect');
   if(!page)return;

@@ -3,7 +3,7 @@
 
   const targets = new Set(['ios', 'android', 'desktop']);
   const target = new URLSearchParams(location.search).get('install');
-  const ICON = '/cloudsales-app-icon-official-v2.png?v=2026082903';
+  const ICON = '/icon-512.png?v=202609050933';
   const HL_CLAIM_KEY = 'cs_highlevel_marketplace_claim';
   let deferredPrompt = null;
   let overlay = null;
