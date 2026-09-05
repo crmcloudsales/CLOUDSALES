@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.09.05.4-voice-orb-connect';
+const CACHE='cloudsales-pwa-2026.09.05.5-cloudy-male-voice';
 const LOCALES=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
 const I18N=[
   '/cloudsales-static-i18n-v2.js',
@@ -34,6 +34,7 @@ const CORE=[
   '/billing-runtime-v1.js',
   '/member-runtime-v1.js',
   '/connect-center-runtime-v1.js',
+  '/cloudy-voice-client-policy-v1.js',
   '/pwa-ui-runtime-v1.js',
   '/pwa-connect-fix-runtime-v1.js',
   ...I18N,
@@ -53,7 +54,7 @@ const put=async(request,response)=>{
 
 function injectPwaUi(html){
   if(html.includes('/pwa-ui-runtime-v1.js')) return html;
-  const scripts='<script src="/pwa-ui-runtime-v1.js?v=20260905.4"></script><script src="/pwa-connect-fix-runtime-v1.js?v=20260905.4"></script>';
+  const scripts='<script src="/cloudy-voice-client-policy-v1.js?v=20260905.5"></script><script src="/pwa-ui-runtime-v1.js?v=20260905.5"></script><script src="/pwa-connect-fix-runtime-v1.js?v=20260905.5"></script>';
   return html.includes('</body>')?html.replace('</body>',scripts+'</body>'):html+scripts;
 }
 
@@ -79,7 +80,7 @@ self.addEventListener('fetch',event=>{
   const url=new URL(event.request.url);
   if(url.origin!==location.origin) return;
 
-  const runtimeScript=/\/(?:auth|app|meta|cloudy|works|ad-spend|ai-chat|calendar|contact-profile|dashboard|sales-analytics|native-shell|canonical-pwa|pwa-polish|workspace-polish|pwa-i18n|cloudsales-static-i18n|cloudy-executive|billing|member|connect-center|pwa-ui|pwa-connect-fix)[^/]*\.js$/.test(url.pathname);
+  const runtimeScript=/\/(?:auth|app|meta|cloudy|works|ad-spend|ai-chat|calendar|contact-profile|dashboard|sales-analytics|native-shell|canonical-pwa|pwa-polish|workspace-polish|pwa-i18n|cloudsales-static-i18n|cloudy-executive|billing|member|connect-center|pwa-ui|pwa-connect-fix|cloudy-voice-client-policy)[^/]*\.js$/.test(url.pathname);
   const i18nCatalog=url.pathname.startsWith('/i18n/catalog-v1/');
 
   if(event.request.mode==='navigate'){
