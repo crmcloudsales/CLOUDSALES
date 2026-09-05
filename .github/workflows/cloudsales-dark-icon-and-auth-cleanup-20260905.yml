@@ -1,0 +1,51 @@
+name: CloudSales Dark Icon + Auth Cleanup 2026-09-05
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/cloudsales_dark_icon_and_auth_cleanup_20260905.py'
+      - '.github/workflows/cloudsales-dark-icon-and-auth-cleanup-20260905.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow
+      - name: Apply canonical icon and auth cleanup
+        run: python .github/scripts/cloudsales_dark_icon_and_auth_cleanup_20260905.py
+      - name: Validate no free-trial copy in live PWA sources
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          files=[Path('web/pwa.html'),Path('web/auth-runtime-v2.js'),Path('web/billing-runtime-v1.js')]
+          pats=[r'free\s*trial',r'prueba\s+gratuita',r'prueba\s+gratis',r'7\s*d[ií]as\s+gratis',r'7\s+days\s+free',r'7\s+jours\s+gratuit',r'7\s+giorni\s+gratis',r'7\s+Tage\s+kostenlos',r'7\s*дней\s+бесплатно',r'7\s*ימים\s+חינם',r'7\s*天\s*免费',r'7日間.*無料']
+          bad=[]
+          for f in files:
+            s=f.read_text(encoding='utf-8')
+            for p in pats:
+              if re.search(p,s,re.I): bad.append((str(f),p))
+          assert not bad,bad
+          print('NO_FREE_TRIAL_COPY_OK')
+          PY
+      - name: Commit patched production sources
+        run: |
+          if git diff --quiet -- web/assets/cloudsales-isotipo-official-512.png web/assets/cloudsales-isotipo-official-192.png web/auth-runtime-v2.js; then
+            echo 'No changes required.'
+            exit 0
+          fi
+          git config user.name 'CloudSales Canonical Automation'
+          git config user.email 'noreply@cloudsales.app'
+          git add web/assets/cloudsales-isotipo-official-512.png web/assets/cloudsales-isotipo-official-192.png web/auth-runtime-v2.js
+          git commit -m 'fix(pwa): dark icon and zero free-trial auth copy'
+          git push origin HEAD:main
