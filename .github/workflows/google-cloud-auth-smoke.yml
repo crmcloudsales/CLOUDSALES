@@ -2,6 +2,11 @@ name: Google Cloud Auth Smoke
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/google-cloud-auth-smoke.yml
 
 permissions:
   contents: read
