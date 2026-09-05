@@ -1,0 +1,54 @@
+name: Fix nav and junk archive 2026-09-05
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-nav-and-junk-archive-20260905.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch CloudSales UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          nav = Path('web/native-shell-runtime-v1.js')
+          s = nav.read_text()
+          s = re.sub(
+            r"function ensureNav\(\)\{.*?return nav\}",
+            '''function ensureNav(){let nav=document.getElementById('csNativeBottom');if(!nav){nav=document.createElement('nav');nav.id='csNativeBottom';nav.className='csNBottom';nav.setAttribute('aria-label','CloudSales');document.body.appendChild(nav)}nav.innerHTML=`<button data-csn="home" aria-label="Home">${icon('home')}<small>Home</small></button><button data-csn="pipeline" aria-label="Pipeline">${icon('pipeline')}<small>Pipeline</small></button><button class="csNCloudy" data-csn="cloudy" aria-label="Hablar con Cloudy"><span class="csCloudyHead"></span><small>Cloudy</small></button><button data-csn="inbox" aria-label="IA Chat">${icon('chat')}<small>IA Chat</small></button><button data-csn="more" aria-label="Más">${icon('more')}<small>Más</small></button>`;nav.querySelectorAll('[data-csn]').forEach(b=>b.addEventListener('click',()=>{const p=b.dataset.csn;if(p==='more')openMore();else route(p)}));return nav}''',
+            s, count=1, flags=re.S)
+          s = re.sub(
+            r"function ensureMore\(\)\{.*?return x\}",
+            '''function ensureMore(){let x=document.getElementById('csNativeMore');if(x)return x;x=document.createElement('div');x.id='csNativeMore';x.className='csNMore';x.innerHTML=`<div class="csNMoreCard" role="dialog" aria-modal="true" aria-label="Más"><div class="csNMoreTop"><h3>Lo que necesitas menos seguido.</h3><button class="csNClose" aria-label="Cerrar">×</button></div><div class="csNMoreGrid"><button data-go="leads">${icon('leads')}Leads</button><button data-go="marketing">${icon('marketing')}Marketing</button><button data-go="inventory">${icon('inventory')}Inventory</button><button data-go="calendar">${icon('calendar')}Calendar</button><button data-go="files">${icon('files')}Files</button><button data-go="team">${icon('leads')}Team</button><button data-go="connect">${icon('connect')}Connect</button><button data-go="billing">${icon('billing')}Billing</button></div></div>`;document.body.appendChild(x);x.querySelector('.csNClose').onclick=closeMore;x.addEventListener('click',e=>{if(e.target===x)closeMore()});x.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>route(b.dataset.go));return x}''',
+            s, count=1, flags=re.S)
+          s = re.sub(r"function setNav\(page\)\{.*?\}", "function setNav(page){document.querySelectorAll('#csNativeBottom [data-csn]').forEach(b=>b.classList.toggle('active',b.dataset.csn===page));if(!['home','pipeline','cloudy','inbox'].includes(page))document.querySelector('[data-csn=\"more\"]')?.classList.add('active')}", s, count=1, flags=re.S)
+          nav.write_text(s)
+
+          pwa = Path('web/pwa.html')
+          h = pwa.read_text()
+          h = h.replace('<th>Origen</th></tr>', '<th>Origen</th><th></th></tr>')
+          h = re.sub(
+            r"function renderLeads\(\)\{.*?\}function renderPipeline",
+            '''function renderLeads(){const active=(snapshot.contacts||[]).filter(c=>c.lifecycle_stage!=='archived'&&!(c.metadata&&c.metadata.exclude_from_campaigns));leadRows.innerHTML=active.length?active.map(c=>`<tr><td><b>${esc([c.first_name,c.last_name].filter(Boolean).join(' ')||'Sin nombre')}</b></td><td>${esc(c.phone_e164||'—')}</td><td>${esc(c.email||'—')}</td><td>${esc(c.lifecycle_stage||'lead')}</td><td class="score">${c.quality_score??'—'}</td><td>${esc(c.primary_source_provider||'cloudsales')}</td><td><button class="btn small archiveLead" data-id="${esc(c.id)}">Archivar</button></td></tr>`).join(''):'<tr><td colspan="7" class="muted">No hay leads activos.</td></tr>';document.querySelectorAll('.archiveLead').forEach(b=>b.onclick=async()=>{if(b.dataset.busy==='1')return;if(!confirm('¿Archivar este contacto como junk lead? No volverá a usarse en campañas.'))return;b.dataset.busy='1';b.disabled=true;try{const c=(snapshot.contacts||[]).find(x=>x.id===b.dataset.id);await api('workspace-api',{organization_id:currentOrg.id,action:'contact.update',input:{id:b.dataset.id,lifecycle_stage:'archived',metadata:{...(c?.metadata||{}),archived_reason:'junk_lead',junk_lead:true,exclude_from_campaigns:true}}});await loadWorkspace();renderLeads();renderHome()}catch(e){b.dataset.busy='0';b.disabled=false;alert(e.message)}})}function renderPipeline''',
+            h, count=1, flags=re.S)
+          pwa.write_text(h)
+
+          sw = Path('web/sw.js')
+          w = sw.read_text()
+          w = re.sub(r"const CACHE='[^']+';", "const CACHE='cloudsales-pwa-2026.09.05.1-nav-junk-archive';", w, count=1)
+          sw.write_text(w)
+          PY
+      - name: Commit patched files
+        run: |
+          git config user.name "crmcloudsales"
+          git config user.email "crmcloudsales@gmail.com"
+          git add web/native-shell-runtime-v1.js web/pwa.html web/sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(ui): move Pipeline and add junk lead archive"
+          git push
