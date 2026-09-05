@@ -1,0 +1,52 @@
+name: CloudSales PayPal Commercial Checkout 2026-09-05
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/cloudsales_paypal_commercial_checkout_20260905.py'
+      - '.github/workflows/cloudsales-paypal-commercial-checkout-20260905.yml'
+      - 'web/paypal-plan-links-v1.js'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Replace public plan Stripe checkout with PayPal-only flow
+        run: python .github/scripts/cloudsales_paypal_commercial_checkout_20260905.py
+      - name: Validate canonical plan checkout policy
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('web/commercial.html').read_text(encoding='utf-8')
+          assert 'stripe-checkout-start' not in s
+          assert 'initEmbeddedCheckout' not in s
+          assert 'Checkout seguro por Stripe' not in s
+          assert 'Pago seguro por PayPal' in s
+          assert '/paypal-plan-links-v1.js' in s
+          assert 'https://app.cloudsales.app/?signup=1' in s
+          assert 'https://app.cloudsales.app/?install=ios' in s
+          assert 'https://app.cloudsales.app/?install=android' in s
+          assert 'https://app.cloudsales.app/?install=desktop' in s
+          print('PAYPAL_ONLY_PLAN_CHECKOUT_SOURCE_OK')
+          PY
+      - name: Commit commercial source
+        run: |
+          if git diff --quiet -- web/commercial.html; then
+            echo 'No changes required.'
+            exit 0
+          fi
+          git config user.name 'CloudSales Canonical Automation'
+          git config user.email 'noreply@cloudsales.app'
+          git add web/commercial.html
+          git commit -m 'fix(commercial): PayPal-only plan checkout and post-payment signup'
+          git push origin HEAD:main
