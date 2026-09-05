@@ -3,6 +3,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // Pennyworth form resilience + release gate.
 // Turnstile is a strong verified signal when available, but security-provider
 // failure must never erase plausible human commercial intent.
+// The worker template no longer necessarily embeds the HTML form itself, so this
+// wrapper validates the server/security contract here and lets the base provisioner
+// validate the actual rendered live form after deployment.
 const nativeFetch = globalThis.fetch.bind(globalThis);
 const TEMPLATE = '/web/clients/pennyworth/worker-edge-template.mjs';
 
@@ -45,24 +48,16 @@ function patchTemplate(raw:string){
   return x;
 }
 
-function requiredById(x:string,id:string){
-  return new RegExp(`<input\\b[^>]*id=["']${id}["'][^>]*\\brequired\\b|<input\\b[^>]*\\brequired\\b[^>]*id=["']${id}["']`,'i').test(x);
-}
-
-function assertFormContract(x:string){
+function assertWorkerContract(x:string){
   const checks={
-    form:/id=["']leadForm["']/i.test(x),
-    submit:/<button\b[^>]*type=["']submit["']/i.test(x),
-    first_required:requiredById(x,'first'),
-    phone_required:requiredById(x,'phone'),
-    email_required:requiredById(x,'email'),
+    intake:x.includes('/functions/v1/lead-intake'),
     no_turnstile_required:!x.includes('turnstile_required'),
-    no_hard_security_copy:!/Completa la verificación de seguridad|Complete the security verification/i.test(x),
     no_appearance_always:!/(?:appearance\s*:\s*['"]always['"]|data-appearance=["']always["'])/i.test(x),
-    no_turnstile_422:!/!turnstileOk\)return json\([^;]{0,180},422\)/i.test(x)
+    no_turnstile_422:!/!turnstileOk\)return json\([^;]{0,180},422\)/i.test(x),
+    turnstile_signal:/turnstile:\s*turnstileOk/.test(x)
   };
   const failed=Object.entries(checks).filter(([,v])=>!v).map(([k])=>k);
-  if(failed.length)throw new Error('pennyworth_form_qa_contract_failed_'+failed.join(','));
+  if(failed.length)throw new Error('pennyworth_worker_form_contract_failed_'+failed.join(','));
 }
 
 globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
@@ -70,7 +65,7 @@ globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
   const res=await nativeFetch(input as any,init);
   if(!res.ok||!url.includes(TEMPLATE)) return res;
   const text=patchTemplate(await res.text());
-  assertFormContract(text);
+  assertWorkerContract(text);
   const headers=new Headers(res.headers);headers.delete('content-length');
   return new Response(text,{status:res.status,statusText:res.statusText,headers});
 }) as typeof fetch;
