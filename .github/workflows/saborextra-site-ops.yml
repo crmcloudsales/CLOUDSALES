@@ -1,0 +1,23 @@
+name: Sabor Extra site ops
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.ops/saborextra-site-ops-trigger.json'
+permissions:
+  contents: read
+jobs:
+  invoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Invoke controlled CloudSales site operation
+        run: |
+          python - <<'PY'
+          import json, pathlib, urllib.request
+          data=json.loads(pathlib.Path('.ops/saborextra-site-ops-trigger.json').read_text())
+          body=json.dumps({'command_id':data['command_id']}).encode()
+          req=urllib.request.Request('https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/cloudflare-worker-source-audit',data=body,headers={'Content-Type':'application/json'},method='POST')
+          with urllib.request.urlopen(req,timeout=60) as r:
+              print(r.read().decode())
+          PY
