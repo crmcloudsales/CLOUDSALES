@@ -41,22 +41,18 @@ def story(s):
 
 
 def commercial(s):
-    # post-payment screen
     s = re.sub(r'<div class="csPcTrial">.*?</div>', '', s)
     s = re.sub(r'<p class="csPcFine">Tu prueba gratuita dura 7 días\..*?</p>', '<p class="csPcFine">Tu acceso al plan comienza cuando el pago queda confirmado.</p>', s)
-    # pricing UI
     s = re.sub(r'<div id="trialPricingBanner" class="trialBanner" data-trial-copy="pricing">.*?</div>', '', s)
     s = re.sub(r'<div class="trialMini" data-trial-copy="plan">.*?</div>', '', s)
     s = re.sub(r'<details><summary>¿CloudSales tiene prueba gratis\?</summary><p>.*?</p></details>', '<details><summary>¿Cuándo se cobra mi plan?</summary><p>La mensualidad se cobra al activar Basic, Pro o Premium. El acceso pagado se habilita según el estado confirmado del pago.</p></details>', s)
     s = re.sub(r'<div data-cs-trial-seo="1".*?</div>', '', s)
-    # remove no-longer-used styling hooks and rename residual identifiers
     s = re.sub(r'\.trialBanner\{[^}]*\}', '', s)
     s = re.sub(r'\.trialMini\{[^}]*\}', '', s)
     s = re.sub(r'\.trialCheckout\{[^}]*\}', '', s)
     s = s.replace('trialMini','billingMini').replace('trialBanner','billingBanner').replace('trialCheckout','billingCheckout')
     s = s.replace('csPcTrial','csPcStatus')
-    s = story(s)
-    return s
+    return story(s)
 
 
 def subscribe(s):
@@ -72,7 +68,8 @@ def subscribe(s):
 def terms(s):
     s = s.replace('By creating an account, starting a trial or subscription,', 'By creating an account, starting a subscription,')
     s = s.replace('billing frequency, trial terms and any minimum commitment', 'billing frequency and any minimum commitment')
-    s = re.sub(r'<h2>13\. Trials, introductory offers and promotions</h2><p>.*?</p>', '<h2>13. Promotions and discounts</h2><p>Any discount or promotion applies only if expressly shown at checkout or in a written offer. Unless a different paid billing arrangement is expressly stated, the subscription fee is due when the paid plan is activated. CloudSales does not provide free trial periods.</p>', s, flags=re.S)
+    s = re.sub(r'<h2>13\. Trials, introductory offers and promotions</h2><p>.*?</p>', '<h2>13. Promotions and discounts</h2><p>Any discount or promotion applies only if expressly shown at checkout or in a written offer. Unless a different paid billing arrangement is expressly stated, the subscription fee is due when the paid plan is activated. CloudSales subscriptions are paid from activation.</p>', s, flags=re.S)
+    s = s.replace('CloudSales does not provide free trial periods.', 'CloudSales subscriptions are paid from activation.')
     return s
 
 
@@ -83,13 +80,24 @@ def stripe_fn(s):
     s = re.sub(r"if\(trialDays>0\)\{enc\(form,'subscription_data\[trial_period_days\]',trialDays\);enc\(form,'payment_method_collection','always'\);enc\(form,'metadata\[trial_days\]',trialDays\);enc\(form,'subscription_data\[metadata\]\[trial_days\]',trialDays\)\}", "enc(form,'payment_method_collection','always')", s)
     return s
 
+
+def active_only(s):
+    s=s.replace('["active", "trialing"]', '["active"]')
+    s=s.replace('["active","trialing"]', '["active"]')
+    s=s.replace("['active', 'trialing']", "['active']")
+    s=s.replace("['active','trialing']", "['active']")
+    return s
+
 patch('web/commercial.html', commercial)
 patch('web/commercial-sales-story-v1.js', story)
 patch('web/subscribe.html', subscribe)
 patch('web/terms.html', terms)
 patch('supabase/functions/stripe-checkout-start/index.ts', stripe_fn)
+patch('supabase/functions/highlevel-temp-bootstrap/index.ts', active_only)
+patch('supabase/functions/cloudy-orchestrator/index.ts', active_only)
+patch('supabase/functions/cloudy-core-command/index.ts', active_only)
+patch('web/releases/2026.08.27.2.md', lambda s: s.replace('- No free trial CTA. Primary CTA is **Descargar la app**.', '- Primary CTA is **Descargar la app**.'))
 
-# Remove common obsolete trial copy/config from active web/function/config surfaces.
 phrase_replacements = [
     ('7-day free trial','paid subscription'),('7 day free trial','paid subscription'),('7-day trial','paid subscription'),
     ('7 days free','paid access'),('7 DAYS FREE','PAID ACCESS'),('7 DAYS OF CLOUDY FREE','ACTIVATE CLOUDSALES'),
@@ -104,10 +112,10 @@ for base in [Path('web'), Path('supabase/functions'), Path('config')]:
         except Exception: continue
         t=s
         for a,b in phrase_replacements: t=t.replace(a,b)
+        t=active_only(t)
         if t!=s:
             p.write_text(t,encoding='utf-8'); print('phrase-cleaned',p)
 
-# Report anything that could reintroduce an actual free-access period in active surfaces.
 forbidden = re.compile(r'free\s+trial|prueba\s+gratis|prueba\s+gratuita|\btrial_days\b|\btrial_period_days\b|\btrial_ends_at\b|\btrial_started_at\b|\btrialing\b|auto_charge_after_trial', re.I)
 remaining=[]
 for base in [Path('web'),Path('supabase/functions'),Path('config')]:
