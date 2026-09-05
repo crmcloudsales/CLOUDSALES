@@ -21,6 +21,13 @@ function patchTemplate(raw:string){
     "const turnstileToken=await ensureTurnstileToken(2200);const ch=await challenge(id),a=qp();"
   );
 
+  // Remove the old unreachable client error branch as well, so future edits cannot
+  // accidentally revive the legacy hard Turnstile dependency.
+  x=x.replace(
+    "show(err?.message==='secure_chat_grant_missing'?'No pudimos iniciar el chat seguro. Intenta nuevamente.':err?.message==='turnstile_required'?'Completa la verificación de seguridad.':'No pudimos validar la solicitud. Intenta nuevamente.',false);",
+    "show(err?.message==='secure_chat_grant_missing'?'No pudimos iniciar el chat seguro. Intenta nuevamente.':'No pudimos validar la solicitud. Intenta nuevamente.',false);"
+  );
+
   // Make the server verify Turnstile when present, while retaining the other
   // independent anti-bot controls when it is absent or the widget is blocked.
   const ip=' const ip=req.headers.get("CF-Connecting-IP")||"",ua=req.headers.get("User-Agent")||"",honey=clean(b.website,300)!=="";';
