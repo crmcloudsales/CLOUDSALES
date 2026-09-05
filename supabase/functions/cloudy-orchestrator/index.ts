@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
   if (agentId && !selectedAgent) return json({ error: "agent_not_found" }, 404, origin);
 
   const subscription: any = subscriptionResult.data || null;
-  let aiEntitled = Boolean(subscription && ["active", "trialing"].includes(String(subscription.status)));
+  let aiEntitled = Boolean(subscription && ["active"].includes(String(subscription.status)));
   if (aiEntitled && subscription.current_period_end && new Date(subscription.current_period_end).getTime() < Date.now()) aiEntitled = false;
   if (aiEntitled) {
     const { data: plan } = await svc.from("subscription_plans")

@@ -394,7 +394,7 @@ Deno.serve(async (req) => {
       for (const check of (state.connection_health || []).filter((x: any) => x.status !== "healthy").slice(0, 8)) {
         issues.push({ type: "health", connection_id: check.connection_id, severity: "normal", message: check.error || `Health status ${check.status}` });
       }
-      if (!state.subscription || !["active", "trialing"].includes(state.subscription.status)) {
+      if (!state.subscription || !["active"].includes(state.subscription.status)) {
         issues.push({ type: "billing", severity: "normal", message: `Subscription status: ${state.subscription?.status || "missing"}` });
       }
 
