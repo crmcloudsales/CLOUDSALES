@@ -14,6 +14,15 @@ function patchLanding(x:string){
   x=x.replace("if(!token){statusEl.className='status err';statusEl.textContent='Completa la verificación de seguridad.';btn.disabled=false;return}","");
   x=x.replace("if(!ts){show('Completa la verificación de seguridad.',false);return}","");
   x=x.replace("if(!turnToken){show('Completa la verificación de seguridad.',false);return}","");
+  x=x.replace("if(!token){msg(body.classList.contains('es')?'Completa la verificación de seguridad.':'Complete the security verification.',false);return}","");
+
+  // A REVIEW response is a successful durable capture, but must not automatically
+  // unlock secondary contact/automation actions. Senzik has an optional WhatsApp
+  // continuation after accepted leads; keep it hidden for review captures.
+  const senzikSuccess="if(!r.ok)throw new Error(d.message||'No pudimos enviar tus datos.');show('Gracias. Recibimos tus datos correctamente.',true);wa.href=d.whatsapp_url||wa.href;wa.classList.add('show');form.reset();turnToken='';if(window.turnstile&&widgetId!==null)window.turnstile.reset(widgetId)";
+  const senzikReview="if(!r.ok)throw new Error(d.message||'No pudimos enviar tus datos.');if(d.status==='review'){show(d.message||'Gracias. Recibimos tus datos y los estamos verificando.',true);wa.classList.remove('show');form.reset();turnToken='';if(window.turnstile&&widgetId!==null)window.turnstile.reset(widgetId);return}show('Gracias. Recibimos tus datos correctamente.',true);wa.href=d.whatsapp_url||wa.href;wa.classList.add('show');form.reset();turnToken='';if(window.turnstile&&widgetId!==null)window.turnstile.reset(widgetId)";
+  if(x.includes(senzikSuccess))x=x.replace(senzikSuccess,senzikReview);
+
   x=x.replace(/(<input\b[^>]*(?:id|name)=["'](?:name|first|first_name)["'][^>]*)(>)/gi,(m,a,b)=>/\brequired\b/i.test(a)?m:a+' required'+b);
   x=x.replace(/(<input\b[^>]*(?:id|name)=["'](?:phone|telephone)["'][^>]*)(>)/gi,(m,a,b)=>/\brequired\b/i.test(a)?m:a+' required'+b);
   x=x.replace(/(<input\b[^>]*(?:id|name)=["']email["'][^>]*)(>)/gi,(m,a,b)=>/\brequired\b/i.test(a)?m:a+' required'+b);
@@ -44,13 +53,7 @@ function patchWorker(x:string){
 globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
   let url=typeof input==='string'?input:input instanceof URL?input.href:input.url;
   let requestInput:any=input;
-  // Acanto's canonical commercial page is landing-v2.html. The shared base
-  // provisioner historically asks for landing-edge.html; translate that source
-  // request here without creating a second Acanto site or changing its URL.
-  if(url.includes('/web/clients/acanto/landing-edge.html')){
-    url=url.replace('/landing-edge.html','/landing-v2.html');
-    requestInput=url;
-  }
+  if(url.includes('/web/clients/acanto/landing-edge.html')){url=url.replace('/landing-edge.html','/landing-v2.html');requestInput=url}
   const res=await nativeFetch(requestInput as any,init);
   if(!res.ok||!url.includes(RAW))return res;
   let text=await res.text();
