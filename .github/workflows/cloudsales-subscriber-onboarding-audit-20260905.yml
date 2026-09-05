@@ -27,16 +27,17 @@ jobs:
           COMMERCIAL: https://cloudsales.app
           APP: https://app.cloudsales.app
         run: |
-          cat > /tmp/audit.mjs <<'JS'
+          cat > audit.mjs <<'JS'
           import { chromium, webkit, devices } from 'playwright';
           import assert from 'node:assert/strict';
 
           const COMMERCIAL=process.env.COMMERCIAL;
           const APP=process.env.APP;
           const report=[];
+          let failures=0;
           const ok=(name,detail='')=>{report.push({name,status:'PASS',detail});console.log(`PASS ${name} ${detail}`)};
-          const fail=(name,detail='')=>{report.push({name,status:'FAIL',detail});console.error(`FAIL ${name} ${detail}`)};
-          async function check(name,fn){try{await fn();ok(name)}catch(e){fail(name,String(e?.message||e));throw e}}
+          const fail=(name,detail='')=>{failures++;report.push({name,status:'FAIL',detail});console.error(`FAIL ${name} ${detail}`)};
+          async function check(name,fn){try{await fn();ok(name)}catch(e){fail(name,String(e?.message||e))}}
 
           await check('commercial_http_200',async()=>{
             const r=await fetch(COMMERCIAL+'/?qa='+Date.now(),{headers:{'cache-control':'no-cache'}});assert.equal(r.status,200);const t=await r.text();
@@ -76,6 +77,18 @@ jobs:
               const emails=await page.locator('input[type="email"]').count();const passwords=await page.locator('input[type="password"]').count();assert.ok(emails>=1,'email input missing');assert.ok(passwords>=1,'password input missing');
             });
 
+            await check(`${engineName}_google_oauth_starts`,async()=>{
+              await page.goto(APP+'/?signup=1&qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(1000);
+              const btn=page.locator('#googleAuthBtn');assert.equal(await btn.count(),1,'Google button missing');
+              await Promise.all([page.waitForURL(u=>/supabase\.co\/auth\/v1\/authorize|accounts\.google\.com/i.test(String(u)),{timeout:10000}),btn.click()]);
+            });
+
+            await check(`${engineName}_microsoft_oauth_starts`,async()=>{
+              await page.goto(APP+'/?signup=1&qa='+Date.now(),{waitUntil:'domcontentloaded',timeout:45000});await page.waitForTimeout(1000);
+              const btn=page.locator('#microsoftAuthBtn');assert.equal(await btn.count(),1,'Microsoft button missing');
+              await Promise.all([page.waitForURL(u=>/supabase\.co\/auth\/v1\/authorize|login\.microsoftonline\.com/i.test(String(u)),{timeout:10000}),btn.click()]);
+            });
+
             for (const suffix of ['ios','android','desktop']) {
               await check(`${engineName}_install_${suffix}_loads`,async()=>{
                 const r=await page.request.get(APP+`/?install=${suffix}&qa=`+Date.now(),{timeout:30000});assert.equal(r.status(),200);
@@ -103,7 +116,7 @@ jobs:
                 await popup.waitForLoadState('domcontentloaded',{timeout:15000}).catch(()=>{});
                 const u=popup.url();assert.match(u,/paypal\.com/i,`not PayPal: ${u}`);await popup.close();
               } else {
-                await page.waitForTimeout(1200);
+                await page.waitForTimeout(1000);
                 const msg=(await page.locator('#cerr').innerText().catch(()=>''))||'';
                 assert.fail(`PayPal did not open for ${plan}. UI message: ${msg}`);
               }
@@ -113,5 +126,7 @@ jobs:
           await browser.close();
 
           console.log('ONBOARDING_AUDIT_COMPLETE',JSON.stringify(report));
+          if(failures>0){console.error(`ONBOARDING_AUDIT_FAILURES=${failures}`);process.exit(1)}
+          console.log('ONBOARDING_AUDIT_ALL_PASS');
           JS
-          node /tmp/audit.mjs
+          node audit.mjs
