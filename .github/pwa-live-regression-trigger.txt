@@ -1,1 +1,1 @@
-2026-09-05T10:01:45Z canonical production verification after Cloudflare release c8e8392d9f942906c3642dd2c35ce86f7ffb0b6f
+2026-09-05T10:13:00Z verify production after auth cleanup and social-only Connect e58858962787f83c4d9f271f4502f3b13a49ccf3
