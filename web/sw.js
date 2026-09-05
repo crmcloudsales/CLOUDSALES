@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.09.05.0430-canonical-v1';
+const CACHE='cloudsales-pwa-2026.09.05.1-canonical-hard-fix';
 const LOCALES=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
 const I18N=[
   '/cloudsales-static-i18n-v2.js',
