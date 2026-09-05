@@ -5,7 +5,6 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // It does not change pricing, billing, legal requirements, products, or backend APIs.
 const nativeFetch = globalThis.fetch.bind(globalThis);
 const MARKER = 'data-cloudsales-form-minimal="v2"';
-const BASE_WRAPPER = 'https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/6c3ab755a31f063203035f194c5148d8821f93fc/supabase/functions/cloudsales-form-ux-release/index.ts';
 
 function inject(html:string, css:string, js=''){
   if(html.includes(MARKER)) return html;
@@ -57,4 +56,4 @@ globalThis.fetch=(async(input:RequestInfo|URL,init?:RequestInit)=>{
   return new Response(patched,{status:res.status,statusText:res.statusText,headers});
 }) as typeof fetch;
 
-await import(BASE_WRAPPER);
+await import("https://raw.githubusercontent.com/crmcloudsales/CLOUDSALES/6c3ab755a31f063203035f194c5148d8821f93fc/supabase/functions/cloudsales-form-ux-release/index.ts");
