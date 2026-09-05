@@ -1,0 +1,113 @@
+name: Senzik exact uploaded logo v8
+
+on:
+  push:
+    paths:
+      - '.github/workflows/senzik-exact-user-logo-v8.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install exact uploaded logo in Senzik site
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re, base64, hashlib
+
+          landing = Path('web/clients/senzik/landing-edge.html')
+          worker = Path('web/clients/senzik/worker-edge-template.mjs')
+          data_file = Path('web/clients/senzik/senzik-user-logo-data.txt')
+
+          b64 = data_file.read_text().strip()
+          raw = base64.b64decode(b64, validate=True)
+          if not raw.startswith(b'RIFF') or b'WEBP' not in raw[:16]:
+              raise SystemExit('invalid WebP logo payload')
+          if len(raw) < 5000:
+              raise SystemExit('logo payload unexpectedly small')
+          print('logo bytes:', len(raw), 'sha256:', hashlib.sha256(raw).hexdigest())
+
+          x = landing.read_text()
+          x = re.sub(r'\n?<style data-senzik-user-logo-v8>[\s\S]*?</style>\s*<!-- senzik-user-logo-v8 -->\s*', '\n', x)
+          css = r'''
+<style data-senzik-user-logo-v8>
+/* Exact user-uploaded Senzik logo. Format-only conversion: transparent WebP. */
+.brand{min-width:108px!important;display:flex!important;align-items:center!important}
+.brandMark{
+  display:block!important;
+  width:96px!important;
+  height:96px!important;
+  background:url("/senzik-user-logo.webp?v=8") center/contain no-repeat!important;
+  background-size:contain!important;
+  background-position:center!important;
+  -webkit-mask:none!important;
+  mask:none!important;
+  filter:drop-shadow(0 0 12px rgba(216,171,75,.22))!important;
+  animation:none!important;
+  transition:transform .3s ease,filter .3s ease!important
+}
+.brand:hover .brandMark{
+  transform:translateY(-1px) scale(1.015)!important;
+  filter:drop-shadow(0 0 18px rgba(216,171,75,.30))!important
+}
+@media(max-width:760px){
+  .brand{min-width:78px!important}
+  .brandMark{width:78px!important;height:78px!important}
+  .navin{min-height:90px!important}
+}
+</style>
+<!-- senzik-user-logo-v8 -->
+'''
+          if '</head>' not in x:
+              raise SystemExit('landing head not found')
+          x = x.replace('</head>', css + '\n</head>', 1)
+          landing.write_text(x)
+
+          w = worker.read_text()
+          # Replace any previous embedded exact-logo constant if this workflow is re-run.
+          w = re.sub(r'\nconst USER_LOGO_B64="[A-Za-z0-9+/=]+";\n', '\n', w)
+          anchor = 'const OFFICIAL_LOGO="https://senzikresidences.com/images/logo-header.svg";'
+          if anchor not in w:
+              raise SystemExit('worker logo anchor not found')
+          w = w.replace(anchor, anchor + '\nconst USER_LOGO_B64="' + b64 + '";', 1)
+
+          # Remove an older v8 route if present, then insert a single canonical route.
+          w = re.sub(r'\n\s*if\(req\.method==="GET"&&path==="/senzik-user-logo\.webp"\)\{[\s\S]*?\n\s*\}\n\n', '\n', w, count=1)
+          route_anchor = '    if(req.method==="GET"&&path==="/senzik-logo.svg"){'
+          route = '''    if(req.method==="GET"&&path==="/senzik-user-logo.webp"){
+      const bin=Uint8Array.from(atob(USER_LOGO_B64),c=>c.charCodeAt(0));
+      return new Response(bin,{headers:{"content-type":"image/webp","cache-control":"public,max-age=31536000,immutable","x-content-type-options":"nosniff"}});
+    }\n\n'''
+          if route_anchor not in w:
+              raise SystemExit('worker route anchor not found')
+          w = w.replace(route_anchor, route + route_anchor, 1)
+          worker.write_text(w)
+
+          # The source payload is temporary; the exact bytes are now embedded in the Worker source.
+          data_file.unlink()
+          PY
+
+      - name: Verify patch contract
+        shell: bash
+        run: |
+          grep -q 'senzik-user-logo-v8' web/clients/senzik/landing-edge.html
+          grep -q '/senzik-user-logo.webp?v=8' web/clients/senzik/landing-edge.html
+          grep -q 'USER_LOGO_B64=' web/clients/senzik/worker-edge-template.mjs
+          grep -q 'path==="/senzik-user-logo.webp"' web/clients/senzik/worker-edge-template.mjs
+          test ! -e web/clients/senzik/senzik-user-logo-data.txt
+
+      - name: Commit exact logo integration
+        shell: bash
+        run: |
+          git config user.name "cloudsales-release-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add web/clients/senzik/landing-edge.html web/clients/senzik/worker-edge-template.mjs
+          git add -u web/clients/senzik/senzik-user-logo-data.txt || true
+          git diff --cached --quiet || git commit -m "feat(senzik): use exact uploaded transparent logo in header"
+          git push
