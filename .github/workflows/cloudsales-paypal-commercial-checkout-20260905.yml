@@ -20,23 +20,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Apply generic PayPal plan checkout
+      - name: Apply canonical PayPal plan checkout
         run: python .github/scripts/cloudsales_paypal_commercial_checkout_20260905.py
       - name: Validate canonical plan checkout policy
         run: |
           python - <<'PY'
           from pathlib import Path
           s=Path('web/commercial.html').read_text(encoding='utf-8')
-          for forbidden in ['stripe-checkout-start','initEmbeddedCheckout','Checkout seguro por Stripe','https://js.stripe.com/v3','aesquer1@gmail.com','7XCN724E73MHKXAV','arturo-pro','SENZIK','Senzik']:
+          for forbidden in ['stripe-checkout-start','initEmbeddedCheckout','Checkout seguro por Stripe','https://js.stripe.com/v3','aesquer1@gmail.com','7XCN724E73MHKXAV','arturo-pro','SENZIK','Senzik','free trial','prueba gratis','prueba gratuita']:
               assert forbidden.lower() not in s.lower(), forbidden
           assert 'Pago seguro por PayPal' in s
-          assert 'cs-paypal-plan-checkout-v2' in s
-          assert 'cloudsales-web/api/catalog' in s
-          assert 'https://app.cloudsales.app/?signup=1' in s
+          assert 'cs-paypal-plan-checkout-v3' in s
+          assert 'cloudflare-release-v4' in s
+          assert "window.open('about:blank','_blank')" in s
+          assert 'https://app.cloudsales.app/?signup=1&payment=paypal' in s
           assert 'https://app.cloudsales.app/?install=ios' in s
           assert 'https://app.cloudsales.app/?install=android' in s
           assert 'https://app.cloudsales.app/?install=desktop' in s
-          print('GENERIC_PAYPAL_PLAN_CHECKOUT_SOURCE_OK')
+          print('CANONICAL_PAYPAL_PLAN_CHECKOUT_SOURCE_OK')
           PY
       - name: Commit commercial source
         run: |
@@ -47,5 +48,5 @@ jobs:
           git config user.name 'CloudSales Canonical Automation'
           git config user.email 'noreply@cloudsales.app'
           git add web/commercial.html
-          git commit -m 'fix(commercial): generic PayPal checkout with zero customer-specific state'
+          git commit -m 'fix(commercial): canonical PayPal checkout and Safari-safe handoff'
           git push origin HEAD:main
