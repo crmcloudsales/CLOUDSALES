@@ -1,0 +1,29 @@
+name: Run PWA Connect social polish fix
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/run-pwa-connect-social-polish-fix-20260905.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/pwa-connect-social-polish-fix-20260905.js
+      - run: node --check web/workspace-polish-runtime-v1.js
+      - name: Commit fix
+        run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/workspace-polish-runtime-v1.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(pwa): keep Connect social-only in polished UI"
+          git push
