@@ -1,0 +1,30 @@
+{
+  "version": "2026-09-05",
+  "priority": "P0",
+  "explicit_user_instruction_is_source_of_truth": true,
+  "latest_explicit_instruction_wins": true,
+  "forbid_unapproved_provider_substitution": true,
+  "forbid_invented_links_credentials_prices_or_ids": true,
+  "verify_before_claiming_success": true,
+  "billing": {
+    "customer_facing_provider": "paypal",
+    "stripe_customer_checkout_allowed": false,
+    "plans": {
+      "basic": {"price_usd_month": 47},
+      "pro": {"price_usd_month": 97},
+      "premium": {"price_usd_month": 147}
+    }
+  },
+  "auth": {
+    "email_password": true,
+    "google": true,
+    "microsoft": true
+  },
+  "journey": [
+    "select_plan",
+    "pay_with_canonical_provider",
+    "create_or_access_account",
+    "preserve_paid_plan_account_association",
+    "offer_os_appropriate_install_path"
+  ]
+}
