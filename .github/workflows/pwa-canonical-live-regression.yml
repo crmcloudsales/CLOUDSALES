@@ -20,7 +20,7 @@ jobs:
           node --check web/native-shell-runtime-v1.js
           npm install --no-save playwright@1.55.0
           npx playwright install --with-deps chromium
-      - name: Verify live cold-auth and canonical source
+      - name: Verify live cold-auth, canonical nav and social-only Connect
         run: |
           node <<'NODE'
           const {chromium}=require('playwright');
@@ -28,8 +28,11 @@ jobs:
             const browser=await chromium.launch({headless:true});
             const ctx=await browser.newContext({viewport:{width:390,height:844},locale:'es-MX'});
             const js=await (await ctx.request.get('https://app.cloudsales.app/native-shell-runtime-v1.js?qa='+Date.now())).text();
-            const need=['Office</small>','data-csn="pipeline"','data-csn="marketing"','csNativeMoreButton','activateCloudyVoice','hardAuthGate','background-size:190%','overflow-y:auto!important'];
+            const html=await (await ctx.request.get('https://app.cloudsales.app/?sourceqa='+Date.now())).text();
+            const need=['Office</small>','data-csn="pipeline"','data-csn="marketing"','csNativeMoreButton','activateCloudyVoice','hardAuthGate','background-size:190%','overflow-y:auto!important','csNativeAuthReset','csNativeAuthenticatedBoot',"const ID='cs-native-shell-v8'"];
             for(const x of need)if(!js.includes(x))throw Error('live_source_missing:'+x);
+            const htmlNeed=["wanted=['zernio','buffer','youtube','google_business_profile']",'Instagram / Facebook','LinkedIn / TikTok / Threads','Google Business Profile','csNativeAuthReset'];
+            for(const x of htmlNeed)if(!html.includes(x))throw Error('live_html_missing:'+x);
             const p=await ctx.newPage();
             const errors=[];p.on('pageerror',e=>errors.push(String(e.message||e)));
             await p.goto('https://app.cloudsales.app/?coldqa='+Date.now(),{waitUntil:'domcontentloaded',timeout:30000});
@@ -38,15 +41,17 @@ jobs:
               authVisible:!!document.querySelector('#auth:not(.hidden),.auth:not(.hidden)'),
               shellVisible:!!document.querySelector('#shell:not(.hidden),.shell:not(.hidden)'),
               privateNav:!!document.querySelector('#csNativeBottom'),
+              moreButton:!!document.querySelector('#csNativeMoreButton'),
               hasSession:!!localStorage.getItem('cs_session'),
-              text:(document.body.innerText||'').slice(0,1000)
+              text:(document.body.innerText||'').slice(0,1200)
             }));
             if(state.hasSession)throw Error('fresh_context_has_session');
-            if(state.shellVisible||state.privateNav)throw Error('fresh_context_private_shell_visible');
+            if(state.shellVisible||state.privateNav||state.moreButton)throw Error('fresh_context_private_shell_visible');
             if(!state.authVisible)throw Error('fresh_context_login_not_visible');
             if(/PENNYWORTH/i.test(state.text))throw Error('fresh_context_tenant_visible');
             if(errors.length)throw Error('page_errors:'+errors.join('|'));
             console.log('PWA_CANONICAL_LIVE_PASS',state);
+            console.log('PWA_SOCIAL_ONLY_CONNECT_SOURCE_PASS');
             await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           NODE
