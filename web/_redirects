@@ -6,3 +6,12 @@
 /domain/ /domains.html 200
 /dominios/ /domains.html 200
 /dominio/ /domains.html 200
+
+/subscribe/basic https://buy.stripe.com/fZu6ozeAEeNeg9lgav6sw0c 302
+/subscribe/pro https://buy.stripe.com/fZu4gr2RW8oQ4qD4rN6sw0m 302
+/subscribe/premium https://buy.stripe.com/4gMeV5gIM34w7CP6zV6sw0e 302
+/buy/basic https://buy.stripe.com/fZu6ozeAEeNeg9lgav6sw0c 302
+/buy/pro https://buy.stripe.com/fZu4gr2RW8oQ4qD4rN6sw0m 302
+/buy/premium https://buy.stripe.com/4gMeV5gIM34w7CP6zV6sw0e 302
+/welcome /welcome.html 200
+/welcome/ /welcome.html 200
