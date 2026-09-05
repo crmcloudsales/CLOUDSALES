@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.09.05.5-cloudy-male-voice';
+const CACHE='cloudsales-pwa-2026.09.05.6-cloudy-runtime-guard';
 const LOCALES=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
 const I18N=[
   '/cloudsales-static-i18n-v2.js',
@@ -53,8 +53,9 @@ const put=async(request,response)=>{
 };
 
 function injectPwaUi(html){
+  if(!html.includes('id="shell"')||!html.includes('id="page-cloudy"')) return html;
   if(html.includes('/pwa-ui-runtime-v1.js')) return html;
-  const scripts='<script src="/cloudy-voice-client-policy-v1.js?v=20260905.5"></script><script src="/pwa-ui-runtime-v1.js?v=20260905.5"></script><script src="/pwa-connect-fix-runtime-v1.js?v=20260905.5"></script>';
+  const scripts='<script src="/cloudy-voice-client-policy-v1.js?v=20260905.6"></script><script src="/pwa-ui-runtime-v1.js?v=20260905.6"></script><script src="/pwa-connect-fix-runtime-v1.js?v=20260905.6"></script>';
   return html.includes('</body>')?html.replace('</body>',scripts+'</body>'):html+scripts;
 }
 
