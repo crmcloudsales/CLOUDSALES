@@ -58,6 +58,14 @@ html.cs-mobile-menu-open,html.cs-mobile-menu-open body,html.cs-checkout-open,htm
     if anchor not in s:
         raise SystemExit("commercial nav insertion anchor missing")
     s=s.replace(anchor,mobile_css+anchor,1)
+
+# After a successful Stripe return, show the install/access chooser before onboarding.
+if 'id="cs-checkout-return-router-20260905"' not in s:
+    return_router = r'''<script id="cs-checkout-return-router-20260905">(()=>{try{const q=new URLSearchParams(location.search);if(q.get('checkout')==='return'&&q.get('session_id'))location.replace('/welcome.html'+location.search)}catch(_){}})();</script>'''
+    head_anchor='<head>'
+    if head_anchor not in s:
+        raise SystemExit("commercial head anchor missing")
+    s=s.replace(head_anchor,head_anchor+return_router,1)
 p.write_text(s)
 
 # PWA: reserve a real app region for bottom navigation and confine scrolling to content.
@@ -104,6 +112,7 @@ checks={
     "hamburger_dom_ready": "DOMContentLoaded',init" in c and "csMobileMenuBtn" in c and "csMobileNav" in c,
     "mobile_menu_full_sheet": "cs-mobile-nav-runtime-fix-20260905" in c and "height:calc(100dvh - 64px)" in c,
     "trial_visible": c.count("7 días gratis") >= 3 and "trialPricingBanner" in c,
+    "checkout_return_router": "cs-checkout-return-router-20260905" in c and "welcome.html" in c,
     "native_reserved_region": marker in n and "--csNavReserve:108px" in n,
     "native_no_behind_nav": "body::after" in n and "margin:14px auto var(--csNavReserve)" in n,
     "cache_bumped": "1010-mobile-shell-hotfix" in sw,
