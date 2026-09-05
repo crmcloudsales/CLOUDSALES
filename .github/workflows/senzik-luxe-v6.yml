@@ -1,0 +1,125 @@
+name: Senzik Luxe V6
+
+on:
+  push:
+    paths:
+      - '.github/workflows/senzik-luxe-v6.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  redesign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply Senzik luxury UI and effects
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('web/clients/senzik/landing-edge.html')
+          x=p.read_text()
+          old='<!-- senzik-future-investment-v5-user-gold-pro-vector -->'
+          new='<!-- senzik-luxe-investment-v6-gold-lenis -->'
+          if new in x:
+              print('V6 already applied')
+              raise SystemExit(0)
+          if old not in x:
+              raise SystemExit('Expected Senzik V5 marker not found; refusing unsafe patch')
+          x=x.replace(old,new,1)
+          head='''
+<!-- SENZIK LUXE V6: visual-only redesign; content remains unchanged -->
+<link rel="stylesheet" href="https://unpkg.com/lenis@1.3.26/dist/lenis.css">
+<script src="https://unpkg.com/lenis@1.3.26/dist/lenis.min.js"></script>
+<style id="senzik-luxe-v6">
+:root{
+  --bg:#020806!important;--bg2:#06100c!important;--panel:rgba(5,16,12,.70)!important;--panel2:rgba(8,22,16,.86)!important;
+  --text:#f7f4ea!important;--muted:#a8aea8!important;--line:rgba(219,177,84,.18)!important;
+  --mint:#e1b85f!important;--mint2:#bd8b2f!important;--cyan:#e8c978!important;
+  --gold:#d7aa4d!important;--gold-soft:#f2d47e!important;--gold-deep:#8f6422!important;--gold-line:rgba(215,170,77,.34)!important;--gold-glow:rgba(215,170,77,.18)!important;
+  --shadow:0 34px 100px rgba(0,0,0,.58)!important
+}
+html{background:#020806!important}
+body{background:radial-gradient(circle at 16% 0%,rgba(105,91,33,.16),transparent 28%),radial-gradient(circle at 86% 7%,rgba(21,73,47,.20),transparent 28%),linear-gradient(180deg,#020806 0%,#05100c 48%,#020806 100%)!important;color:var(--text)!important}
+body:before{content:"";position:fixed;inset:-25vmax;z-index:-1;pointer-events:none;background:conic-gradient(from 90deg at 50% 50%,transparent 0deg,rgba(215,170,77,.025) 42deg,transparent 88deg,rgba(29,89,57,.045) 145deg,transparent 210deg,rgba(215,170,77,.02) 285deg,transparent 360deg);animation:luxeAurora 26s linear infinite;transform-origin:center}
+@keyframes luxeAurora{to{transform:rotate(360deg)}}
+.noise{opacity:.045!important;mix-blend-mode:soft-light!important}.scrollbar{height:2px!important;background:linear-gradient(90deg,#8f6422,#f2d47e,#d7aa4d)!important;box-shadow:0 0 20px rgba(215,170,77,.55)!important}
+.nav{border-bottom:1px solid transparent}.nav.scrolled{background:rgba(2,9,6,.80)!important;border-bottom:1px solid rgba(215,170,77,.18)!important;backdrop-filter:blur(24px) saturate(1.12)!important}.nav:before{background:linear-gradient(180deg,rgba(2,8,6,.92),rgba(2,8,6,.40) 55%,transparent)!important}
+.navin{min-height:92px!important}.brand{min-width:180px!important}.brandMark{width:180px!important;height:72px!important;background:linear-gradient(115deg,#8d611d 0%,#ffd979 18%,#ba7f20 38%,#f8d56c 58%,#8a5c19 78%,#e5b94f 100%)!important;background-size:220% 100%!important;animation:logoGoldSweep 7s ease-in-out infinite!important;filter:drop-shadow(0 0 14px rgba(215,170,77,.22))!important}
+@keyframes logoGoldSweep{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.links{color:#ddd7c8!important;gap:22px!important}.links a:after{height:1px!important;background:linear-gradient(90deg,transparent,var(--gold-soft),transparent)!important;box-shadow:0 0 16px rgba(215,170,77,.35)!important}
+.btn{border-color:rgba(215,170,77,.28)!important;background:rgba(8,20,15,.54)!important;color:#f8f4e8!important;box-shadow:inset 0 0 0 1px rgba(255,255,255,.015)!important}.btn.primary,.submit{background:linear-gradient(135deg,#f0ce76 0%,#d3a447 47%,#93651f 100%)!important;color:#171006!important;border-color:rgba(255,220,132,.62)!important;box-shadow:0 14px 40px rgba(137,95,25,.25),inset 0 1px 0 rgba(255,255,255,.42)!important}.btn.primary:hover,.submit:hover{box-shadow:0 18px 54px rgba(215,170,77,.28),0 0 30px rgba(215,170,77,.13)!important}
+.hero{background:#020806!important}.heroBg{filter:brightness(.38) saturate(.74) contrast(1.08) sepia(.06)!important}.heroShade{background:linear-gradient(180deg,rgba(2,8,6,.04),rgba(2,8,6,.20) 36%,rgba(2,8,6,.92) 94%),linear-gradient(90deg,rgba(2,8,6,.90) 0%,rgba(2,8,6,.45) 46%,rgba(2,8,6,.16) 100%)!important}.heroGrid{background:linear-gradient(rgba(215,170,77,.075) 1px,transparent 1px),linear-gradient(90deg,rgba(215,170,77,.075) 1px,transparent 1px)!important;opacity:.42!important}.hero:before{background:radial-gradient(circle,rgba(215,170,77,.14),rgba(215,170,77,.045) 34%,transparent 70%)!important}.orb.one,.orb.two{border-color:rgba(215,170,77,.16)!important;box-shadow:inset 0 0 100px rgba(215,170,77,.035),0 0 110px rgba(215,170,77,.055)!important}
+.eyebrow{border-color:rgba(215,170,77,.38)!important;background:rgba(4,14,10,.58)!important;color:#efd889!important}.eyebrow i,.liveDot i{background:#e8c46d!important;box-shadow:0 0 18px rgba(232,196,109,.72)!important}
+.hero h1,.sectionHead h2,.bigCopy h3,.locationCopy h3,.leadCopy h2,.sceneOverlay b{font-family:Georgia,'Times New Roman',serif!important;font-weight:500!important;letter-spacing:-.045em!important}.hero h1{line-height:.83!important;text-shadow:0 12px 44px rgba(0,0,0,.34)!important}.hero h1 span{color:#e4b95e!important;-webkit-text-stroke:0!important;text-shadow:0 0 32px rgba(215,170,77,.16)!important;font-weight:500!important}.heroLead{color:#d0d3cc!important;max-width:690px!important}
+.ticker{background:#030b08!important;border-color:rgba(215,170,77,.16)!important}.tickerTrack span{color:#a9aea6!important}.tickerTrack b{color:#e7bd60!important}
+.section{isolation:isolate}.section.alt{background:linear-gradient(180deg,#030a07,#07130e 52%,#030a07)!important}.section:before{content:"";position:absolute;z-index:-1;pointer-events:none;left:8%;right:8%;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(215,170,77,.18),transparent)}
+.kicker{color:#e6bd63!important}.sectionHead h2,.bigCopy h3,.locationCopy h3,.leadCopy h2{color:#f5f0e5!important}.sectionHead p,.bigCopy p,.locationCopy p,.leadCopy p{color:#aeb4ad!important}
+.assetPanel,.glassCard,.sceneMedia,.gallery figure,.locationMedia,.form{border-color:rgba(215,170,77,.20)!important;background-color:rgba(4,14,10,.54)!important;box-shadow:0 28px 90px rgba(0,0,0,.48),inset 0 0 0 1px rgba(255,255,255,.018)!important}.assetPanel:before{background:linear-gradient(120deg,rgba(244,210,126,.40),transparent 26%,transparent 68%,rgba(123,88,29,.28))!important}.glassCard:before{background:radial-gradient(circle,rgba(215,170,77,.13),transparent 68%)!important}.assetTitle span,.glassCard .num,.signal,.ringStat{color:#e4bd65!important}.ringStat{border-color:rgba(215,170,77,.30)!important;background:radial-gradient(circle,rgba(215,170,77,.10),transparent 66%)!important}.scan{background:linear-gradient(180deg,transparent,rgba(240,204,119,.13),transparent)!important}
+.gallery figure:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,transparent 18%,rgba(255,226,151,.12) 43%,transparent 62%);transform:translateX(-140%);transition:transform 1.1s cubic-bezier(.2,.8,.2,1)}.gallery figure:hover:after{transform:translateX(140%)}
+.locationMedia .hud,.formTop{border-color:rgba(215,170,77,.18)!important}.officialLinks a,.waDone{color:#e4bd65!important;border-color:rgba(215,170,77,.26)!important}.field input,.field select,.field textarea{background:rgba(1,8,5,.58)!important;border-color:rgba(215,170,77,.18)!important;color:#f6f1e7!important}.field input:focus,.field select:focus,.field textarea:focus{border-color:rgba(235,198,109,.60)!important;box-shadow:0 0 0 3px rgba(215,170,77,.09)!important}
+.footer{background:#020806!important;border-top-color:rgba(215,170,77,.18)!important}
+.reveal{opacity:0!important;transform:translate3d(0,34px,0) scale(.985)!important;filter:blur(8px)!important;clip-path:inset(0 0 11% 0 round 24px)!important;transition:opacity .9s ease,transform 1s cubic-bezier(.2,.8,.2,1),filter .9s ease,clip-path 1.05s cubic-bezier(.2,.8,.2,1)!important}.reveal.in{opacity:1!important;transform:none!important;filter:blur(0)!important;clip-path:inset(0 0 0 0 round 0)!important}
+.luxurySpotlight{position:relative!important;overflow:hidden!important}.luxurySpotlight:after{content:"";position:absolute;z-index:4;inset:0;pointer-events:none;opacity:0;background:radial-gradient(420px circle at var(--spot-x,50%) var(--spot-y,50%),rgba(244,210,126,.13),transparent 42%);transition:opacity .35s ease;mix-blend-mode:screen}.luxurySpotlight:hover:after{opacity:1}
+.goldCursor,.goldCursorDot{position:fixed;left:0;top:0;z-index:1200;pointer-events:none;border-radius:50%;opacity:0;transition:opacity .2s ease,transform .18s ease}.goldCursor{width:34px;height:34px;border:1px solid rgba(234,198,111,.48);box-shadow:0 0 30px rgba(215,170,77,.12);margin:-17px 0 0 -17px}.goldCursorDot{width:4px;height:4px;background:#edc66b;box-shadow:0 0 12px rgba(237,198,107,.85);margin:-2px 0 0 -2px}.goldCursor.show,.goldCursorDot.show{opacity:1}.goldCursor.hovering{transform:scale(1.7);background:rgba(215,170,77,.055);border-color:rgba(244,210,126,.64)}
+.luxeEdge{position:fixed;inset:0;z-index:1190;pointer-events:none;box-shadow:inset 0 0 130px rgba(0,0,0,.48),inset 0 0 1px rgba(215,170,77,.12)}
+@media(max-width:900px){.brandMark{width:150px!important;height:66px!important}.navin{min-height:82px!important}.hero h1{letter-spacing:-.04em!important}.goldCursor,.goldCursorDot{display:none!important}}
+@media(max-width:700px){body:before{display:none}.brandMark{width:138px!important;height:62px!important}.heroBg{filter:brightness(.34) saturate(.72)!important}.reveal{filter:none!important;clip-path:none!important;transform:translateY(22px)!important}.reveal.in{transform:none!important}}
+@media(prefers-reduced-motion:reduce){body:before,.brandMark{animation:none!important}.reveal{opacity:1!important;transform:none!important;filter:none!important;clip-path:none!important}.goldCursor,.goldCursorDot{display:none!important}}
+</style>
+'''
+          js='''
+<script id="senzik-luxe-effects-v6">
+(()=>{'use strict';
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.body.insertAdjacentHTML('beforeend','<div class="luxeEdge" aria-hidden="true"></div>');
+  if(!reduced&&window.Lenis){try{new Lenis({autoRaf:true,anchors:true,duration:1.08,wheelMultiplier:.88,stopInertiaOnNavigate:true})}catch(e){console.warn('Lenis fallback',e)}}
+  const spotTargets=document.querySelectorAll('.assetPanel,.glassCard,.sceneMedia,.gallery figure,.locationMedia,.form');
+  spotTargets.forEach(el=>{el.classList.add('luxurySpotlight');el.addEventListener('pointermove',e=>{const r=el.getBoundingClientRect();el.style.setProperty('--spot-x',((e.clientX-r.left)/r.width*100).toFixed(1)+'%');el.style.setProperty('--spot-y',((e.clientY-r.top)/r.height*100).toFixed(1)+'%')},{passive:true})});
+  if(!reduced&&matchMedia('(pointer:fine)').matches){
+    const ring=document.createElement('div'),dot=document.createElement('div');ring.className='goldCursor';dot.className='goldCursorDot';document.body.append(ring,dot);let tx=-50,ty=-50,rx=-50,ry=-50;
+    addEventListener('pointermove',e=>{tx=e.clientX;ty=e.clientY;ring.classList.add('show');dot.classList.add('show');dot.style.transform=`translate3d(${tx}px,${ty}px,0)`},{passive:true});
+    document.querySelectorAll('a,button,[data-tilt]').forEach(el=>{el.addEventListener('mouseenter',()=>ring.classList.add('hovering'));el.addEventListener('mouseleave',()=>ring.classList.remove('hovering'))});
+    const raf=()=>{rx+=(tx-rx)*.16;ry+=(ty-ry)*.16;ring.style.transform=`translate3d(${rx}px,${ry}px,0)`;requestAnimationFrame(raf)};raf();
+    document.querySelectorAll('.btn,.links a,.submit').forEach(el=>{el.addEventListener('pointermove',e=>{const r=el.getBoundingClientRect(),dx=(e.clientX-(r.left+r.width/2))*.10,dy=(e.clientY-(r.top+r.height/2))*.14;el.style.transform=`translate3d(${dx}px,${dy}px,0)`},{passive:true});el.addEventListener('pointerleave',()=>{el.style.transform=''})});
+  }
+  const sections=document.querySelectorAll('.section');const sio=new IntersectionObserver(entries=>entries.forEach(e=>{if(e.isIntersecting)e.target.style.setProperty('--section-active','1')}),{threshold:.08});sections.forEach(s=>sio.observe(s));
+})();
+</script>
+'''
+          if '</head>' not in x or '</body>' not in x:
+              raise SystemExit('Malformed landing HTML; refusing patch')
+          x=x.replace('</head>',head+'\n</head>',1)
+          x=x.replace('</body>',js+'\n</body>',1)
+          p.write_text(x)
+          PY
+      - name: Verify content contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          x=Path('web/clients/senzik/landing-edge.html').read_text()
+          checks={
+            'marker':'senzik-luxe-investment-v6-gold-lenis' in x,
+            'lenis':'lenis@1.3.26' in x,
+            'three':'three@0.159.0' in x,
+            'vanilla_tilt':'vanilla-tilt@1.8.1' in x,
+            'lead_form':'id="leadForm"' in x,
+            'official_source':'senzikresidences.com' in x,
+            'no_budget':'Presupuesto' not in x,
+            'no_delivery':'¿Cuándo buscas entrega?' not in x,
+            'gold_logo':'brandMark' in x and '/senzik-logo.svg' in x,
+          }
+          bad=[k for k,v in checks.items() if not v]
+          print(checks)
+          if bad: raise SystemExit('QA failed: '+','.join(bad))
+          PY
+      - name: Commit updated landing
+        run: |
+          git config user.name 'CloudSales Release Bot'
+          git config user.email 'noreply@cloudsales.app'
+          git add web/clients/senzik/landing-edge.html
+          git commit -m 'feat(senzik): luxury investment UI v6 with Lenis effects' || exit 0
+          git push
