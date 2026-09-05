@@ -3,8 +3,9 @@ set -euo pipefail
 
 PROJECT_ID="cloudsales-507715"
 
-# Core CloudSales/Cloudy Google capabilities. These should be enabled now.
+# Core CloudSales/Cloudy Google capabilities and automation prerequisites.
 CORE_SERVICES=(
+  cloudresourcemanager.googleapis.com
   drive.googleapis.com
   gmail.googleapis.com
   calendar-json.googleapis.com
@@ -79,7 +80,7 @@ enable_one() {
 
 printf '\n== CloudSales Google API bootstrap ==\nProject: %s\n\n' "$PROJECT_ID"
 
-gcloud config set project "$PROJECT_ID" >/dev/null
+gcloud config set project "$PROJECT_ID" >/dev/null 2>&1 || true
 
 for svc in "${CORE_SERVICES[@]}"; do enable_one "$svc" core; done
 for svc in "${SPECIAL_ACCESS_SERVICES[@]}"; do enable_one "$svc" special; done
@@ -103,7 +104,7 @@ fi
 printf '\nENABLED SERVICES (CloudSales relevant):\n'
 gcloud services list --enabled --project="$PROJECT_ID" \
   --format='table(config.name,title)' \
-  --filter='config.name:(drive.googleapis.com gmail.googleapis.com calendar-json.googleapis.com people.googleapis.com docs.googleapis.com sheets.googleapis.com slides.googleapis.com tasks.googleapis.com pubsub.googleapis.com chat.googleapis.com youtube.googleapis.com youtubeanalytics.googleapis.com youtubereporting.googleapis.com analyticsadmin.googleapis.com analyticsdata.googleapis.com tagmanager.googleapis.com searchconsole.googleapis.com googleads.googleapis.com photospicker.googleapis.com merchantapi.googleapis.com mybusinessaccountmanagement.googleapis.com mybusinessbusinessinformation.googleapis.com businessprofileperformance.googleapis.com mybusinessnotifications.googleapis.com places.googleapis.com geocoding-backend.googleapis.com maps-backend.googleapis.com routes.googleapis.com)'
+  --filter='config.name:(cloudresourcemanager.googleapis.com drive.googleapis.com gmail.googleapis.com calendar-json.googleapis.com people.googleapis.com docs.googleapis.com sheets.googleapis.com slides.googleapis.com tasks.googleapis.com pubsub.googleapis.com chat.googleapis.com youtube.googleapis.com youtubeanalytics.googleapis.com youtubereporting.googleapis.com analyticsadmin.googleapis.com analyticsdata.googleapis.com tagmanager.googleapis.com searchconsole.googleapis.com googleads.googleapis.com photospicker.googleapis.com merchantapi.googleapis.com mybusinessaccountmanagement.googleapis.com mybusinessbusinessinformation.googleapis.com businessprofileperformance.googleapis.com mybusinessnotifications.googleapis.com places.googleapis.com geocoding-backend.googleapis.com maps-backend.googleapis.com routes.googleapis.com)'
 
 if ((${#FAILED_CORE[@]})); then
   exit 2
