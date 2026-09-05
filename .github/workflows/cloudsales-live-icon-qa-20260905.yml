@@ -1,0 +1,69 @@
+name: CloudSales Live Dark Icon QA 2026-09-05
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloudsales-live-icon-qa-20260905.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow requests
+      - name: Verify live manifest and icon pixels
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import requests, hashlib, io, json, math
+
+          base='https://app.cloudsales.app'
+          headers={'Cache-Control':'no-cache','Pragma':'no-cache','User-Agent':'CloudSales-Live-Icon-QA/1.0'}
+          manifest=requests.get(base+'/manifest.webmanifest?qa=20260905',headers=headers,timeout=20)
+          manifest.raise_for_status()
+          m=manifest.json()
+          assert m['background_color'].upper()=='#08070D'
+          assert m['theme_color'].upper()=='#08070D'
+          srcs={x['sizes']:x['src'].split('?')[0] for x in m['icons']}
+          assert srcs['192x192']=='/icon-192.png'
+          assert srcs['512x512']=='/icon-512.png'
+
+          BG=(8,7,13,255)
+          for size in (192,512):
+              source=Path(f'web/assets/cloudsales-isotipo-official-{size}.png').read_bytes()
+              r=requests.get(base+f'/icon-{size}.png?qa=20260905-{size}',headers=headers,timeout=20)
+              r.raise_for_status()
+              live=r.content
+              assert hashlib.sha256(source).hexdigest()==hashlib.sha256(live).hexdigest(), f'live icon-{size} differs from canonical source'
+              im=Image.open(io.BytesIO(live)).convert('RGBA')
+              assert im.size==(size,size)
+              assert im.getpixel((0,0))==BG
+              assert im.getpixel((size-1,0))==BG
+              assert im.getpixel((0,size-1))==BG
+              assert im.getpixel((size-1,size-1))==BG
+              pix=im.load(); xs=[]; ys=[]
+              # mark pixels materially different from dark background
+              for y in range(size):
+                  for x in range(size):
+                      p=pix[x,y]
+                      if max(abs(p[i]-BG[i]) for i in range(3))>8:
+                          xs.append(x); ys.append(y)
+              assert xs and ys
+              box=(min(xs),min(ys),max(xs)+1,max(ys)+1)
+              w=box[2]-box[0]; h=box[3]-box[1]
+              cx=(box[0]+box[2]-1)/2; cy=(box[1]+box[3]-1)/2
+              center=(size-1)/2
+              assert abs(cx-center)<=size*0.025, (size,'x off-center',box,cx)
+              assert abs(cy-center)<=size*0.025, (size,'y off-center',box,cy)
+              assert w<=size*0.74 and h<=size*0.74, (size,'mark too large/cropped',box)
+              assert box[0]>0 and box[1]>0 and box[2]<size and box[3]<size
+              print(f'ICON_{size}_LIVE_OK sha256={hashlib.sha256(live).hexdigest()} bbox={box}')
+          print('LIVE_DARK_ICON_QA_OK')
+          PY
