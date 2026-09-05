@@ -5,7 +5,7 @@
   const CLAIM_KEY = 'cs_pending_claim';
   const CHECKOUT_KEY = 'cs_pending_checkout';
 
-  function ensureTrialUi(){ /* canonical: paid plans only; no paid plan */ }
+  function ensureTrialUi(){ /* canonical: paid plans only */ }
 
   let resendTimer = null;
   let recoveryMode = false;
@@ -219,7 +219,7 @@
 
   function bind(){
     const button=node('authBtn'); if(!button||typeof direct!=='function')return false;
-    captureClaim(); captureCheckout(); prepareCheckoutUi(); bindCheckoutOnboarding(); ensureNotice(); ensureTrialUi(); ensureGoogleAuth(); const forgot=ensureForgot(); if(new URL(location.href).searchParams.get('signup')==='1' && typeof setMode==='function') setMode('signup'); if(new URL(location.href).searchParams.get('signup')==='1' && typeof setMode==='function') setMode('signup'); if(forgot)forgot.onclick=forgotPassword;
+    captureClaim(); captureCheckout(); prepareCheckoutUi(); bindCheckoutOnboarding(); ensureNotice(); ensureTrialUi(); ensureGoogleAuth(); const forgot=ensureForgot(); if(new URL(location.href).searchParams.get('signup')==='1' && typeof setMode==='function') setMode('signup'); if(forgot)forgot.onclick=forgotPassword;
     if(enterRecovery()){
       button.onclick=doReset; document.documentElement.dataset.authRuntime=VERSION; return true;
     }
