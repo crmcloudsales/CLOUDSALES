@@ -22,6 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -m pip install --quiet pillow
           test -f web/assets/cloudsales-isotipo-official-512.png
           test -f web/assets/cloudsales-isotipo-official-192.png
           mkdir -p web/assets
