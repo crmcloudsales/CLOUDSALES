@@ -95,6 +95,7 @@ Deno.serve(async req=>{
   scopes=unique(scopes);
 
   if(!appReady||!devReady||!scopes.length)return json({error:`${provider}_platform_not_configured`,provider_key:provider,setup_required:{oauth_client:!appReady,developer_token:provider==="google_ads"&&!devReady,redirect_uri_expected:`${U}/functions/v1/oauth-callback-relay`,scopes}},503,o);
+  if(!cred)return json({error:`${provider}_platform_not_configured`,provider_key:provider},503,o);
   if(p?.availability==="disabled")return json({error:"provider_not_available"},404,o);
 
   const state=randomUrl(),stateHash=await shaHex(state),expires=new Date(Date.now()+15*60*1000).toISOString(),scope=scopes.join(" ");
