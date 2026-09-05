@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.09.05.1-nav-junk-archive';
+const CACHE='cloudsales-pwa-2026.09.05.0430-canonical-v1';
 const LOCALES=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
 const I18N=[
   '/cloudsales-static-i18n-v2.js',
@@ -26,6 +26,7 @@ const CORE=[
   '/dashboard-runtime-v3.js',
   '/sales-analytics-runtime-v1.js',
   '/native-shell-runtime-v1.js',
+  '/canonical-pwa-runtime-v1.js',
   '/pwa-polish-runtime-v1.js',
   '/workspace-polish-runtime-v1.js',
   '/pwa-i18n-runtime-v1.js',
@@ -69,7 +70,7 @@ self.addEventListener('fetch',event=>{
   const url=new URL(event.request.url);
   if(url.origin!==location.origin) return;
 
-  const runtimeScript=/\/(?:auth|app|meta|cloudy|works|ad-spend|ai-chat|calendar|contact-profile|dashboard|sales-analytics|native-shell|pwa-polish|workspace-polish|pwa-i18n|cloudsales-static-i18n|cloudy-executive|billing|member)[^/]*\.js$/.test(url.pathname);
+  const runtimeScript=/\/(?:auth|app|meta|cloudy|works|ad-spend|ai-chat|calendar|contact-profile|dashboard|sales-analytics|native-shell|canonical-pwa|pwa-polish|workspace-polish|pwa-i18n|cloudsales-static-i18n|cloudy-executive|billing|member)[^/]*\.js$/.test(url.pathname);
   const i18nCatalog=url.pathname.startsWith('/i18n/catalog-v1/');
   const networkFirst=event.request.mode==='navigate'||url.pathname==='/'||url.pathname==='/sw.js'||url.pathname==='/manifest.webmanifest'||url.pathname==='/install.js'||runtimeScript||i18nCatalog;
 
