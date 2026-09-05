@@ -1,1 +1,53 @@
-<!doctype html><html lang="es-MX"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#08070D"><meta name="color-scheme" content="dark"><title>Bienvenido a CloudSales</title><style>*{box-sizing:border-box}body{margin:0;background:radial-gradient(760px 420px at 50% -120px,#2D0A4A 0,transparent 72%),#08070D;color:#fff;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{width:min(980px,calc(100% - 28px));margin:auto;padding:34px 0 44px}.eyebrow{color:#F955B6;font-weight:900;letter-spacing:.08em;font-size:12px}.trial{display:inline-flex;align-items:center;margin-top:10px;padding:7px 11px;border:1px solid #5b3454;border-radius:999px;background:#211323;color:#F955B6;font-weight:900;font-size:12px}.hero{padding:28px;border:1px solid #30303b;border-radius:28px;background:linear-gradient(135deg,#151019,#0b0b11)}h1{font-size:clamp(38px,8vw,66px);line-height:.98;margin:12px 0}.lead{color:#b7bdc9;line-height:1.65;max-width:780px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:28px}.card{display:block;padding:22px;border-radius:20px;border:1px solid #343442;background:#111119;color:#fff;text-decoration:none;transition:.16s}.card:hover,.card:focus-visible{border-color:#F955B6;transform:translateY(-1px);outline:none}.card.primary{border-color:#F955B6;background:linear-gradient(145deg,#211323,#111119)}.card b{display:block;font-size:19px;margin-bottom:7px}.card span{color:#a7aebc;line-height:1.45}.next{margin-top:26px;padding:22px;border-radius:20px;background:#101017;border:1px solid #292936}.next h2{margin-top:0}.small{font-size:13px;color:#8f97a6;line-height:1.55}.btn{display:inline-flex;align-items:center;justify-content:center;margin-top:12px;padding:14px 20px;border-radius:999px;background:linear-gradient(135deg,#F955B6,#C13BE4);color:#fff;text-decoration:none;font-weight:900}.status{margin-top:14px;color:#b7bdc9}.status.ok{color:#8ee6b6}.status.err{color:#ff9cae}@media(max-width:700px){.grid{grid-template-columns:1fr}.hero{padding:20px}.wrap{padding-top:18px}.card{padding:19px}}</style><style data-cs-color-scheme-guard="1">html,body{color-scheme:dark!important;forced-color-adjust:none!important}</style></head><body><main class="wrap"><section class="hero"><div class="eyebrow">TU CLOUDSALES ESTÁ LISTO</div><div class="trial">✓ 7 días gratis activos</div><h1>Elige cómo quieres entrar.</h1><p class="lead">Tu cuenta y tu workspace son los mismos en todos tus dispositivos. Elige una opción ahora; después Cloudy te lleva directamente al onboarding para configurar tu negocio.</p><div id="marketplaceStatus" class="status"></div><div class="grid"><a class="card primary" href="https://app.cloudsales.app/?welcome=1"><b>🌐 Entrar desde tu navegador</b><span>Abre CloudSales Web ahora. No necesitas instalar nada.</span></a><a class="card" id="desktop" href="https://app.cloudsales.app/?install=desktop"><b>💻 Escritorio</b><span>Instala CloudSales como aplicación de escritorio compatible en tu computadora.</span></a><a class="card" href="https://app.cloudsales.app/?install=ios"><b>📱 iPhone / iPad</b><span>Instala CloudSales en tu dispositivo Apple y úsalo como una app.</span></a><a class="card" href="https://app.cloudsales.app/?install=android"><b>🤖 Android</b><span>Instala CloudSales en tu teléfono o tablet Android.</span></a></div></section><section class="next"><h2>Siguiente: onboarding con Cloudy</h2><p class="lead">Usa el mismo correo con el que hiciste el checkout. Cloudy te ayudará a configurar tu negocio, CRM, canales, equipo y automatizaciones paso a paso.</p><a class="btn" href="https://app.cloudsales.app/?welcome=1">Continuar con Cloudy</a><p class="small">Tu prueba de 7 días y tu suscripción se administran desde la misma cuenta de CloudSales. Los mismos Términos, Aviso de Privacidad y políticas de uso aplican sin importar desde qué dispositivo o CRM conectado uses CloudSales.</p></section></main><script>const q=new URLSearchParams(location.search),marketplace=q.get('marketplace'),sid=q.get('session_id'),box=document.getElementById('marketplaceStatus');if(marketplace==='highlevel'&&sid){box.textContent='Terminando la conexión segura con HighLevel…';fetch('https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/highlevel-temp-bootstrap',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'authorize',session_id:sid})}).then(async r=>({ok:r.ok,d:await r.json()})).then(({ok,d})=>{if(!ok)throw new Error(d.error||'authorization_error');box.textContent='✓ Suscripción y acceso de HighLevel autorizados. También enviamos tu acceso por correo.';box.className='status ok'}).catch(()=>{box.textContent='Tu pago quedó registrado. Si HighLevel tarda en habilitar la instalación, vuelve a cargar esta página en unos segundos.';box.className='status err'})}</script></body></html>
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#08070D">
+<meta name="color-scheme" content="dark">
+<title>CloudSales — Activa tu acceso</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#08070D;color:#F3F4F8;font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif}body{display:grid;place-items:center;padding:24px;background:radial-gradient(760px 520px at 50% 0,#2D0A4A 0,transparent 70%),#08070D}.wrap{width:min(760px,100%)}.brand{display:flex;align-items:center;gap:12px;margin-bottom:22px}.brand img{width:54px;height:54px;object-fit:contain}.brand b{font-size:25px}.card{border:1px solid #37323F;background:#111019;border-radius:28px;padding:28px;box-shadow:0 40px 120px #0009}.eyebrow{font-size:12px;font-weight:900;letter-spacing:.11em;color:#F955B6;text-transform:uppercase}.card h1{font-size:clamp(36px,7vw,60px);line-height:.96;letter-spacing:-.055em;margin:10px 0 14px}.lead{color:#B5B1BE;font-size:17px;line-height:1.55;margin:0 0 22px}.ok{border:1px solid #315842;background:#102018;border-radius:16px;padding:13px 15px;color:#9AF1C2;font-size:14px;line-height:1.45;margin-bottom:22px}.sectionTitle{font-size:14px;font-weight:900;margin:0 0 10px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.os{display:block;border:1px solid #3B3546;background:#17141F;border-radius:18px;padding:18px;color:#fff;text-decoration:none;text-align:center;font-weight:900}.os span{display:block;color:#AAA7B2;font-size:12px;font-weight:600;margin-top:5px}.os:hover,.os:focus-visible{border-color:#F955B6;outline:none}.browser{display:block;width:100%;margin-top:10px;border:1px solid #4B3A50;background:linear-gradient(135deg,#F955B6,#C13BE4);color:#fff;text-decoration:none;text-align:center;border-radius:999px;padding:15px 18px;font-weight:950}.auth{margin-top:24px;border-top:1px solid #292531;padding-top:20px}.auth p{margin:6px 0 0;color:#AAA7B2;font-size:14px;line-height:1.5}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.chip{border:1px solid #343443;border-radius:999px;padding:8px 11px;font-size:12px;color:#DDD}.foot{color:#777382;font-size:11px;line-height:1.5;margin-top:16px;text-align:center}@media(max-width:650px){body{padding:14px}.card{padding:22px;border-radius:22px}.grid{grid-template-columns:1fr}.brand{margin-bottom:14px}.card h1{font-size:42px}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<div class="brand"><img src="https://app.cloudsales.app/icon-512.png?v=202609050933" alt="CloudSales"><b>CloudSales</b></div>
+<section class="card">
+<div class="eyebrow">Tu suscripción está lista</div>
+<h1>Instala CloudSales y entra.</h1>
+<p class="lead">Elige dónde vas a usar CloudSales. Después podrás entrar con Google, Microsoft o crear tu cuenta con email y contraseña.</p>
+<div class="ok" id="status">Verificando tu sesión de compra…</div>
+<p class="sectionTitle">1. Elige tu sistema</p>
+<div class="grid">
+<a class="os" id="ios" href="#">iPhone / iPad<span>Safari · Agregar a pantalla de inicio</span></a>
+<a class="os" id="android" href="#">Android<span>Chrome · Instalar aplicación</span></a>
+<a class="os" id="desktop" href="#">Mac / Windows<span>Safari, Chrome o Edge</span></a>
+</div>
+<a class="browser" id="browser" href="#">CONTINUAR EN EL NAVEGADOR</a>
+<div class="auth">
+<p class="sectionTitle">2. Entra o crea tu cuenta</p>
+<p>Al abrir CloudSales verás las tres opciones de acceso: Google, Microsoft o email + contraseña. Si eres nuevo, usa “Crear cuenta” para definir tu contraseña.</p>
+<div class="chips"><span class="chip">Google</span><span class="chip">Microsoft</span><span class="chip">Email + contraseña</span></div>
+</div>
+<div class="foot">CloudSales · Pago administrado de forma segura por Stripe.</div>
+</section>
+</main>
+<script>
+(()=>{
+ const q=new URLSearchParams(location.search),sid=q.get('session_id')||'';
+ const valid=/^cs_(?:live|test)_[A-Za-z0-9_]+$/.test(sid);
+ const status=document.getElementById('status');
+ const app=(install='')=>{const u=new URL('https://app.cloudsales.app/');if(valid){u.searchParams.set('checkout','return');u.searchParams.set('session_id',sid)}if(install)u.searchParams.set('install',install);return u.toString()};
+ document.getElementById('ios').href=app('ios');
+ document.getElementById('android').href=app('android');
+ document.getElementById('desktop').href=app('desktop');
+ document.getElementById('browser').href=app('');
+ if(!valid){status.textContent='No encontramos una sesión de compra válida. Puedes continuar a CloudSales y elegir tu plan desde la aplicación.';status.style.borderColor='#5A3540';status.style.background='#21141A';status.style.color='#FFB0BD';return}
+ fetch('https://fkahaqprzgcimgyathqx.supabase.co/functions/v1/checkout-status?session_id='+encodeURIComponent(sid),{cache:'no-store'})
+ .then(r=>r.json().then(d=>({ok:r.ok||r.status===202,d}))).then(({ok,d})=>{const names={plan_basic:'BASIC',plan_pro:'PRO',plan_premium:'PREMIUM'},plan=names[String(d.item_key||'')]||'CloudSales';status.textContent=ok?`Plan ${plan} listo. Instala la app y entra o crea tu cuenta para terminar la activación.`:'Tu compra está registrada. Continúa a CloudSales para terminar la activación.'})
+ .catch(()=>{status.textContent='Tu compra está registrada. Continúa a CloudSales para terminar la activación.'});
+})();
+</script>
+</body>
+</html>
