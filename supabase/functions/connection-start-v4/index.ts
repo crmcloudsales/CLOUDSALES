@@ -23,12 +23,64 @@ const GOOGLE_WORKSPACE_FALLBACK=[
   "https://www.googleapis.com/auth/content",
   "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
 ];
+const GOOGLE_SCOPE_GROUPS={
+  identity:["openid","email","profile"],
+  drive:["https://www.googleapis.com/auth/drive.readonly"],
+  gmail:["https://www.googleapis.com/auth/gmail.readonly"],
+  calendar:["https://www.googleapis.com/auth/calendar.readonly","https://www.googleapis.com/auth/calendar.events"],
+  contacts:["https://www.googleapis.com/auth/contacts.readonly"],
+  tasks:["https://www.googleapis.com/auth/tasks"],
+  youtube:["https://www.googleapis.com/auth/youtube.readonly","https://www.googleapis.com/auth/youtube.upload","https://www.googleapis.com/auth/youtube.force-ssl"],
+  business_profile:["https://www.googleapis.com/auth/business.manage"],
+  google_ads:["https://www.googleapis.com/auth/adwords"],
+  analytics:["https://www.googleapis.com/auth/analytics.readonly"],
+  search_console:["https://www.googleapis.com/auth/webmasters.readonly"],
+  tag_manager:["https://www.googleapis.com/auth/tagmanager.readonly"],
+  merchant:["https://www.googleapis.com/auth/content"],
+  photos:["https://www.googleapis.com/auth/photospicker.mediaitems.readonly"]
+};
 
 function cors(o:string|null){const v=o&&ORIGINS.has(o)?o:"https://app.cloudsales.app";return{"Access-Control-Allow-Origin":v,"Access-Control-Allow-Headers":"authorization,apikey,content-type,x-client-info","Access-Control-Allow-Methods":"POST,OPTIONS","Vary":"Origin"}}
 function json(b:unknown,s=200,o:string|null=null){return new Response(JSON.stringify(b),{status:s,headers:{...cors(o),"content-type":"application/json;charset=utf-8","cache-control":"no-store","x-content-type-options":"nosniff"}})}
 async function shaHex(v:string){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return[...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function randomUrl(n=40){const b=new Uint8Array(n);crypto.getRandomValues(b);let s="";for(const x of b)s+=String.fromCharCode(x);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")}
 function unique(values:string[]){return [...new Set(values.map(String).map(x=>x.trim()).filter(Boolean))]}
+
+async function ensureGoogleCredentials(svc:any){
+  const clientId=String(Deno.env.get("cloudsales/google/oauth/client-id")||Deno.env.get("GOOGLE_OAUTH_CLIENT_ID")||"").trim();
+  const clientSecret=String(Deno.env.get("cloudsales/google/oauth/client-secret")||Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET")||"").trim();
+  if(!clientId||!clientSecret)return {ready:false,source:"edge_function_secrets_missing"};
+  const redirectUri=`${U}/functions/v1/oauth-callback-relay`;
+
+  const {data:setting}=await svc.from("internal_settings").select("secret_id").eq("setting_key","google_oauth_client_secret_cloudsales").maybeSingle();
+  let secretId=setting?.secret_id||null;
+  if(secretId){
+    const {error}=await svc.rpc("service_update_secret",{p_secret_id:secretId,p_secret:clientSecret,p_name:"cloudsales/google/oauth/client-secret",p_description:"CloudSales Google OAuth client secret synced from Edge Function Secrets"});
+    if(error)throw error;
+  }else{
+    const {data,error}=await svc.rpc("service_store_secret",{p_secret:clientSecret,p_name:"cloudsales/google/oauth/client-secret",p_description:"CloudSales Google OAuth client secret synced from Edge Function Secrets"});
+    if(error||!data)throw error||new Error("google_secret_store_failed");
+    secretId=data;
+  }
+  await svc.from("internal_settings").upsert({setting_key:"google_oauth_client_secret_cloudsales",secret_id:secretId,value:{configured:true,source:"edge_function_secrets",updated_at:new Date().toISOString()}},{onConflict:"setting_key"});
+  await svc.from("internal_settings").upsert({setting_key:"google_oauth_client_id_cloudsales",secret_id:null,value:{client_id:clientId,configured:true,source:"edge_function_secrets",updated_at:new Date().toISOString()}},{onConflict:"setting_key"});
+
+  const providerScopes:Record<string,string[]>={
+    google_workspace:GOOGLE_WORKSPACE_FALLBACK,
+    youtube:["openid","email","profile",...GOOGLE_SCOPE_GROUPS.youtube],
+    google_business_profile:["openid","email","profile",...GOOGLE_SCOPE_GROUPS.business_profile],
+    google_ads:["openid","email","profile",...GOOGLE_SCOPE_GROUPS.google_ads]
+  };
+  for(const providerKey of Object.keys(providerScopes)){
+    const {data:old}=await svc.from("provider_app_credentials").select("metadata").eq("provider_key",providerKey).maybeSingle();
+    const metadata:any={...(old?.metadata||{}),scopes:providerScopes[providerKey],shared_google_oauth_client:true,credential_source:"edge_function_secrets",google_cloud_project_id:"cloudsales-507715",google_cloud_project_number:"1039655793672",configured_at:new Date().toISOString()};
+    if(providerKey==="google_workspace")metadata.scope_groups=GOOGLE_SCOPE_GROUPS;
+    const {error}=await svc.from("provider_app_credentials").upsert({provider_key:providerKey,client_id:clientId,client_secret_secret_id:secretId,redirect_uri:redirectUri,enabled:true,metadata},{onConflict:"provider_key"});
+    if(error)throw error;
+  }
+  await svc.from("provider_catalog").update({availability:"beta",updated_at:new Date().toISOString()}).eq("provider_key","google_workspace");
+  return {ready:true,source:"edge_function_secrets"};
+}
 
 Deno.serve(async req=>{
   const o=req.headers.get("origin");
@@ -60,6 +112,10 @@ Deno.serve(async req=>{
   if(!GOOGLE_DIRECT.has(provider)){
     const r=await fetch(`${U}/functions/v1/connection-start-v3`,{method:"POST",headers:{authorization:auth,apikey:A,"content-type":"application/json",...(o?{origin:o}:{})},body:JSON.stringify({...b,organization_id:org,provider_key:provider})});
     const t=await r.text();let d:any;try{d=JSON.parse(t)}catch{return json({error:"connection_start_bad_response"},502,o)}return json(d,r.status,o)
+  }
+
+  try{await ensureGoogleCredentials(svc)}catch{
+    return json({error:"google_platform_secret_sync_failed"},503,o)
   }
 
   const [{data:p},{data:cred}]=await Promise.all([
@@ -107,6 +163,6 @@ Deno.serve(async req=>{
 
   const q=new URLSearchParams({client_id:String(cred.client_id),redirect_uri:String(cred.redirect_uri),response_type:"code",scope,access_type:"offline",include_granted_scopes:"true",prompt:"consent",state});
   const url=`https://accounts.google.com/o/oauth2/v2/auth?${q}`;
-  await svc.from("audit_log").insert({organization_id:org,actor_user_id:user.id,actor_type:"user",action:"connection.oauth.started",entity_type:"oauth_state",entity_id:attempt.id,success:true,context:{provider_key:provider,scopes,capabilities:requestedCapabilities}});
+  await svc.from("audit_log").insert({organization_id:org,actor_user_id:user.id,actor_type:"user",action:"connection.oauth.started",entity_type:"oauth_state",entity_id:attempt.id,success:true,context:{provider_key:provider,scopes,capabilities:requestedCapabilities,credential_source:"edge_function_secrets"}});
   return json({provider_key:provider,display_name:p?.display_name||provider,authorization_url:url,oauth_attempt_id:attempt.id,state,expires_at:expires,redirect_uri:cred.redirect_uri,callback_method:"GET",scopes,capabilities:requestedCapabilities},200,o)
 });
