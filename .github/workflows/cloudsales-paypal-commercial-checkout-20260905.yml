@@ -5,7 +5,6 @@ on:
     paths:
       - '.github/scripts/cloudsales_paypal_commercial_checkout_20260905.py'
       - '.github/workflows/cloudsales-paypal-commercial-checkout-20260905.yml'
-      - 'web/paypal-plan-links-v1.js'
   workflow_dispatch:
 permissions:
   contents: write
@@ -21,26 +20,23 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Replace public plan Stripe checkout with PayPal-only flow
+      - name: Apply generic PayPal plan checkout
         run: python .github/scripts/cloudsales_paypal_commercial_checkout_20260905.py
       - name: Validate canonical plan checkout policy
         run: |
           python - <<'PY'
           from pathlib import Path
           s=Path('web/commercial.html').read_text(encoding='utf-8')
-          assert 'stripe-checkout-start' not in s
-          assert 'initEmbeddedCheckout' not in s
-          assert 'Checkout seguro por Stripe' not in s
-          assert 'https://js.stripe.com/v3' not in s
+          for forbidden in ['stripe-checkout-start','initEmbeddedCheckout','Checkout seguro por Stripe','https://js.stripe.com/v3','aesquer1@gmail.com','7XCN724E73MHKXAV','arturo-pro','SENZIK','Senzik']:
+              assert forbidden.lower() not in s.lower(), forbidden
           assert 'Pago seguro por PayPal' in s
-          assert 'cs-paypal-plan-registry-v1' in s
-          assert 'cs-paypal-plan-checkout-v1' in s
-          assert "plan_basic:null" in s and "plan_pro:null" in s and "plan_premium:null" in s
+          assert 'cs-paypal-plan-checkout-v2' in s
+          assert 'cloudsales-web/api/catalog' in s
           assert 'https://app.cloudsales.app/?signup=1' in s
           assert 'https://app.cloudsales.app/?install=ios' in s
           assert 'https://app.cloudsales.app/?install=android' in s
           assert 'https://app.cloudsales.app/?install=desktop' in s
-          print('PAYPAL_ONLY_PLAN_CHECKOUT_SOURCE_OK')
+          print('GENERIC_PAYPAL_PLAN_CHECKOUT_SOURCE_OK')
           PY
       - name: Commit commercial source
         run: |
@@ -51,5 +47,5 @@ jobs:
           git config user.name 'CloudSales Canonical Automation'
           git config user.email 'noreply@cloudsales.app'
           git add web/commercial.html
-          git commit -m 'fix(commercial): PayPal-only plan checkout and post-payment signup'
+          git commit -m 'fix(commercial): generic PayPal checkout with zero customer-specific state'
           git push origin HEAD:main
