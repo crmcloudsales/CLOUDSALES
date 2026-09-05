@@ -1,4 +1,4 @@
-const CACHE='cloudsales-pwa-2026.09.05.1948-senzik-pro-paypal';
+const CACHE='cloudsales-pwa-2026.09.05.1510-no-blank';
 const LOCALES=['es','en','fr','it','pt-BR','de','ar-AE','ru','he','zh-CN','ja'];
 const I18N=[
   '/cloudsales-static-i18n-v2.js',
