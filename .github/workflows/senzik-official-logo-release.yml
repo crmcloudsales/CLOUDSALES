@@ -1,0 +1,124 @@
+name: Senzik Official Logo Release
+
+on:
+  push:
+    paths:
+      - '.ops/senzik-official-logo-release.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: senzik-official-logo-release
+  cancel-in-progress: false
+
+jobs:
+  patch-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout canonical source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Patch official Senzik logo and clean source contract
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          landing=Path('web/clients/senzik/landing-edge.html')
+          worker=Path('web/clients/senzik/worker-edge-template.mjs')
+          s=landing.read_text()
+          w=worker.read_text()
+
+          # Exact official logo, proxied same-origin and painted gold through CSS mask.
+          old_header='<a class="brand" href="#inicio" aria-label="Senzik Residences"><img src="https://senzikresidences.com/images/logo-header.svg" alt="Senzik Residences"></a>'
+          new_header='<a class="brand" href="#inicio" aria-label="Senzik Residences"><span class="brandMark" aria-hidden="true"></span><span class="srOnly">Senzik Residences</span></a>'
+          if old_header in s:
+              s=s.replace(old_header,new_header,1)
+          elif 'class="brandMark"' not in s:
+              raise SystemExit('Senzik brand header contract not found')
+
+          # Replace legacy image filter rules with robust mask-based official mark.
+          s=re.sub(
+              r'\.brand\{display:flex;align-items:center;text-decoration:none\}\.brand img\{[^}]*\}(?:\.brand:hover img\{[^}]*\})?',
+              '.brand{display:flex;align-items:center;text-decoration:none;min-width:172px}.brandMark{display:block;width:172px;height:62px;background:linear-gradient(135deg,#F2DBA9 0%,var(--gold) 43%,#9A743A 100%);-webkit-mask:url("/senzik-logo.svg") center/contain no-repeat;mask:url("/senzik-logo.svg") center/contain no-repeat;filter:drop-shadow(0 0 12px rgba(200,168,107,.18));transition:transform .3s ease,filter .3s ease}.brand:hover .brandMark{transform:translateY(-1px);filter:drop-shadow(0 0 18px rgba(200,168,107,.30))}.srOnly{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}',
+              s,
+              count=1
+          )
+          s=s.replace('.brand img{width:124px}', '.brandMark{width:142px;height:52px}.brand{min-width:142px}')
+          s=s.replace('<!-- senzik-future-investment-v3-gold -->','<!-- senzik-future-investment-v4-official-gold-logo -->',1)
+          if 'senzik-future-investment-v4-official-gold-logo' not in s:
+              s=s.replace('</head>','<!-- senzik-future-investment-v4-official-gold-logo -->\n</head>',1)
+
+          # Hard guard: old researched content / invented qualification must never return.
+          forbidden=['autorización municipal','área privativa total','área común total','¿Cuándo buscas entrega?','name="budget"','Presupuesto</label>']
+          found=[x for x in forbidden if x in s]
+          if found:
+              raise SystemExit('Forbidden legacy Senzik content remains: '+', '.join(found))
+          required=['id="leadForm"','name="country_state"','Contenido del proyecto basado exclusivamente','class="brandMark"']
+          missing=[x for x in required if x not in s]
+          if missing:
+              raise SystemExit('Required Senzik contract missing: '+', '.join(missing))
+
+          # Worker serves the exact official SVG same-origin; CSS mask turns every visible logo pixel gold.
+          official='const OFFICIAL_WHATSAPP="https://api.whatsapp.com/send?phone=525512819326&text=Quiero+m%C3%A1s+informaci%C3%B3n+sobre+Senzik";'
+          if 'const OFFICIAL_LOGO=' not in w:
+              w=w.replace(official, official+'\nconst OFFICIAL_LOGO="https://senzikresidences.com/images/logo-header.svg";',1)
+
+          anchor='    if(req.method==="GET"&&path==="/health")return json({'
+          logo_route='''    if(req.method==="GET"&&path==="/senzik-logo.svg"){
+      try{
+        const lr=await fetch(OFFICIAL_LOGO,{headers:{"user-agent":"Mozilla/5.0 (compatible; CloudSales-Senzik/1.0)","accept":"image/svg+xml,*/*"}});
+        if(!lr.ok)throw new Error("official_logo_"+lr.status);
+        const svg=await lr.text();
+        if(!/<svg[\\s>]/i.test(svg))throw new Error("official_logo_invalid");
+        return new Response(svg,{headers:{"content-type":"image/svg+xml;charset=utf-8","cache-control":"public,max-age=86400,s-maxage=86400,stale-while-revalidate=604800","x-content-type-options":"nosniff"}});
+      }catch{
+        const fallback='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120"><text x="0" y="82" fill="black" font-family="Arial,Helvetica,sans-serif" font-size="76" font-weight="600" letter-spacing="12">SENZIK</text></svg>';
+        return new Response(fallback,{headers:{"content-type":"image/svg+xml;charset=utf-8","cache-control":"public,max-age=300","x-content-type-options":"nosniff"}});
+      }
+    }
+
+'''
+          if 'path==="/senzik-logo.svg"' not in w:
+              if anchor not in w: raise SystemExit('Worker route anchor not found')
+              w=w.replace(anchor,logo_route+anchor,1)
+
+          landing.write_text(s)
+          worker.write_text(w)
+          PY
+
+      - name: Verify Senzik source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          F='web/clients/senzik/landing-edge.html'
+          W='web/clients/senzik/worker-edge-template.mjs'
+          grep -q 'senzik-future-investment-v4-official-gold-logo' "$F"
+          grep -q 'class="brandMark"' "$F"
+          grep -q 'mask:url("/senzik-logo.svg")' "$F"
+          grep -q 'path==="/senzik-logo.svg"' "$W"
+          grep -q 'OFFICIAL_LOGO="https://senzikresidences.com/images/logo-header.svg"' "$W"
+          ! grep -q 'autorización municipal' "$F"
+          ! grep -q '¿Cuándo buscas entrega?' "$F"
+          ! grep -q 'name="budget"' "$F"
+
+      - name: Commit canonical Senzik source
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- web/clients/senzik/landing-edge.html web/clients/senzik/worker-edge-template.mjs; then
+            echo 'No source changes required.'
+            exit 0
+          fi
+          git config user.name 'cloudsales-release-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add web/clients/senzik/landing-edge.html web/clients/senzik/worker-edge-template.mjs
+          git commit -m 'Senzik: serve official logo in gold and remove legacy content'
+          git pull --rebase origin main
+          git push origin main
