@@ -1,0 +1,261 @@
+name: Lock official transparent CloudSales isotipo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/cloudsales-official-isotipo-lock-20260905.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cloudsales-official-isotipo-lock-20260905
+  cancel-in-progress: false
+
+jobs:
+  lock-isotipo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Build the canonical transparent isotipo from the approved uploaded icon
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pillow numpy
+
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import numpy as np
+          import json, re, hashlib, base64
+
+          ROOT=Path('web')
+          SOURCE=ROOT/'cloudsales-app-icon-official-v6.png'
+          if not SOURCE.exists():
+              SOURCE=ROOT/'icon-512.png'
+          if not SOURCE.exists():
+              raise SystemExit('No approved CloudSales icon source is available')
+
+          img=Image.open(SOURCE).convert('RGBA')
+          if img.size != (512,512):
+              img=img.resize((512,512),Image.Resampling.LANCZOS)
+          data=np.asarray(img).astype(np.float32)
+          rgb=data[:,:,:3]
+          old_alpha=data[:,:,3]
+
+          # The owner-approved source supplied for CloudSales uses #33005D as its flat image background.
+          # Guard against processing an unrelated icon by validating the corner background first.
+          corners=np.array([rgb[0,0],rgb[0,-1],rgb[-1,0],rgb[-1,-1]],dtype=np.float32)
+          bg=np.median(corners,axis=0)
+          approved_bg=np.array([51.,0.,93.],dtype=np.float32)
+          if np.linalg.norm(bg-approved_bg) > 28 and np.min(old_alpha[[0,0,-1,-1],[0,-1,0,-1]]) > 16:
+              raise SystemExit(f'Icon source guard failed; corner background is {bg.tolist()}, expected the approved CloudSales source')
+
+          if np.max(old_alpha[[0,0,-1,-1],[0,-1,0,-1]]) <= 16:
+              # Already transparent: preserve artwork exactly.
+              rgba=data.astype(np.uint8)
+          else:
+              # Remove only the flat background while retaining the approved artwork geometry and colors.
+              B=bg
+              dist=np.linalg.norm(rgb-B,axis=2)
+              candidates=rgb[dist>55]
+              if len(candidates) < 1000:
+                  raise SystemExit('Not enough foreground pixels to reconstruct approved isotipo')
+
+              # Find the two dominant foreground colors (pink and light/white) without changing their geometry.
+              sample=candidates[::max(1,len(candidates)//50000)]
+              c1=sample[np.argmax(sample[:,0]-sample[:,1])].copy()
+              c2=sample[np.argmax(sample.sum(axis=1))].copy()
+              for _ in range(12):
+                  d1=((sample-c1)**2).sum(axis=1)
+                  d2=((sample-c2)**2).sum(axis=1)
+                  m=d1<=d2
+                  if m.any(): c1=sample[m].mean(axis=0)
+                  if (~m).any(): c2=sample[~m].mean(axis=0)
+              protos=[c1,c2]
+
+              alphas=[]; errors=[]
+              for F in protos:
+                  v=F-B
+                  den=float((v*v).sum()) or 1.0
+                  a=np.clip(((rgb-B)*v).sum(axis=2)/den,0,1)
+                  recon=B+a[...,None]*v
+                  err=((rgb-recon)**2).sum(axis=2)
+                  alphas.append(a); errors.append(err)
+              choose=errors[1] < errors[0]
+              a=np.where(choose,alphas[1],alphas[0])
+              err=np.where(choose,errors[1],errors[0])
+              a=np.where((dist<2.0)|(a<0.02),0,a)
+              a=np.where((dist>60)&(a>0.84),1,a)
+              a=np.where((dist>85)&(err>650),1,a)
+
+              # Decontaminate anti-aliased edge pixels from the removed purple background.
+              fg=np.empty_like(rgb)
+              for idx,F in enumerate(protos):
+                  mask=(choose if idx==1 else ~choose)
+                  aa=np.maximum(a[mask],0.08)[:,None]
+                  calc=(rgb[mask]-(1-aa)*B)/aa
+                  fg[mask]=np.where(a[mask,None]>0.96,rgb[mask],calc)
+              fg=np.clip(fg,0,255).astype(np.uint8)
+              alpha=np.clip(np.rint(a*255),0,255).astype(np.uint8)
+              rgba=np.dstack([fg,alpha])
+
+          canonical=Image.fromarray(rgba.astype(np.uint8),'RGBA')
+          # Hard validation: no baked background, meaningful transparent area, artwork still present.
+          A=np.asarray(canonical)[:,:,3]
+          if any(int(A[y,x]) > 8 for y,x in [(0,0),(0,511),(511,0),(511,511)]):
+              raise SystemExit('Transparency validation failed at canvas corners')
+          transparent_ratio=float((A<8).mean())
+          opaque_ratio=float((A>247).mean())
+          if transparent_ratio < 0.45 or opaque_ratio < 0.05:
+              raise SystemExit(f'Unexpected transparency ratios transparent={transparent_ratio:.3f} opaque={opaque_ratio:.3f}')
+
+          assets=ROOT/'assets'
+          assets.mkdir(parents=True,exist_ok=True)
+          canonical.save(assets/'cloudsales-isotipo-official-512.png',optimize=True)
+          canonical.save(ROOT/'cloudsales-isotipo-official-512.png',optimize=True)
+
+          size_map={192:'cloudsales-isotipo-official-192.png',180:'cloudsales-isotipo-official-180.png',64:'cloudsales-isotipo-official-64.png',32:'cloudsales-isotipo-official-32.png'}
+          variants={512:canonical}
+          for size,name in size_map.items():
+              v=canonical.resize((size,size),Image.Resampling.LANCZOS)
+              variants[size]=v
+              v.save(assets/name,optimize=True)
+              v.save(ROOT/name,optimize=True)
+
+          # Production aliases: all active app/PWA/favicon aliases now contain this exact transparent design.
+          variants[512].save(ROOT/'icon-512.png',optimize=True)
+          variants[192].save(ROOT/'icon-192.png',optimize=True)
+          variants[180].save(ROOT/'apple-touch-icon.png',optimize=True)
+          variants[64].save(ROOT/'favicon.png',optimize=True)
+
+          # Keep one compatibility generation for older cached clients, but replace its bytes with the new design.
+          variants[512].save(ROOT/'cloudsales-app-icon-official-v6.png',optimize=True)
+          variants[192].save(ROOT/'cloudsales-app-icon-official-v6-192.png',optimize=True)
+          variants[180].save(ROOT/'cloudsales-app-icon-official-v6-180.png',optimize=True)
+          variants[64].save(ROOT/'cloudsales-app-icon-official-v6-64.png',optimize=True)
+          variants[32].save(ROOT/'cloudsales-app-icon-official-v6-32.png',optimize=True)
+          for size,name in [(512,'cloudsales-app-icon-official-v6.png'),(192,'cloudsales-app-icon-official-v6-192.png'),(180,'cloudsales-app-icon-official-v6-180.png'),(64,'cloudsales-app-icon-official-v6-64.png'),(32,'cloudsales-app-icon-official-v6-32.png')]:
+              variants[size].save(assets/name,optimize=True)
+
+          # Remove obsolete prior-design public assets. Git history remains audit history; current product tree does not use them.
+          for pattern in [
+              'cloudsales-app-icon-official-v2*.png','cloudsales-app-icon-official-v3*.png','cloudsales-app-icon-official-v4*.png',
+              'cloudsales-favicon-official-v4.png'
+          ]:
+              for p in ROOT.glob(pattern): p.unlink(missing_ok=True)
+              for p in assets.glob(pattern): p.unlink(missing_ok=True)
+
+          # Transparent SVG compatibility wrapper: never paint a background rectangle.
+          (ROOT/'icon.svg').write_text(
+              '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">'
+              '<image href="/cloudsales-isotipo-official-512.png" x="0" y="0" width="512" height="512"/>'
+              '</svg>\n'
+          )
+
+          VERSION='202609050933'
+          manifest=ROOT/'manifest.webmanifest'
+          d=json.loads(manifest.read_text())
+          d['background_color']='#08070D'
+          d['theme_color']='#08070D'
+          d['icons']=[
+              {'src':f'/icon-192.png?v={VERSION}','sizes':'192x192','type':'image/png','purpose':'any'},
+              {'src':f'/icon-512.png?v={VERSION}','sizes':'512x512','type':'image/png','purpose':'any'}
+          ]
+          manifest.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
+
+          # Canonicalize textual references throughout the web app/site while retaining aliases for old caches.
+          replacements={
+              'cloudsales-app-icon-official-v6-192.png':'cloudsales-isotipo-official-192.png',
+              'cloudsales-app-icon-official-v6-180.png':'cloudsales-isotipo-official-180.png',
+              'cloudsales-app-icon-official-v6-64.png':'cloudsales-isotipo-official-64.png',
+              'cloudsales-app-icon-official-v6-32.png':'cloudsales-isotipo-official-32.png',
+              'cloudsales-app-icon-official-v6.png':'cloudsales-isotipo-official-512.png',
+              'cloudsales-app-icon-official-v4-192.png':'cloudsales-isotipo-official-192.png',
+              'cloudsales-app-icon-official-v4.png':'cloudsales-isotipo-official-512.png',
+              'cloudsales-favicon-official-v4.png':'favicon.png'
+          }
+          text_ext={'.html','.js','.mjs','.json','.webmanifest','.css','.txt','.md'}
+          for p in ROOT.rglob('*'):
+              if not p.is_file() or p.suffix not in text_ext: continue
+              try: s=p.read_text()
+              except UnicodeDecodeError: continue
+              n=s
+              for old,new in replacements.items(): n=n.replace(old,new)
+              if n!=s: p.write_text(n)
+
+          def set_link(path,asset,apple=False):
+              if not path.exists(): return
+              s=path.read_text()
+              if apple:
+                  tag=f'<link rel="apple-touch-icon" sizes="180x180" href="{asset}?v={VERSION}">'
+                  if re.search(r'<link rel="apple-touch-icon"[^>]*>',s): s=re.sub(r'<link rel="apple-touch-icon"[^>]*>',tag,s,count=1)
+                  else: s=s.replace('</head>',tag+'</head>',1)
+              else:
+                  tag=f'<link rel="icon" type="image/png" sizes="64x64" href="{asset}?v={VERSION}">'
+                  if re.search(r'<link rel="icon"[^>]*>',s): s=re.sub(r'<link rel="icon"[^>]*>',tag,s,count=1)
+                  else: s=s.replace('</head>',tag+'</head>',1)
+              path.write_text(s)
+
+          set_link(ROOT/'pwa.html','/favicon.png',False)
+          set_link(ROOT/'pwa.html','/apple-touch-icon.png',True)
+          set_link(ROOT/'commercial.html','/assets/cloudsales-isotipo-official-64.png',False)
+          set_link(ROOT/'commercial.html','/assets/cloudsales-isotipo-official-180.png',True)
+
+          sw=ROOT/'sw.js'
+          if sw.exists():
+              s=sw.read_text()
+              s=re.sub(r"const CACHE='[^']+';","const CACHE='cloudsales-pwa-2026.09.05.0933-official-isotipo';",s,count=1)
+              sw.write_text(s)
+
+          digest=hashlib.sha256((assets/'cloudsales-isotipo-official-512.png').read_bytes()).hexdigest()
+          lock=Path('docs/CLOUDSALES_OFFICIAL_ISOTIPO_LOCK_2026-09-05.md')
+          lock.write_text(f'''# CloudSales official isotipo — LOCKED 2026-09-05\n\nStatus: CANONICAL / LOCKED.\n\nThe approved CloudSales cloud-arrow isotipo is the sole main icon for the CloudSales platform and ecosystem. The image asset has a transparent canvas; no purple, black, white, or other rectangle may be baked behind the artwork. Website/PWA surfaces provide their own canonical background (`#08070D`) through UI CSS/theme settings.\n\nCanonical asset: `web/assets/cloudsales-isotipo-official-512.png`\nCanonical root alias: `web/cloudsales-isotipo-official-512.png`\nPWA aliases: `web/icon-512.png`, `web/icon-192.png`\nApple touch alias: `web/apple-touch-icon.png`\nFavicon alias: `web/favicon.png`\nSHA-256 (canonical 512 PNG): `{digest}`\n\nRules:\n1. Do not redraw, regenerate, restyle, recolor, reshape, add shadows, add a container, or bake a background into this isotipo.\n2. All CloudSales website, PWA/app and favicon surfaces must resolve to this canonical design or a resized derivative generated from it.\n3. The UI background is controlled separately by the product theme; current canonical web/PWA background is `#08070D`.\n4. Replacement requires an explicit new owner-approved brand decision.\n''')
+
+          print('official_isotipo_sha256',digest)
+          print('transparent_ratio',transparent_ratio,'opaque_ratio',opaque_ratio,'background',bg.tolist())
+          PY
+
+          # Disable legacy builders/sources that could recreate an older icon design.
+          rm -rf web/icon-v6-src web/icon-v6-enc web/assets/official-icon-build || true
+          rm -f .github/scripts/build_cloudsales_icon_v4_20260902.py .github/scripts/rebuild_pwa_icon_safearea.py scripts/build_cloudsales_pwa_icon.py || true
+          rm -f .github/workflows/cloudsales-official-icon-v5-once.yml \
+                .github/workflows/cloudsales-icon-production-aliases-once.yml \
+                .github/workflows/build-cloudsales-icon-v4-20260902.yml \
+                .github/workflows/build-cloudsales-pwa-icon.yml || true
+
+          # Final assertions: transparent canonical pixels and no maskable declaration that could force a colored container.
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          import json
+          for p in [Path('web/icon-512.png'),Path('web/icon-192.png'),Path('web/favicon.png'),Path('web/apple-touch-icon.png'),Path('web/assets/cloudsales-isotipo-official-512.png')]:
+              im=Image.open(p).convert('RGBA')
+              a=im.getchannel('A')
+              if a.getextrema()[0] != 0:
+                  raise SystemExit(f'{p} is not transparent')
+          m=json.loads(Path('web/manifest.webmanifest').read_text())
+          if any(i.get('purpose')=='maskable' for i in m.get('icons',[])):
+              raise SystemExit('manifest still declares maskable icon')
+          if m.get('background_color')!='#08070D' or m.get('theme_color')!='#08070D':
+              raise SystemExit('PWA theme background drifted from canonical background')
+          print('CloudSales official isotipo lock validation OK')
+          PY
+
+      - name: Commit canonical brand lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'cloudsales-release-bot'
+          git config user.email 'crmcloudsales@gmail.com'
+          git add -A
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(brand): replace previous icon with locked transparent CloudSales isotipo'
+          git pull --rebase origin main
+          git push origin HEAD:main
