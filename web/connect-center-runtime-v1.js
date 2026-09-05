@@ -142,7 +142,7 @@ function render(){
   css();legacyHighLevel(false);
   const t=tabs[activeTab];
   const connected=t.items.filter(x=>connection(x[2])).length;
-  grid.className='csConnectCenter';
+  if(grid.className!=='csConnectCenter')grid.className='csConnectCenter';
   grid.innerHTML=`<div class="csConnectShell">
     <div class="csConnectTabs" role="tablist" aria-label="Tipos de conexión">
       <button class="csConnectTab ${activeTab==='social'?'active':''}" data-tab="social" role="tab" aria-selected="${activeTab==='social'}"><span class="csConnectTabIcon">◫</span><span class="csConnectTabLabel">Redes sociales</span></button>
@@ -178,12 +178,18 @@ function relabel(){
 
 function boot(){
   css();relabel();account();render();
-  const obs=new MutationObserver(()=>{
-    account();relabel();
-    const p=document.getElementById('page-connect');
-    if(p?.classList.contains('active'))render();
+  const page=document.getElementById('page-connect');
+  if(!page)return;
+  const obs=new MutationObserver(mutations=>{
+    const grid=document.getElementById('connectGrid');
+    let needsRender=false;
+    for(const m of mutations){
+      if(m.type==='attributes'&&m.target===page&&m.attributeName==='class')needsRender=true;
+      if(m.type==='childList'&&grid&&(m.target===grid||grid.contains(m.target))&&!grid.querySelector('.csConnectShell'))needsRender=true;
+    }
+    if(needsRender&&page.classList.contains('active'))render();
   });
-  obs.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']});
+  obs.observe(page,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
