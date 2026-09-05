@@ -1,0 +1,78 @@
+name: Patch CloudSales Connect Center 2026-09-05
+
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-connect-center-20260905.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch navigation and Connect Center
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          native = Path('web/native-shell-runtime-v1.js')
+          s = native.read_text()
+          s = s.replace('<button data-csn="marketing" aria-label="Marketing">${icon(\'marketing\')}<small>Marketing</small></button>', '<button data-csn="pipeline" aria-label="Pipeline">${icon(\'pipeline\')}<small>Pipeline</small></button>')
+          s = s.replace('<h3>Todo lo demás, simplificado.</h3>', '<h3>Lo que necesitas menos seguido.</h3>')
+          s = s.replace('<button data-go="inbox">${icon(\'chat\')}AI Chat</button><button data-go="leads">${icon(\'leads\')}Leads</button><button data-go="pipeline">${icon(\'pipeline\')}Pipeline</button>', '<button data-go="marketing">${icon(\'marketing\')}Marketing</button><button data-go="leads">${icon(\'leads\')}Leads</button><button data-go="inbox">${icon(\'chat\')}IA Chat</button>')
+          s = s.replace("['home','inventory','cloudy','marketing']", "['home','inventory','cloudy','pipeline']")
+          native.write_text(s)
+
+          runtime = r'''(()=>{
+          'use strict';
+          const ID='cs-connect-center-v1';
+          const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+          const items={
+            social:[
+              ['facebook','Facebook','zernio','facebook.com'],['instagram','Instagram','zernio','instagram.com'],['tiktok','TikTok','buffer','tiktok.com'],['youtube','YouTube','youtube','youtube.com'],['linkedin','LinkedIn','buffer','linkedin.com'],['google_business','Google My Business','google_business_profile','business.google.com'],['threads','Threads','buffer','threads.net']
+            ],
+            crm:[
+              ['highlevel','HighLevel','highlevel','gohighlevel.com'],['hubspot','HubSpot','hubspot','hubspot.com'],['zoho','Zoho','zoho','zoho.com'],['monday','monday CRM','monday_crm','monday.com'],['twenty','Twenty','twenty','twenty.com'],['pipedrive','Pipedrive','pipedrive','pipedrive.com'],['clientify','Clientify','clientify','clientify.com'],['salesforce','Salesforce','salesforce','salesforce.com'],['dynamics','Dynamics 365','microsoft_dynamics','microsoft.com']
+            ],
+            comm:[
+              ['whatsapp','WhatsApp con IA','meta_whatsapp','whatsapp.com'],['telegram','Telegram','telegram','telegram.org']
+            ],
+            other:[
+              ['google','Google','google','google.com'],['meta','Meta','meta','meta.com'],['tiktok_ecosystem','TikTok','tiktok','tiktok.com'],['microsoft','Microsoft','microsoft','microsoft.com'],['apple','Apple','apple','apple.com',true],['wordpress','WordPress','wordpress','wordpress.org'],['godaddy','GoDaddy','godaddy','godaddy.com'],['hostgator','HostGator','hostgator','hostgator.com'],['hostinger','Hostinger','hostinger','hostinger.com'],['wix','Wix','wix','wix.com'],['notion','Notion','notion','notion.so']
+            ]
+          };
+          function css(){if(document.getElementById(ID+'-css'))return;const s=document.createElement('style');s.id=ID+'-css';s.textContent=`
+          .csConnectCenter{display:grid;gap:22px}.csConnectIntro{border:1px solid #493149;background:radial-gradient(420px 180px at 100% 0,rgba(249,85,182,.13),transparent 72%),#121019;border-radius:22px;padding:18px}.csConnectIntro h2{margin:0;font-size:24px}.csConnectIntro p{margin:6px 0 0;color:#AAA7B2;font-size:12px;line-height:1.45}.csConnectSection h3{margin:0 0 10px;font-size:17px}.csConnectSection p{margin:-5px 0 11px;color:#8f8b99;font-size:10px}.csConnectCards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.csConnectCard{border:1px solid #37323F;background:#121019;border-radius:17px;padding:13px;display:grid;grid-template-columns:40px 1fr auto;gap:10px;align-items:center;min-width:0}.csConnectLogo{width:40px;height:40px;border-radius:12px;background:#F3F4F8;display:grid;place-items:center;overflow:hidden}.csConnectLogo img{width:27px;height:27px;object-fit:contain}.csConnectName{min-width:0}.csConnectName b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.csConnectName small{display:block;color:#8f8b99;font-size:9px;margin-top:3px}.csConnectAction{border:1px solid #5b3551;background:#17141F;color:#F3F4F8;border-radius:999px;padding:7px 9px;font-size:9px;font-weight:850}.csConnectAction.connected{border-color:#315B43;color:#8EE3B0}.csConnectAction:disabled{opacity:.55}.csAccountConnect{margin-top:10px;width:100%}@media(max-width:860px){.csConnectCards{grid-template-columns:1fr 1fr}.csConnectCard{grid-template-columns:36px 1fr auto;padding:11px}.csConnectLogo{width:36px;height:36px}}@media(max-width:520px){.csConnectCards{grid-template-columns:1fr}}
+          `;document.head.appendChild(s)}
+          function favicon(domain){return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`}
+          function connection(provider){return (window.currentOrg?.connections||[]).find(x=>x.provider_key===provider)}
+          function card(x){const [key,name,provider,domain,soon]=x,c=connection(provider),connected=c?.status==='connected';return `<div class="csConnectCard" data-key="${esc(key)}"><span class="csConnectLogo"><img loading="lazy" alt="" src="${favicon(domain)}"></span><span class="csConnectName"><b>${esc(name)}</b><small>${connected?'Conectado':soon?'Próximamente':'Integración'}</small></span><button class="csConnectAction ${connected?'connected':''}" data-provider="${esc(provider)}" ${connected||soon?'disabled':''}>${connected?'Conectado':soon?'Próximamente':'Conectar'}</button></div>`}
+          function section(title,desc,list){return `<section class="csConnectSection"><h3>${esc(title)}</h3><p>${esc(desc)}</p><div class="csConnectCards">${list.map(card).join('')}</div></section>`}
+          function render(){const page=document.getElementById('page-connect'),grid=document.getElementById('connectGrid');if(!page||!grid)return;css();const oldPrivate=page.querySelector('#hlLocation')?.closest('.card');const oldHead=oldPrivate?.previousElementSibling;grid.className='csConnectCenter';grid.innerHTML=`<div class="csConnectIntro"><h2>CONECTAR</h2><p>Elige el ecosistema. CloudSales te lleva al flujo de autorización y mantiene cada conexión separada por organización.</p></div>${section('Redes sociales','Conecta los 7 canales desde aquí.',items.social)}${section('CRM\'S','Elige tu CRM y continúa con su autorización.',items.crm)}${section('Canales de comunicación','WhatsApp con IA y mensajería.',items.comm)}${section('Otros','Ecosistemas, web, productividad y hosting.',items.other)}`;if(oldHead)oldHead.style.display='none';if(oldPrivate)oldPrivate.style.display='none';grid.querySelectorAll('.csConnectAction:not(:disabled)').forEach(b=>b.onclick=()=>{const p=b.dataset.provider;if(typeof window.connectProvider==='function'){window.connectProvider(p);return}if(typeof connectProvider==='function'){connectProvider(p);return}alert('Esta integración todavía necesita habilitar su flujo de autorización.');});}
+          function account(){const page=document.getElementById('page-settings');if(!page||page.querySelector('#csAccountConnect'))return;const cards=page.querySelector('.cards');if(!cards)return;const c=document.createElement('div');c.className='card';c.id='csAccountConnect';c.innerHTML='<h3>Conectar</h3><p>CRM, redes sociales, WhatsApp y ecosistemas del negocio.</p><button class="btn primary csAccountConnect">CONECTAR</button>';cards.prepend(c);c.querySelector('button').onclick=()=>{if(typeof window.go==='function')window.go('connect');else if(typeof go==='function')go('connect');else{location.hash='#connect';document.querySelector('[data-page="connect"]')?.click()}}}
+          function boot(){render();account();const obs=new MutationObserver(()=>{if(document.getElementById('page-connect')?.classList.contains('active'))render();account()});obs.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']});}
+          if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+          })();'''
+          Path('web/connect-center-runtime-v1.js').write_text(runtime)
+
+          pwa=Path('web/pwa.html')
+          h=pwa.read_text()
+          tag='<script src="/connect-center-runtime-v1.js?v=2026090501"></script>'
+          if 'connect-center-runtime-v1.js' not in h:
+              h=h.replace('</body>',tag+'</body>')
+          pwa.write_text(h)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name 'CloudSales Automation'
+          git config user.email 'automation@cloudsales.app'
+          git add web/native-shell-runtime-v1.js web/connect-center-runtime-v1.js web/pwa.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'feat(ui): rotate IA Chat Marketing Pipeline and add Connect center'
+          git push origin HEAD:main
