@@ -1,0 +1,26 @@
+name: Run PWA Cloudy route fix
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/pwa-cloudy-route-canonical-fix-20260905.js'
+      - '.github/workflows/run-pwa-cloudy-route-fix-20260905.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/pwa-cloudy-route-canonical-fix-20260905.js
+      - run: node --check web/native-shell-runtime-v1.js
+      - run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/native-shell-runtime-v1.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(pwa): make Cloudy voice-only across the shell"
+          git push
