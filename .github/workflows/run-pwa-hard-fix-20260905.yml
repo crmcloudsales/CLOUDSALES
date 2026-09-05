@@ -1,0 +1,25 @@
+name: Run PWA hard fix
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/pwa-hard-fix-20260905.js'
+      - '.github/workflows/run-pwa-hard-fix-20260905.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/pwa-hard-fix-20260905.js
+      - run: |
+          git config user.name crmcloudsales
+          git config user.email crmcloudsales@gmail.com
+          git add web/native-shell-runtime-v1.js web/pwa.html web/sw.js
+          git diff --cached --quiet && exit 0
+          git commit -m "fix(pwa): canonical Office nav voice auth and no clipping"
+          git push
