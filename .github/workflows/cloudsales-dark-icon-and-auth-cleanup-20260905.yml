@@ -21,9 +21,9 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install pillow
-      - name: Apply canonical icon and auth cleanup
+      - name: Apply canonical icon, auth and billing cleanup
         run: python .github/scripts/cloudsales_dark_icon_and_auth_cleanup_20260905.py
-      - name: Validate no free-trial copy in live PWA sources
+      - name: Validate canonical PWA policy
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -36,16 +36,21 @@ jobs:
             for p in pats:
               if re.search(p,s,re.I): bad.append((str(f),p))
           assert not bad,bad
-          print('NO_FREE_TRIAL_COPY_OK')
+          b=Path('web/billing-runtime-v1.js').read_text(encoding='utf-8')
+          assert 'SENZIK' not in b and 'aesquer1@gmail.com' not in b and '7XCN724E73MHKXAV' not in b
+          a=Path('web/auth-runtime-v2.js').read_text(encoding='utf-8')
+          assert "get('signup')==='1'" in a
+          assert 'stripe-checkout-start' not in a
+          print('PWA_CANONICAL_POLICY_OK')
           PY
       - name: Commit patched production sources
         run: |
-          if git diff --quiet -- web/assets/cloudsales-isotipo-official-512.png web/assets/cloudsales-isotipo-official-192.png web/auth-runtime-v2.js; then
+          if git diff --quiet -- web/assets/cloudsales-isotipo-official-512.png web/assets/cloudsales-isotipo-official-192.png web/auth-runtime-v2.js web/billing-runtime-v1.js; then
             echo 'No changes required.'
             exit 0
           fi
           git config user.name 'CloudSales Canonical Automation'
           git config user.email 'noreply@cloudsales.app'
-          git add web/assets/cloudsales-isotipo-official-512.png web/assets/cloudsales-isotipo-official-192.png web/auth-runtime-v2.js
-          git commit -m 'fix(pwa): dark icon and zero free-trial auth copy'
+          git add web/assets/cloudsales-isotipo-official-512.png web/assets/cloudsales-isotipo-official-192.png web/auth-runtime-v2.js web/billing-runtime-v1.js
+          git commit -m 'fix(pwa): canonical icon, auth and plan billing flow'
           git push origin HEAD:main
